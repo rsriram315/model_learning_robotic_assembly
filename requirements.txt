@@ -1,0 +1,6 @@
+tqdm
+numpy
+tensorboard
+torch
+torchvision
+h5py
