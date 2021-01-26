@@ -1,8 +1,5 @@
-import torch.nn as nn
+# import torch.nn as nn
 
 
-def mpc_loss(outputs, targets):
-    loss = 0
-    for output, target in enumerate(zip(outputs, targets)):
-        loss += nn.MSELoss(output, target, reduction='sum')
-    return loss
+# def l2_loss(output, target):
+#     return nn.MSELoss()(output, target)

@@ -19,5 +19,9 @@ $$\mathcal{L}_{dynamics} = \sum_{h=1}^{H} \left\lVert \hat{z}_{t+h} - z_{t+h}\ri
 
 - L2 loss, minimize the dynamics prediction error over the horizon H (H=1 for now).
 
+### Remarks
 
+When the arm grasp the object:
 
+- for 02 data, 1292 states, 320 actions
+- for 03 data, 1206 states, 524 actions

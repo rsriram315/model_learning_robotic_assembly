@@ -7,12 +7,14 @@ class BaseDataLoader(DataLoader):
     """
     base class for all data loaders
     """
-    def __init__(self, dataset, batch_size, shuffle, validation_split):
+    def __init__(self, dataset, batch_size, shuffle, validation_split,
+                 num_workers):
         self.validation_split = validation_split
         self.shuffle = shuffle
 
         self.batch_idx = 0
         self.n_samples = len(dataset)
+        print(f"total samples {self.n_samples}")
 
         self.sampler, self.valid_sampler = \
             self._split_sampler(self.validation_split)
@@ -20,7 +22,8 @@ class BaseDataLoader(DataLoader):
         self.init_kwargs = {
             'dataset': dataset,
             'batch_size': batch_size,
-            'shuffle': self.shuffle
+            'shuffle': self.shuffle,
+            'num_workers': num_workers,
         }
         super().__init__(sampler=self.sampler, **self.init_kwargs)
 
@@ -34,12 +37,12 @@ class BaseDataLoader(DataLoader):
             assert split > 0
             assert split < self.n_samples, ("validation size is configured to"
                                             " be larger than entire dataset.")
-            len_valid = split
+            len_val = split
         else:
-            len_valid = int(self.n_samples * split)
+            len_val = int(self.n_samples * split)
 
-        valid_idx = idx_full[0:len_valid]
-        train_idx = np.delete(idx_full, np.arange(0, len_valid))
+        valid_idx = idx_full[0:len_val]
+        train_idx = np.delete(idx_full, np.arange(0, len_val))
 
         train_sampler = SubsetRandomSampler(train_idx)
         valid_sampler = SubsetRandomSampler(valid_idx)

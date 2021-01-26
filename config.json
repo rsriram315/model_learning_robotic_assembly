@@ -1,0 +1,48 @@
+{
+    "n_gpu": 1,
+    "dataset": {
+        "name": "DemoDataset",
+        "params": {
+            "root": "data",
+            "fnames": ["recording_0002_2020_12_3.h5", "recording_0003_2020_12_3.h5"],
+            "sample_freq": "100",
+            "state_attrs": {
+                "name": "PandaStatePublisherarm_states",
+                "attrs": "tcp_pose_base"
+            },
+            "action_attrs": {
+                "name": "PandaCartesianImpedanceControllercontrollerReference",
+                "attrs": "pose"
+            },
+            "training": true
+        }
+    },
+    "dataloader": {
+        "name": "DemoDataLoader",
+        "params": {
+            "batch_size": 64,
+            "shuffle": true,
+            "validation_split": 0.2,
+            "num_workers": 2
+        }
+    },
+    "trainer": {
+        "num_epochs": 20,
+        "ckpts_dir": "saved/ckpts/",
+        "log_file": "saved/train.log",
+        "save_period": 3
+    },
+    "test": {
+        "num_epochs": 20,
+        "ckpt_pth": "saved/ckpts/ckpt-epoch18.pth",
+        "log_file": "saved/test.log"
+    },
+    "optimizer": {
+        "name": "Adam",
+        "args":{
+            "lr": 0.001,
+            "weight_decay": 0,
+            "amsgrad": true
+        }
+    }
+}
