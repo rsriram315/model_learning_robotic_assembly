@@ -3,21 +3,24 @@ import torch
 from tqdm import tqdm
 from functools import partial
 from model import MLP
-from dataloaders import DemoDataLoader
-from utils import read_json
+from dataloaders import DemoDataset, DemoDataLoader
+from utils import read_json, split_train_test
 from logger import write_log
 
 
 def test(cfg_path):
     # setup dataloader instances
     cfg = read_json(cfg_path)
-    test_cfg = cfg["test"]
-    write_test_log = partial(write_log, test_cfg["log_file"])
     dataset_cfg = cfg["dataset"]
     dataloader_cfg = cfg["dataloader"]
-    dataloader = DemoDataLoader(dataset_cfg, dataloader_cfg)
+    test_cfg = cfg["test"]
 
-    valid_dataloader = dataloader.split_validation()
+    write_test_log = partial(write_log, test_cfg["log_file"])
+
+    init_dataset = DemoDataset(**dataset_cfg["params"])
+    _, test_dataset = split_train_test(init_dataset, dataset_cfg["seed"])
+    dataloader = DemoDataLoader(test_dataset, dataloader_cfg)
+
     # build model architecture, then print to console
     model = MLP(input_dims=6, output_dims=3)
     # get function handles of loss and metrics
@@ -38,7 +41,7 @@ def test(cfg_path):
     total_metrics = torch.zeros(len(metrics))
 
     with torch.no_grad():
-        for i, (state_action, target) in enumerate(tqdm(valid_dataloader)):
+        for i, (state_action, target) in enumerate(tqdm(dataloader)):            
             state_action, target = state_action.to(device), target.to(device)
             output = model(state_action)
 
@@ -48,7 +51,7 @@ def test(cfg_path):
             for i, metric in enumerate(metrics):
                 total_metrics[i] += metric(output, target) * batch_size
 
-    n_samples = len(valid_dataloader.sampler)
+    n_samples = len(dataloader.sampler)
     log = {'loss': total_loss / n_samples}
     log.update({
         met.__name__: total_metrics[i].item() /

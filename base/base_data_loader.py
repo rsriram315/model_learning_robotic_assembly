@@ -24,6 +24,7 @@ class BaseDataLoader(DataLoader):
             'batch_size': batch_size,
             'shuffle': self.shuffle,
             'num_workers': num_workers,
+            'pin_memory': True
         }
         super().__init__(sampler=self.sampler, **self.init_kwargs)
 

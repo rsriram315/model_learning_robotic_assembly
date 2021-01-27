@@ -17,6 +17,6 @@ class MLP(BaseModel):
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
+        x = self.fc3(x)
         # x = self.dropout(x, training=self.training)
         return x  # should I use softmax for the output

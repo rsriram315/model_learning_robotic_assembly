@@ -9,15 +9,16 @@ class Trainer(BaseTrainer):
     Trainer class
     """
     def __init__(self, model, criterion, metric_fns, optimizer,
-                 num_epochs, ckpts_dir, log_file, save_period,
+                 num_epochs, ckpts_dir, save_period,
+                 log_file, tb_dir,
                  device, dataloader,
                  valid_dataloader=None,
                  lr_scheduler=None):
 
-        super().__init__(model, criterion, metric_fns, optimizer,
-                         num_epochs, ckpts_dir, log_file, save_period)
+        super().__init__(model, criterion, metric_fns, optimizer, num_epochs,
+                         ckpts_dir, save_period, log_file, tb_dir)
 
-        for f in [ckpts_dir, log_file]:
+        for f in [ckpts_dir, log_file, tb_dir]:
             ensure_dir(f)
 
         self.device = device
@@ -45,18 +46,24 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
+        tb_step = (epoch - 1) * len(self.dataloader)
 
         for batch_idx, (state_action, target) in enumerate(self.dataloader):
-            state_action, target = (state_action.to(self.device),
-                                    target.to(self.device))
+            state_action, target = \
+                (state_action.to(self.device, non_blocking=True),
+                 target.to(self.device, non_blocking=True))
 
-            self.optimizer.zero_grad()  # intialize the gradient to zero first
+            # intialize the gradient to None first
+            self.optimizer.zero_grad(set_to_none=True)
             output = self.model(state_action)
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
 
+            # logging
             self.train_metrics.update('loss', loss.item())
+            self.train_tb_writer.add_scalar("loss", loss.item(), tb_step)
+            tb_step += 1
 
             for met in self.metric_fns:
                 self.train_metrics.update(met.__name__, met(output, target))

@@ -1,5 +1,7 @@
 import numpy as np
 import h5py
+import torch
+from torch.utils.data import random_split
 
 # gripper distance smaller than 0.013 means 'grasp', otherwise it's release
 GRIPPER_CLOSED_THRESHOLD = 0.013
@@ -80,7 +82,7 @@ def pair_state_action(sample_freq, states_time, actions_time):
     #     i["data"] = i["data"][start_idx:]
     #     i["time"] = i["time"][start_idx:]
 
-    sample_time = np.arange(start_time, end_time, 1.0/int(sample_freq))
+    sample_time = np.arange(start_time, end_time, 1.0/sample_freq)
 
     for t in sample_time:
         state_action_idx.append(
@@ -100,3 +102,12 @@ def zero_order_interpolation(time_stamp, states_t, actions_t):
     action_idx = sum(action_mask) - 1
 
     return state_idx, action_idx
+
+
+def split_train_test(init_ds, seed=42):
+    test_len = int(len(init_ds)*0.2)
+    lengths = [len(init_ds) - test_len, test_len]
+    train_ds, test_ds = \
+        random_split(init_ds, lengths,
+                     generator=torch.Generator().manual_seed(seed))
+    return train_ds, test_ds

@@ -3,31 +3,35 @@ import torch
 import numpy as np
 from model import MLP
 from trainer import Trainer
-from dataloaders import DemoDataLoader
-from utils import prepare_device, read_json
+from dataloaders import DemoDataset, DemoDataLoader
+from utils import prepare_device, read_json, split_train_test
 
 
 # fix random seeds for reproducibility
 SEED = 123
 torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+# torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.enabled = True
 np.random.seed(SEED)
 
 
-def main(cfg_path):
+def train(cfg_path):
     # setup dataloader instances
     cfg = read_json(cfg_path)
     dataset_cfg = cfg["dataset"]
     dataloader_cfg = cfg["dataloader"]
-    dataloader = DemoDataLoader(dataset_cfg, dataloader_cfg)
+    init_dataset = DemoDataset(**dataset_cfg["params"])
+    train_dataset, _ = split_train_test(init_dataset, dataset_cfg["seed"])
+    dataloader = DemoDataLoader(train_dataset, dataloader_cfg)
 
     valid_dataloader = dataloader.split_validation()
 
-    print(f"{dataloader.n_samples} training samples")
+    print(f"... {dataloader.n_samples} training samples")
 
     # build model architecture, then print to console
-    model = MLP(input_dims=6, output_dims=3)
+    model = MLP(input_dims=14, output_dims=7)
+    print(model)
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(cfg["n_gpu"])
     model = model.to(device)
@@ -58,4 +62,4 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', default=None, type=str,
                         help='config file path (default: None)')
     args = parser.parse_args()
-    main(args.config)
+    train(args.config)

@@ -6,8 +6,7 @@ from utils import read_one_demo, pair_state_action
 
 class DemoDataset(Dataset):
     def __init__(self, root, fnames, sample_freq,
-                 state_attrs, action_attrs,
-                 training, transform=None):
+                 state_attrs, action_attrs, transform=None):
         """
         form (state, action) pair as x, and state at right next time stamp
         as label, pack them together.
@@ -35,10 +34,10 @@ class DemoDataset(Dataset):
 
     def __getitem__(self, idx):
         state_idx, action_idx = self.state_action_idx[idx]
-        sample = np.concatenate((self.states[state_idx][:3],
-                                 self.actions[action_idx][:3]))
+        sample = np.concatenate((self.states[state_idx],
+                                 self.actions[action_idx]))
         # simpliest case where action is the target state
-        target = self.actions[action_idx][:3]
+        target = self.actions[action_idx]
 
         if self.transform:
             sample = self.transform(sample)
@@ -64,7 +63,3 @@ class DemoDataset(Dataset):
 
             offset[0] += len(states_time["data"])
             offset[1] += len(actions_time["data"])
-
-    # TODO: split train and test and store them in the dir
-    def _split_train_test(self):
-        pass

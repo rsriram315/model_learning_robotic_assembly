@@ -2,6 +2,7 @@ import torch
 from pathlib import Path
 from abc import abstractclassmethod
 from functools import partial
+from torch.utils.tensorboard.writer import SummaryWriter
 from logger import write_log
 
 
@@ -10,15 +11,21 @@ class BaseTrainer:
     Base class for all trainers
     """
     def __init__(self, model, criterion, metric_fns, optimizer,
-                 num_epochs, ckpts_dir, log_file, save_period):
+                 num_epochs, ckpts_dir, save_period, log_file, tb_dir):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
         self.num_epochs = num_epochs
+
         self.ckpts_dir = Path(ckpts_dir)
         self.metric_fns = metric_fns
         self.write_log = partial(write_log, log_file)
+
         self.save_period = save_period
+        if tb_dir is not None:
+            tb_dir = Path(tb_dir)
+            self.train_tb_writer = SummaryWriter(tb_dir / "train")
+            self.val_tb_writer = SummaryWriter(tb_dir / "val")
 
     @abstractclassmethod
     def _train_epoch(self, epoch):
@@ -60,6 +67,8 @@ class BaseTrainer:
             if self.do_validation:
                 val_log = self._valid_epoch()
                 self.write_log(f'Validation loss: {val_log["loss"]}\n')
+                self.val_tb_writer.add_scalar("loss", val_log["loss"],
+                                              epoch * len(self.dataloader))
 
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch)
