@@ -49,6 +49,8 @@ class Trainer(BaseTrainer):
         tb_step = (epoch - 1) * len(self.dataloader)
 
         for batch_idx, (state_action, target) in enumerate(self.dataloader):
+            # state_action, target = \
+            #     self.dataloader.transform(state_action, target)
             state_action, target = \
                 (state_action.to(self.device, non_blocking=True),
                  target.to(self.device, non_blocking=True))

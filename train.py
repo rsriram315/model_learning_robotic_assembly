@@ -4,7 +4,7 @@ import numpy as np
 from model import MLP
 from trainer import Trainer
 from dataloaders import DemoDataset, DemoDataLoader
-from utils import prepare_device, read_json, split_train_test
+from utils import prepare_device, read_json
 
 
 # fix random seeds for reproducibility
@@ -21,8 +21,9 @@ def train(cfg_path):
     cfg = read_json(cfg_path)
     dataset_cfg = cfg["dataset"]
     dataloader_cfg = cfg["dataloader"]
-    init_dataset = DemoDataset(**dataset_cfg["params"])
-    train_dataset, _ = split_train_test(init_dataset, dataset_cfg["seed"])
+    dataset = DemoDataset(**dataset_cfg["params"])
+    train_dataset = dataset.split_train_test(train=True,
+                                             seed=dataset_cfg["seed"])
     dataloader = DemoDataLoader(train_dataset, dataloader_cfg)
 
     valid_dataloader = dataloader.split_validation()
@@ -30,7 +31,7 @@ def train(cfg_path):
     print(f"... {dataloader.n_samples} training samples")
 
     # build model architecture, then print to console
-    model = MLP(input_dims=14, output_dims=7)
+    model = MLP(input_dims=12, output_dims=6)
     print(model)
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(cfg["n_gpu"])

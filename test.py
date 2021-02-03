@@ -4,7 +4,7 @@ from tqdm import tqdm
 from functools import partial
 from model import MLP
 from dataloaders import DemoDataset, DemoDataLoader
-from utils import read_json, split_train_test
+from utils import read_json
 from logger import write_log
 
 
@@ -17,12 +17,13 @@ def test(cfg_path):
 
     write_test_log = partial(write_log, test_cfg["log_file"])
 
-    init_dataset = DemoDataset(**dataset_cfg["params"])
-    _, test_dataset = split_train_test(init_dataset, dataset_cfg["seed"])
+    dataset = DemoDataset(**dataset_cfg["params"])
+    test_dataset = dataset.split_train_test(train=False,
+                                            seed=dataset_cfg["seed"])
     dataloader = DemoDataLoader(test_dataset, dataloader_cfg)
 
     # build model architecture, then print to console
-    model = MLP(input_dims=6, output_dims=3)
+    model = MLP(input_dims=12, output_dims=6)
     # get function handles of loss and metrics
     criterion = torch.nn.MSELoss()
     metrics = []

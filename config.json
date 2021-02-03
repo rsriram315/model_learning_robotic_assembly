@@ -14,20 +14,25 @@
             "action_attrs": {
                 "name": "PandaCartesianImpedanceControllercontrollerReference",
                 "attrs": "pose"
+            },
+            "preprocess": {
+                "normalize": false,
+                "euler_vector": true,
+                "interpolation": "cubic_spline"
             }
         }
     },
     "dataloader": {
         "name": "DemoDataLoader",
         "params": {
-            "batch_size": 4,
+            "batch_size": 128,
             "shuffle": true,
             "validation_split": 0.2,
             "num_workers": 4
         }
     },
     "trainer": {
-        "num_epochs": 50,
+        "num_epochs": 100,
         "ckpts_dir": "saved/ckpts/",
         "save_period": 5,
         "log_file": "saved/train.log",
@@ -35,7 +40,7 @@
     },
     "test": {
         "num_epochs": 20,
-        "ckpt_pth": "saved/ckpts/ckpt-epoch45.pth",
+        "ckpt_pth": "saved/ckpts/ckpt-epoch100.pth",
         "log_file": "saved/test.log"
     },
     "optimizer": {
