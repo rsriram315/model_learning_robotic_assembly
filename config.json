@@ -9,17 +9,22 @@
             "sample_freq": 100,
             "state_attrs": {
                 "name": "PandaStatePublisherarm_states",
-                "attrs": "tcp_pose_base"
+                "attrs": ["tcp_pose_base", "tcp_wrench_base"]
             },
             "action_attrs": {
                 "name": "PandaCartesianImpedanceControllercontrollerReference",
-                "attrs": "pose"
+                "attrs": ["pose", "wrench"]
             },
             "preprocess": {
                 "normalize": false,
-                "euler_vector": true,
-                "interpolation": "cubic_spline"
-            }
+                "euler_vec": false,
+                "interp": {
+                    "pos": "cubic_spline",
+                    "rot": "slerp",
+                    "force": "cubic_spline"
+                }
+            },
+            "contact_only": true
         }
     },
     "dataloader": {

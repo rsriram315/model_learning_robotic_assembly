@@ -31,7 +31,7 @@ def train(cfg_path):
     print(f"... {dataloader.n_samples} training samples")
 
     # build model architecture, then print to console
-    model = MLP(input_dims=12, output_dims=6)
+    model = MLP(input_dims=20, output_dims=10)
     print(model)
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(cfg["n_gpu"])
@@ -42,7 +42,6 @@ def train(cfg_path):
 
     # get function handles of loss and metrics
     criterion = torch.nn.MSELoss()
-    # TODO: metrics
     metrics = []
 
     # build optimizer, learning rate scheduler. delete every lines containing

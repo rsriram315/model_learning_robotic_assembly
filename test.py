@@ -23,7 +23,7 @@ def test(cfg_path):
     dataloader = DemoDataLoader(test_dataset, dataloader_cfg)
 
     # build model architecture, then print to console
-    model = MLP(input_dims=12, output_dims=6)
+    model = MLP(input_dims=20, output_dims=10)
     # get function handles of loss and metrics
     criterion = torch.nn.MSELoss()
     metrics = []
