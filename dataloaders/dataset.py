@@ -5,8 +5,7 @@ from functools import partial
 from pathlib import Path
 from scipy.ndimage import gaussian_filter1d
 from torch.utils.data import Dataset, random_split
-from .data_processor import data_stats, normalize, quaternion_to_axis_angle,\
-                            axis_angle_to_euler_vector, Interpolation
+from .data_processor import data_stats, normalize, Interpolation
 
 
 class DemoDataset(Dataset):
@@ -44,6 +43,7 @@ class DemoDataset(Dataset):
         self.all_actions_time = None
         self.all_actions_pos = None
         self.all_states_force = None
+        self.all_states_pos = None
         self.all_states_time = None
 
         self.preprocess = preprocess
@@ -80,21 +80,15 @@ class DemoDataset(Dataset):
                                                   self.action_attrs,
                                                   self.contact_only)
 
-            if self.preprocess["euler_vec"]:
-                states["rot"] = \
-                    self._quaternion_to_euler_vector(states["rot"])
-                actions["rot"] = \
-                    self._quaternion_to_euler_vector(actions["rot"])
-
+            # debug variables
             self.all_states_time = states["time"]
             self.all_states_force = states["force"]
-
+            self.all_states_pos = states["pos"]
             self.all_actions_pos = actions["pos"]
             self.all_actions_time = actions["time"]
 
             self.paired_states_actions.extend(
-                self._pair_state_action(self.sample_freq, states, actions,
-                                        self.contact_only))
+                self._pair_state_action(self.sample_freq, states, actions))
 
         self.paired_states_actions = np.array(self.paired_states_actions)
 
@@ -178,7 +172,42 @@ class DemoDataset(Dataset):
 
         return start_time, stop_time
 
-    def _contact_time(self, force_xyz, sigma=8):
+    def _contact(self, t, d, is_state):
+        """
+        extract the contacting phase of the data and the corresponding time
+        """
+        t_new = []
+        d_new = []
+
+        contact_start = []
+        contact_end = []
+
+        if is_state:
+            force = d[:, 7:10]  #
+            contact_start, contact_end = \
+                self._contact_time(force, t)
+
+            self.state_start_times = [t[s] for s in contact_start]
+            self.state_end_times = [t[e] for e in contact_end]
+
+        else:  # is_action
+            contact_start = [np.argmin(abs(t - s))
+                             for s in self.state_start_times]
+            contact_end = [np.argmin(abs(t - e))
+                           for e in self.state_end_times]
+
+            self.action_start_times = [t[s] for s in contact_start]
+            self.action_end_times = [t[e] for e in contact_end]
+
+        for s, e in zip(contact_start, contact_end):
+            t_new.append(t[s:e])
+            d_new.append(d[s:e, :])
+
+        return np.hstack(t_new), np.vstack(d_new)
+
+    def _contact_time(self, force_xyz, time,
+                      novelty_thres=0.1,
+                      energy_thres=0.1):
         """
         detecting when the robot contacts the environment
 
@@ -187,36 +216,31 @@ class DemoDataset(Dataset):
         Return:
             start and end index in time
         """
-        force = np.sum(force_xyz, axis=1)
-        force_lp = gaussian_filter1d(force, sigma=sigma)
-
-        # power 2 to suppress small values
-        energy = force_lp**2
-        energy /= np.amax(energy)
-
-        # discrete dervative
-        novelty = np.diff(energy)
-        novelty = np.append(novelty, 0.0)
-        novelty /= np.amax(abs(novelty))  # normalize to [-1, 1]
+        novelty, energy = self._novelty_energy(force_xyz, time)
 
         # start point should be small, and have large positive novelty
-        start_mask = (novelty >= .1) & (energy <= .2)
+        start_mask = (novelty >= novelty_thres) & (energy <= energy_thres)
         start_candidate = np.where(start_mask)[0]
 
         # end point should also be small, and have large negative novelty
-        end_mask = (novelty <= -.1) & (energy <= .25)
+        end_mask = (novelty <= -novelty_thres) & (energy <= energy_thres)
         end_candidate = np.where(end_mask)[0]
 
-        start = self._find_bound(start_candidate)
-        end = self._find_bound(end_candidate)
-        start, end = self._match_pair(start, end)
+        # if the last energy is not small
+        # it could be also an end point (sudden stop of recording)
+        if energy[-1] >= energy_thres:
+            end_candidate = np.append(end_candidate, time.size - 1)
+
+        # suppress noisy detected boundaries
+        start = self._find_start_bounds(start_candidate)
+        end = self._find_end_bounds(end_candidate)
+        start, end = self._match_start_end(start, end)
 
         return start, end
 
-    def _pair_state_action(self, sample_freq, states, actions, contact_only):
+    def _pair_state_action(self, sample_freq, states, actions):
         """
-        form state action pair, state has more dense data than action.
-        choosing the action which is closest to the state.
+        form state action pair from one demo
         """
 
         start_time = max(min(states["time"]), min(actions["time"]))
@@ -248,6 +272,7 @@ class DemoDataset(Dataset):
             Interpolation(actions["force"], actions["time"],
                           self.preprocess["interp"]["force"])
 
+        # concatenate interpolated values
         states_interp = \
             np.hstack((states_pos_interp.interp(sample_time),
                        states_rot_interp.interp(sample_time),
@@ -256,32 +281,6 @@ class DemoDataset(Dataset):
             np.hstack((actions_pos_interp.interp(sample_time),
                        actions_rot_interp.interp(sample_time),
                        actions_force_interp.interp(sample_time)))
-
-        if contact_only:
-            start_time = []
-            end_time = []
-            self.sample_time = []
-
-            states_interp_new = []
-            actions_interp_new = []
-
-            for s_s, a_s in \
-                    zip(self.state_start_times, self.action_start_times):
-                start_time.append(max(s_s, a_s))
-
-            for s_e, a_e in zip(self.state_end_times, self.action_end_times):
-                end_time.append(min(s_e, a_e))
-
-            for s, e in zip(start_time, end_time):
-                s_idx = np.argmin(abs(sample_time - s))
-                e_idx = np.argmin(abs(sample_time - e))
-
-                self.sample_time.extend(sample_time[s_idx:e_idx])
-                states_interp_new.append(states_interp[s_idx:e_idx, :])
-                actions_interp_new.append(actions_interp[s_idx:e_idx, :])
-
-            states_interp = np.vstack(states_interp_new)
-            actions_interp = np.vstack(actions_interp)
 
         paired_states_actions = \
             [(s, a) for s, a in zip(states_interp, actions_interp)]
@@ -312,64 +311,78 @@ class DemoDataset(Dataset):
             map(partial(normalize, mean=mean, std=std), data[:, :3]))
         return np.concatenate((normalized, data[:, 3:]), axis=1)
 
-    def _quaternion_to_euler_vector(self, data):
+    def _novelty_energy(self, force_xyz, time):
+        # use start phase force as baseline
+        force_xyz = self._calibrate_force(force_xyz)
+
+        # use the force magnitude sum
+        force = np.sum(abs(force_xyz), axis=1)
+
+        # low-pass filter for forces, otherwise would be too noisy
+        force_lp = gaussian_filter1d(force, sigma=8)
+
+        energy = force_lp**2  # power 2 to suppress small values
+        energy /= np.amax(energy)  # normalize energy
+
+        # discrete dervative
+        energy_diff = np.diff(energy)
+        time_diff = np.diff(time)  # time difference
+
+        novelty = energy_diff / time_diff
+        novelty = np.append(novelty, 0.0)
+        novelty /= np.amax(abs(novelty))  # normalize to [-1, 1]
+        return novelty, energy
+
+    def _calibrate_force(self, force_xyz, start_period=10):
         """
-        transform quaternion x, y, z, w to euler vector
+        use start phase force as baseline for contact detection
+
+        force_xyz has shape (num_data, 3)
         """
-        axis_angle = list(map(quaternion_to_axis_angle, data))
-        euler_vec = list(map(axis_angle_to_euler_vector, axis_angle))
+        offset_x = np.mean(force_xyz[:start_period, 0])
+        offset_y = np.mean(force_xyz[:start_period, 1])
+        offset_z = np.mean(force_xyz[:start_period, 2])
 
-        return np.array(euler_vec)
+        force_xyz[:, 0] -= offset_x
+        force_xyz[:, 1] -= offset_y
+        force_xyz[:, 2] -= offset_z
 
-    def _contact(self, t, d, is_state):
-        t_new = []
-        d_new = []
+        return force_xyz
 
-        contact_start = []
-        contact_end = []
-
-        if is_state:
-            force = d[:, 7:10]
-            contact_start, contact_end = self._contact_time(force)
-
-            self.state_start_times = [t[s] for s in contact_start]
-            self.state_end_times = [t[e] for e in contact_end]
-
-        else:
-            contact_start = [np.argmin(abs(t - s))
-                             for s in self.state_start_times]
-            contact_end = [np.argmin(abs(t - e))
-                           for e in self.state_end_times]
-
-            self.action_start_times = [t[s] for s in contact_start]
-            self.action_end_times = [t[e] for e in contact_end]
-
-        for s, e in zip(contact_start, contact_end):
-            t_new.append(t[s:e])
-            d_new.append(d[s:e, :])
-
-        return np.hstack(t_new), np.vstack(d_new)
-
-    def _find_bound(self, candidate, tolerant=10):
-        bound = [candidate[0]]
+    def _find_start_bounds(self, candidate, tolerant=10):
+        """
+        find start boundaries, keep the first found bound
+        """
+        bounds = [candidate[0]]
+        bound_prev = bounds[0]
 
         for idx in range(candidate.size):
             bound_new = candidate[idx]
-            if idx == 0:
-                bound_last = bound_new
 
-            if (bound_new - bound_last) >= tolerant:
-                bound.append(bound_new)
+            if bound_new - bound_prev >= tolerant:
+                bounds.append(bound_new)
 
-            bound_last = candidate[idx]
-        return np.array(bound)
+            bound_prev = bound_new
+        return np.array(bounds)
 
-    def _match_pair(self, start, end):
-        start_new = []
+    def _find_end_bounds(self, candidate, tolerant=10):
+        """
+        find end boundary, keep the last fined bound
+        """
+        bounds = [candidate[0]]
 
-        for e in end:
-            diff = e - start
-            min_idx = np.sum(diff > 0) - 1
-            start_new.append(start[min_idx])
+        for idx in range(candidate.size):
+            bound_new = candidate[idx]
 
-        return np.array(start_new), end
+            if bound_new - bounds[-1] >= tolerant:
+                bounds.append(bound_new)
+            else:
+                bounds[-1] = bound_new
+        return np.array(bounds)
+
+    def _match_start_end(self, start, end):
+        """
+        Assume only one contacting phase exits and it is continuous
+        match the first found start and the last found end
+        """
+        return [start[0]], [end[-1]]
