@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.core.fromnumeric import shape
 from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Slerp
 from scipy.spatial.transform import Rotation as R
@@ -27,40 +26,44 @@ def normalize(data, mean, std):
     return normalized_data
 
 
-def quaternion_to_axis_angle(q):
-    """
-    transform quaternion to axis angel representation
+# def quaternion_to_axis_angle(q):
+#     """
+#     transform quaternion to axis angel representation
 
-    Params:
-        q: quaternion with x, y, z, w
-    Return:
-        [axis_x, axis_y, axis_z, angle]
-    """
-    # the quaternion is x, y, z, w
-    axis_angle = np.zeros(4)
-    axis_angle[3] = 2 * np.arccos(q[3])
-    axis_angle[0] = q[0] / np.sqrt(1.0 - q[3] * q[3])
-    axis_angle[1] = q[1] / np.sqrt(1.0 - q[3] * q[3])
-    axis_angle[2] = q[2] / np.sqrt(1.0 - q[3] * q[3])
-    return axis_angle
+#     Params:
+#         q: quaternion with x, y, z, w
+#     Return:
+#         [axis_x, axis_y, axis_z, angle]
+#     """
+#     # the quaternion is x, y, z, w
+#     axis_angle = np.zeros(4)
+#     axis_angle[3] = 2 * np.arccos(q[3])
+#     sin_half_theta = np.sqrt(1.0 - q[3]**2)
+#     axis_angle[0] = q[0] / sin_half_theta
+#     axis_angle[1] = q[1] / sin_half_theta
+#     axis_angle[2] = q[2] / sin_half_theta
 
-
-def axis_angle_to_euler_vector(axis_angle):
-    """
-    axis angle to euler vector, [theta * v_x, theta * v_y, theta * v_z]
-    """
-    euler_vector = axis_angle[:3] * axis_angle[3]
-    return euler_vector
+#     # normalize vector
+#     axis_angle[:3] = axis_angle[:3] / np.sqrt(sum(axis_angle[:3]**2))
+#     return axis_angle
 
 
-def euler_vector_to_axis_angle(euler_vector):
-    """
-    euler vector back to axis angle
-    """
-    axis_angle = np.zeros(4)
-    axis_angle[3] = np.sqrt(np.sum(np.power(euler_vector, 2)))
-    axis_angle[:3] = euler_vector / axis_angle[3]
-    return axis_angle
+# def axis_angle_to_euler_vector(axis_angle):
+#     """
+#     axis angle to euler vector, [theta * v_x, theta * v_y, theta * v_z]
+#     """
+#     euler_vector = axis_angle[:3] * axis_angle[3]
+#     return euler_vector
+
+
+# def euler_vector_to_axis_angle(euler_vector):
+#     """
+#     euler vector back to axis angle
+#     """
+#     axis_angle = np.zeros(4)
+#     axis_angle[3] = np.sqrt(np.sum(np.power(euler_vector, 2)))
+#     axis_angle[:3] = euler_vector / axis_angle[3]
+#     return axis_angle
 
 
 class Interpolation:
@@ -96,7 +99,6 @@ class Interpolation:
             data = self.data[idx]
 
             res.append(data)
-
         return np.array(res)
 
     def _cubic_spline_interp(self, time_stamp):
@@ -104,7 +106,6 @@ class Interpolation:
         res = np.array([cs(time_stamp) for cs in self.cs_ls])
         # stiching each dimension
         cs = np.array([res[:, i] for i in range(res.shape[1])])
-
         return cs
 
     def _get_cubic_spline_fn(self):
@@ -116,10 +117,20 @@ class Interpolation:
         return cs_ls
 
     def _slerp(self, time_stamp):
-        return self.slerp_fn(time_stamp).as_quat()
+        # return self.slerp_fn(time_stamp).as_quat()
+        # output the interpolated euler vector
+        return self.slerp_fn(time_stamp).as_rotvec()
 
     def _get_slerp_fn(self):
         return Slerp(self.time, self.rot)
+
+    # def _quaternion_to_euler_vector(data):
+    #     """
+    #     transform quaternion x, y, z, w to euler vector
+    #     """
+    #     axis_angle = list(map(quaternion_to_axis_angle, data))
+    #     euler_vec = list(map(axis_angle_to_euler_vector, axis_angle))
+    #     return np.array(euler_vec)
 
     def _normalize(self, vec):
         """
