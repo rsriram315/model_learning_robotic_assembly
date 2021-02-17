@@ -4,7 +4,7 @@
 
 ### Training
 
-State action pair ($s_t$, $a_t$) as input, predicts $\hat{s}_{t+1}$, $s_{t+1}$ as target.
+State action pair ($s_t$, $a_t$) as input, predicts $\hat{s}_{t+1}$, $a_{t}$ as target.
 
 - State: pose position of arm
 - Action: pose position of controller
