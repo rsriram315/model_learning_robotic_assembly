@@ -37,7 +37,8 @@ class DemoDataset(Dataset):
         self.action_end_times = []
 
         self.sample_time = []
-        self.paired_states_actions = []
+        self.states_actions = []
+        self.targets = []
 
         # debug variables
         self.all_actions_time = None
@@ -52,27 +53,21 @@ class DemoDataset(Dataset):
 
         if self.preprocess["normalize"]:
             # state
-            self.paired_states_actions[:, 0] = \
-                self._normalize_pos(self.paired_states_actions[:, 0].copy())
+            self.states_actions[:, 0] = \
+                self._normalize_pos(self.states_actions[:, 0].copy())
             # action
-            self.paired_states_actions[:, 1] = \
-                self._normalize_pos(self.paired_states_actions[:, 1].copy())
+            self.states_actions[:, 1] = \
+                self._normalize_pos(self.states_actions[:, 1].copy())
 
     def __len__(self):
-        return len(self.paired_states_actions)
+        return len(self.states_actions)
 
-    def __getitem__(self, idx):
-        state, action = self.paired_states_actions[idx]
-        sample = np.concatenate((state, action))
-        # simpliest case where action is the target state
-        target = action
+    def __getitem__(self, idx, scale=10):
+        state, action = self.states_actions[idx]
+        sample = np.hstack((state[0:3], action[0:3])) * scale
+        target = self.targets[idx, 0:3] * scale
+
         return np.float32(sample), np.float32(target)
-
-    def _all_time(self):
-        pass
-
-    def _all_data(self):
-        pass
 
     def _read_all_demos(self):
         for data_path in self.data_paths:
@@ -87,10 +82,18 @@ class DemoDataset(Dataset):
             self.all_actions_pos = actions["pos"]
             self.all_actions_time = actions["time"]
 
-            self.paired_states_actions.extend(
-                self._pair_state_action(self.sample_freq, states, actions))
+            states_actions = \
+                self._pair_state_action(self.sample_freq, states, actions)
 
-        self.paired_states_actions = np.array(self.paired_states_actions)
+            # use next state as target, the last target is the end state itself
+            targets = states_actions[1:, 0]
+            targets = np.vstack((targets, states_actions[-1, 0]))
+
+            self.states_actions.extend(states_actions)
+            self.targets.extend(targets)
+
+        self.states_actions = np.array(self.states_actions)
+        self.targets = np.array(self.targets)
 
     def _read_one_demo(self,
                        data_path,
@@ -206,8 +209,9 @@ class DemoDataset(Dataset):
         return np.hstack(t_new), np.vstack(d_new)
 
     def _contact_time(self, force_xyz, time,
-                      novelty_thres=0.1,
-                      energy_thres=0.1):
+                      subsample=2,
+                      novelty_thres=0.15,
+                      energy_thres=0.15):
         """
         detecting when the robot contacts the environment
 
@@ -216,6 +220,10 @@ class DemoDataset(Dataset):
         Return:
             start and end index in time
         """
+        # subsampling the force as a way to filter out the noise in novelty
+        force_xyz = force_xyz[::subsample]
+        time = time[::subsample]
+
         novelty, energy = self._novelty_energy(force_xyz, time)
 
         # start point should be small, and have large positive novelty
@@ -234,8 +242,9 @@ class DemoDataset(Dataset):
         # suppress noisy detected boundaries
         start = self._find_start_bounds(start_candidate)
         end = self._find_end_bounds(end_candidate)
-        start, end = self._match_start_end(start, end)
+        start, end = self._match_start_end(start, end, subsample)
 
+        # multiply the subsampling factor back for indexing
         return start, end
 
     def _pair_state_action(self, sample_freq, states, actions):
@@ -264,28 +273,30 @@ class DemoDataset(Dataset):
         actions_rot_interp = Interpolation(actions["rot"], actions["time"],
                                            self.preprocess["interp"]["rot"])
 
-        # force interpolation
-        states_force_interp = \
-            Interpolation(states["force"], states["time"],
-                          self.preprocess["interp"]["force"])
-        actions_force_interp = \
-            Interpolation(actions["force"], actions["time"],
-                          self.preprocess["interp"]["force"])
+        # # force interpolation
+        # states_force_interp = \
+        #     Interpolation(states["force"], states["time"],
+        #                   self.preprocess["interp"]["force"])
+        # actions_force_interp = \
+        #     Interpolation(actions["force"], actions["time"],
+        #                   self.preprocess["interp"]["force"])
 
         # concatenate interpolated values
         states_interp = \
             np.hstack((states_pos_interp.interp(sample_time),
-                       states_rot_interp.interp(sample_time),
-                       states_force_interp.interp(sample_time)))
+                       states_rot_interp.interp(sample_time)))
+        # states_force_interp.interp(sample_time)
+
         actions_interp = \
             np.hstack((actions_pos_interp.interp(sample_time),
                        actions_rot_interp.interp(sample_time),
-                       actions_force_interp.interp(sample_time)))
+                       ))
+        # actions_force_interp.interp(sample_time)
 
-        paired_states_actions = \
+        states_actions = \
             [(s, a) for s, a in zip(states_interp, actions_interp)]
 
-        return paired_states_actions
+        return np.array(states_actions)
 
     def split_train_test(self, train, seed=42):
         test_len = int(len(self) * 0.2)
@@ -305,23 +316,28 @@ class DemoDataset(Dataset):
         """
         only normalize 3d position
         """
-        mean, std = data_stats(data[:, :3])
+        # mean, std = data_stats(data[:, :3])
+        mean, std = data_stats(data)
 
+        # normalized = list(
+        #     map(partial(normalize, mean=mean, std=std), data[:, :3]))
         normalized = list(
-            map(partial(normalize, mean=mean, std=std), data[:, :3]))
-        return np.concatenate((normalized, data[:, 3:]), axis=1)
+            map(partial(normalize, mean=mean, std=std), data))
+        # return np.concatenate((normalized, data[:, 3:]), axis=1)
+        return normalized
 
     def _novelty_energy(self, force_xyz, time):
         # use start phase force as baseline
         force_xyz = self._calibrate_force(force_xyz)
 
         # use the force magnitude sum
-        force = np.sum(abs(force_xyz), axis=1)
+        force = np.linalg.norm(force_xyz, axis=1)
 
         # low-pass filter for forces, otherwise would be too noisy
         force_lp = gaussian_filter1d(force, sigma=8)
 
-        energy = force_lp**2  # power 2 to suppress small values
+        # energy = force_lp**2  # power 2 to suppress small values
+        energy = force_lp
         energy /= np.amax(energy)  # normalize energy
 
         # discrete dervative
@@ -380,9 +396,9 @@ class DemoDataset(Dataset):
                 bounds[-1] = bound_new
         return np.array(bounds)
 
-    def _match_start_end(self, start, end):
+    def _match_start_end(self, start, end, subsample):
         """
         Assume only one contacting phase exits and it is continuous
         match the first found start and the last found end
         """
-        return [start[0]], [end[-1]]
+        return [start[0] * subsample], [end[-1] * subsample]
