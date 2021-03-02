@@ -11,13 +11,18 @@ class BaseTrainer:
     Base class for all trainers
     """
     def __init__(self, model, criterion, metric_fns, optimizer,
-                 num_epochs, ckpts_dir, save_period, log_file, tb_dir):
+                 num_epochs, ckpts_dir, save_period,
+                 early_stop, patience, log_file, tb_dir):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
         self.num_epochs = num_epochs
 
         self.ckpts_dir = Path(ckpts_dir)
+
+        self.early_stop = early_stop
+        self.patience = patience
+
         self.metric_fns = metric_fns
         self.write_log = partial(write_log, log_file)
 
@@ -52,6 +57,10 @@ class BaseTrainer:
         full training logic
         """
         self.write_log('... Training neural network\n')
+
+        best_val_loss = None
+        patience_count = 0
+
         for epoch in range(1, self.num_epochs + 1):
             result = self._train_epoch(epoch)
 
@@ -70,8 +79,27 @@ class BaseTrainer:
                 self.val_tb_writer.add_scalar("loss", val_log["loss"],
                                               epoch * len(self.dataloader))
 
-            if epoch % self.save_period == 0:
-                self._save_checkpoint(epoch)
+            # early stopping
+            if self.early_stop:
+                if epoch == 1:
+                    best_val_loss = val_log["loss"]
+                elif val_log["loss"] <= best_val_loss:
+                    best_val_loss = val_log["loss"]
+                    patience_count = 0
+
+                    # save ckpt if getting better
+                    ckpt_ls = list(self.ckpts_dir.glob("*.pth"))
+                    if len(ckpt_ls) > 0:
+                        ckpt_ls[0].unlink()
+                    self._save_checkpoint(epoch)
+                else:
+                    self.write_log('... Network is not improving\n')
+                    patience_count += 1
+                    if patience_count >= self.patience:
+                        break
+            else:
+                if epoch % self.save_period == 0:
+                    self._save_checkpoint(epoch)
 
     def _save_checkpoint(self, epoch, save_best=False):
         """
