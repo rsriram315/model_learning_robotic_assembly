@@ -8,15 +8,21 @@ class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_fns, optimizer,
-                 num_epochs, ckpts_dir, save_period,
+    def __init__(self, model,
+                 criterion, metric_fns,
+                 optimizer, num_epochs,
+                 ckpts_dir, save_period,
+                 early_stop, patience,
                  log_file, tb_dir,
                  device, dataloader,
                  valid_dataloader=None,
                  lr_scheduler=None):
 
-        super().__init__(model, criterion, metric_fns, optimizer, num_epochs,
-                         ckpts_dir, save_period, log_file, tb_dir)
+        super().__init__(model, criterion,
+                         metric_fns, optimizer,
+                         num_epochs, ckpts_dir,
+                         save_period, early_stop,
+                         patience, log_file, tb_dir)
 
         for f in [ckpts_dir, log_file, tb_dir]:
             ensure_dir(f)
@@ -49,8 +55,7 @@ class Trainer(BaseTrainer):
         tb_step = (epoch - 1) * len(self.dataloader)
 
         for batch_idx, (state_action, target) in enumerate(self.dataloader):
-            # state_action, target = \
-            #     self.dataloader.transform(state_action, target)
+
             state_action, target = \
                 (state_action.to(self.device, non_blocking=True),
                  target.to(self.device, non_blocking=True))
@@ -67,16 +72,13 @@ class Trainer(BaseTrainer):
             self.train_tb_writer.add_scalar("loss", loss.item(), tb_step)
             tb_step += 1
 
-            for met in self.metric_fns:
-                self.train_metrics.update(met.__name__, met(output, target))
+            # for met in self.metric_fns:
+            #     self.train_metrics.update(met.__name__, met(output, target))
 
             if batch_idx % self.log_step == 0:
                 self.write_log(f'Train Epoch: {epoch} '
                                f'{self._progress(batch_idx)} '
-                               f'Loss: {loss.item():.6f}')
-
-            if batch_idx == len(self.dataloader):
-                break
+                               f'Loss: {self.train_metrics.avg("loss"):.6f}')
 
         log = self.train_metrics.result()
 
@@ -102,9 +104,9 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target)
 
                 self.valid_metrics.update('loss', loss.item())
-                for met in self.metric_fns:
-                    self.valid_metrics.update(met.__name__,
-                                              met(output, target))
+                # for met in self.metric_fns:
+                #     self.valid_metrics.update(met.__name__,
+                #                               met(output, target))
         return self.valid_metrics.result()
 
     def _progress(self, batch_idx):
