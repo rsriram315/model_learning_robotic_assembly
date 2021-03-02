@@ -2,6 +2,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Slerp
 from scipy.spatial.transform import Rotation as R
+from scipy.ndimage import gaussian_filter1d
 
 
 def data_stats(data):
@@ -89,3 +90,125 @@ class Interpolation:
         normalize a vector to become unit length
         """
         return (vec.T / np.sqrt(np.sum(vec**2, axis=-1))).T
+
+
+# contact segmentation
+class SegmentContact:
+    def __init__(self):
+        pass
+
+    def contact_time(self, force_xyz, time,
+                     subsample=2,
+                     novelty_thres=0.15,
+                     energy_thres=0.15):
+        """
+        detecting when the robot contacts the environment
+
+        Params:
+            force_xyz: force of x y z axis
+        Return:
+            start and end index in time
+        """
+        # subsampling the force as a way to filter out the noise in novelty
+        force_xyz = force_xyz[::subsample]
+        time = time[::subsample]
+
+        novelty, energy = self._novelty_energy(force_xyz, time)
+
+        # start point should be small, and have large positive novelty
+        start_mask = (novelty >= novelty_thres) & (energy <= energy_thres)
+        start_candidate = np.where(start_mask)[0]
+
+        # end point should also be small, and have large negative novelty
+        end_mask = (novelty <= -novelty_thres) & (energy <= energy_thres)
+        end_candidate = np.where(end_mask)[0]
+
+        # if the last energy is not small
+        # it could be also an end point (sudden stop of recording)
+        if energy[-1] >= energy_thres:
+            end_candidate = np.append(end_candidate, time.size - 1)
+
+        # suppress noisy detected boundaries
+        start = self._find_start_bounds(start_candidate)
+        end = self._find_end_bounds(end_candidate)
+        start, end = self._match_start_end(start, end, subsample)
+
+        # multiply the subsampling factor back for indexing
+        return start, end
+
+    def _novelty_energy(self, force_xyz, time):
+        # use start phase force as baseline
+        force_xyz = self._calibrate_force(force_xyz)
+
+        # use the force magnitude sum
+        force = np.linalg.norm(force_xyz, axis=1)
+
+        # low-pass filter for forces, otherwise would be too noisy
+        force_lp = gaussian_filter1d(force, sigma=8)
+
+        # energy = force_lp**2  # power 2 to suppress small values
+        energy = force_lp
+        energy /= np.amax(energy)  # normalize energy
+
+        # discrete dervative
+        energy_diff = np.diff(energy)
+        time_diff = np.diff(time)  # time difference
+
+        novelty = energy_diff / time_diff
+        novelty = np.append(novelty, 0.0)
+        novelty /= np.amax(abs(novelty))  # normalize to [-1, 1]
+        return novelty, energy
+
+    def _calibrate_force(self, force_xyz, start_period=10):
+        """
+        use start phase force as baseline for contact detection
+
+        force_xyz has shape (num_data, 3)
+        """
+        offset_x = np.mean(force_xyz[:start_period, 0])
+        offset_y = np.mean(force_xyz[:start_period, 1])
+        offset_z = np.mean(force_xyz[:start_period, 2])
+
+        force_xyz[:, 0] -= offset_x
+        force_xyz[:, 1] -= offset_y
+        force_xyz[:, 2] -= offset_z
+
+        return force_xyz
+
+    def _find_start_bounds(self, candidate, tolerant=10):
+        """
+        find start boundaries, keep the first found bound
+        """
+        bounds = [candidate[0]]
+        bound_prev = bounds[0]
+
+        for idx in range(candidate.size):
+            bound_new = candidate[idx]
+
+            if bound_new - bound_prev >= tolerant:
+                bounds.append(bound_new)
+
+            bound_prev = bound_new
+        return np.array(bounds)
+
+    def _find_end_bounds(self, candidate, tolerant=10):
+        """
+        find end boundary, keep the last fined bound
+        """
+        bounds = [candidate[0]]
+
+        for idx in range(candidate.size):
+            bound_new = candidate[idx]
+
+            if bound_new - bounds[-1] >= tolerant:
+                bounds.append(bound_new)
+            else:
+                bounds[-1] = bound_new
+        return np.array(bounds)
+
+    def _match_start_end(self, start, end, subsample):
+        """
+        Assume only one contacting phase exits and it is continuous
+        match the first found start and the last found end
+        """
+        return [start[0] * subsample], [end[-1] * subsample]
