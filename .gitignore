@@ -115,3 +115,6 @@ __MACOSX/
 NOTES/
 JUPYTER/
 SAVEDS/
+saved*/
+*.png
+*.jpg
