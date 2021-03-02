@@ -26,46 +26,6 @@ def normalize(data, mean, std):
     return normalized_data
 
 
-# def quaternion_to_axis_angle(q):
-#     """
-#     transform quaternion to axis angel representation
-
-#     Params:
-#         q: quaternion with x, y, z, w
-#     Return:
-#         [axis_x, axis_y, axis_z, angle]
-#     """
-#     # the quaternion is x, y, z, w
-#     axis_angle = np.zeros(4)
-#     axis_angle[3] = 2 * np.arccos(q[3])
-#     sin_half_theta = np.sqrt(1.0 - q[3]**2)
-#     axis_angle[0] = q[0] / sin_half_theta
-#     axis_angle[1] = q[1] / sin_half_theta
-#     axis_angle[2] = q[2] / sin_half_theta
-
-#     # normalize vector
-#     axis_angle[:3] = axis_angle[:3] / np.sqrt(sum(axis_angle[:3]**2))
-#     return axis_angle
-
-
-# def axis_angle_to_euler_vector(axis_angle):
-#     """
-#     axis angle to euler vector, [theta * v_x, theta * v_y, theta * v_z]
-#     """
-#     euler_vector = axis_angle[:3] * axis_angle[3]
-#     return euler_vector
-
-
-# def euler_vector_to_axis_angle(euler_vector):
-#     """
-#     euler vector back to axis angle
-#     """
-#     axis_angle = np.zeros(4)
-#     axis_angle[3] = np.sqrt(np.sum(np.power(euler_vector, 2)))
-#     axis_angle[:3] = euler_vector / axis_angle[3]
-#     return axis_angle
-
-
 class Interpolation:
     def __init__(self, data, time, interpolation):
         self.data = data
@@ -123,14 +83,6 @@ class Interpolation:
 
     def _get_slerp_fn(self):
         return Slerp(self.time, self.rot)
-
-    # def _quaternion_to_euler_vector(data):
-    #     """
-    #     transform quaternion x, y, z, w to euler vector
-    #     """
-    #     axis_angle = list(map(quaternion_to_axis_angle, data))
-    #     euler_vec = list(map(axis_angle_to_euler_vector, axis_angle))
-    #     return np.array(euler_vec)
 
     def _normalize(self, vec):
         """
