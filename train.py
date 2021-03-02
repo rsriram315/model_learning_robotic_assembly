@@ -1,6 +1,7 @@
 import argparse
 import torch
 import numpy as np
+from pathlib import Path
 from model import MLP
 from trainer import Trainer
 from dataloaders import DemoDataset, DemoDataLoader
@@ -20,18 +21,34 @@ def train(cfg_path):
     # setup dataloader instances
     cfg = read_json(cfg_path)
     dataset_cfg = cfg["dataset"]
+    dataset_root = Path(dataset_cfg["params"]["root"])
+
+    # for demos for training set
+    if len(dataset_cfg["params"]["fnames"]) == 0:
+        demos = [pth.name for pth in list(dataset_root.glob("*.h5"))]
+    else:
+        demos = dataset_cfg["params"]["fnames"]
+    num_train_demo = int(len(demos) * 0.8)
+    dataset_cfg["params"]["fnames"] = \
+        (np.random.RandomState(dataset_cfg["seed"])
+           .permutation(demos)[:num_train_demo])
+
     dataloader_cfg = cfg["dataloader"]
+    optim_cfg = cfg["optimizer"]["args"]
     dataset = DemoDataset(**dataset_cfg["params"])
-    train_dataset = dataset.split_train_test(train=True,
-                                             seed=dataset_cfg["seed"])
-    dataloader = DemoDataLoader(train_dataset, dataloader_cfg)
+
+    # no test data for now
+    dataloader = DemoDataLoader(dataset, dataloader_cfg)
+    # train_dataset = dataset.split_train_test(train=True,
+    #                                          seed=dataset_cfg["seed"])
+    # dataloader = DemoDataLoader(train_dataset, dataloader_cfg)
 
     valid_dataloader = dataloader.split_validation()
 
     print(f"... {dataloader.n_samples} training samples")
 
     # build model architecture, then print to console
-    model = MLP(input_dims=20, output_dims=10)
+    model = MLP(input_dims=6, output_dims=3)
     print(model)
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(cfg["n_gpu"])
@@ -47,10 +64,18 @@ def train(cfg_path):
     # build optimizer, learning rate scheduler. delete every lines containing
     # lr_scheduler for disabling scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = torch.optim.Adam(trainable_params, lr=0.001)
+    optimizer = torch.optim.Adam(trainable_params,
+                                 lr=optim_cfg["lr"],
+                                 weight_decay=optim_cfg["weight_decay"],
+                                 amsgrad=optim_cfg["amsgrad"])
 
-    trainer = Trainer(model, criterion, metrics, optimizer, **cfg["trainer"],
-                      device=device, dataloader=dataloader,
+    trainer = Trainer(model,
+                      criterion,
+                      metrics,
+                      optimizer,
+                      **cfg["trainer"],
+                      device=device,
+                      dataloader=dataloader,
                       valid_dataloader=valid_dataloader)
 
     trainer.train()
@@ -59,7 +84,10 @@ def train(cfg_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_argument('-c', '--config', default=None, type=str,
+    parser.add_argument('-c',
+                        '--config',
+                        default=None,
+                        type=str,
                         help='config file path (default: None)')
     args = parser.parse_args()
     train(args.config)

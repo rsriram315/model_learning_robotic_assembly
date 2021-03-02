@@ -1,5 +1,7 @@
 import argparse
 import torch
+import numpy as np
+from pathlib import Path
 from tqdm import tqdm
 from functools import partial
 from model import MLP
@@ -14,13 +16,24 @@ def test(cfg_path):
     dataset_cfg = cfg["dataset"]
     dataloader_cfg = cfg["dataloader"]
     test_cfg = cfg["test"]
+    dataset_root = Path(dataset_cfg["params"]["root"])
+
+    # form demos for test set
+    if len(dataset_cfg["params"]["fnames"]) == 0:
+        demos = [pth.name for pth in list(dataset_root.glob("*.h5"))]
+    else:
+        demos = dataset_cfg["params"]["fnames"]
+    num_train_demo = int(len(demos) * 0.8)
+    dataset_cfg["params"]["fnames"] = \
+        (np.random.RandomState(dataset_cfg["seed"])
+           .permutation(demos)[num_train_demo:])
 
     write_test_log = partial(write_log, test_cfg["log_file"])
 
     dataset = DemoDataset(**dataset_cfg["params"])
-    test_dataset = dataset.split_train_test(train=False,
-                                            seed=dataset_cfg["seed"])
-    dataloader = DemoDataLoader(test_dataset, dataloader_cfg)
+    # test_dataset = dataset.split_train_test(train=False,
+    #                                         seed=dataset_cfg["seed"])
+    dataloader = DemoDataLoader(dataset, dataloader_cfg)
 
     # build model architecture, then print to console
     model = MLP(input_dims=20, output_dims=10)
