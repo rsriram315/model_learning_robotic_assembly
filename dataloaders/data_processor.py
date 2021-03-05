@@ -5,26 +5,54 @@ from scipy.spatial.transform import Rotation as R
 from scipy.ndimage import gaussian_filter1d
 
 
-def data_stats(data):
-    """
-    mean and variance
-    """
-    data_mean = np.mean(data, axis=0)
-    data_std = np.std(data, axis=0)
-    return data_mean, data_std
+class BaseNormalization:
+    def __init__(self, stats):
+        self.stat_1 = stats["stat_1"]
+        self.stat_2 = stats["stat_2"]
+
+    def _stats(self, data):
+        pass
+
+    def normalize(self, data, is_target=False):
+        """
+        standard normalization for data
+        """
+        # Subtract the mean, and scale to the interval [0,1]
+        if self.stat_1 is None or self.stat_2 is None:
+            self._stats(data)
+        dim = 1 if is_target else 2
+        data_offset = data - self.stat_1[:dim, :]
+        normalized_data = data_offset / self.stat_2[:dim, :]
+        return normalized_data
+
+    def get_stats(self):
+        stats = {"stat_1": self.stat_1,
+                 "stat_2": self.stat_2}
+        return stats
 
 
-def normalize(data, mean, std):
-    """
-    standard normalization for data
-    """
-    # https://en.wikipedia.org/wiki/Normalization_(statistics)
-    # normalized_data = (data - mean) / std
+class Standardization(BaseNormalization):
+    def __init__(self, stats):
+        super().__init__(stats)
 
-    # Subtract the mean, and scale to the interval [-1,1]
-    data_minusmean = data - mean
-    normalized_data = data_minusmean / np.max(np.abs(data_minusmean))
-    return normalized_data
+    def _stats(self, data):
+        """
+        mean and variance
+        """
+        self.stat_1 = np.mean(data, axis=0)
+        self.stat_2 = np.std(data, axis=0) + 10e-10
+
+
+class Normalization(BaseNormalization):
+    def __init__(self, stats):
+        super().__init__(stats)
+
+    def _stats(self, data):
+        """
+        mean
+        """
+        self.stat_1 = np.amin(data, axis=0)
+        self.stat_2 = np.amax(data, axis=0) - self.stat_1 + 10e-10
 
 
 class Interpolation:

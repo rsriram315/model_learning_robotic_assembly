@@ -91,7 +91,6 @@ def contact_time(novelty, energy, time,
     Return:
         start and end index in time
     """
-
     # start point should be small, and have large positive novelty
     start_mask = (novelty >= novelty_thres) & (energy <= energy_thres)
     start_candidate = np.where(start_mask)[0]

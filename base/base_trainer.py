@@ -10,25 +10,31 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, criterion, metric_fns, optimizer,
-                 num_epochs, ckpts_dir, save_period,
-                 early_stop, patience, log_file, tb_dir):
+    def __init__(self, model,
+                 criterion,
+                 metric_fns,
+                 optimizer,
+                 dataset_stats,
+                 trainer_cfg):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
-        self.num_epochs = num_epochs
 
-        self.ckpts_dir = Path(ckpts_dir)
+        self.num_epochs = trainer_cfg["num_epochs"]
 
-        self.early_stop = early_stop
-        self.patience = patience
+        self.ckpts_dir = Path(trainer_cfg["ckpts_dir"])
+
+        self.early_stop = trainer_cfg["early_stop"]
+        self.patience = trainer_cfg["patience"]
 
         self.metric_fns = metric_fns
-        self.write_log = partial(write_log, log_file)
+        self.write_log = partial(write_log, trainer_cfg["log_file"])
 
-        self.save_period = save_period
-        if tb_dir is not None:
-            tb_dir = Path(tb_dir)
+        self.dataset_stats = dataset_stats
+
+        self.save_period = trainer_cfg["save_period"]
+        if trainer_cfg["tb_dir"] is not None:
+            tb_dir = Path(trainer_cfg["tb_dir"])
             self.train_tb_writer = SummaryWriter(tb_dir / "train")
             self.val_tb_writer = SummaryWriter(tb_dir / "val")
 
@@ -101,7 +107,7 @@ class BaseTrainer:
                 if epoch % self.save_period == 0:
                     self._save_checkpoint(epoch)
 
-    def _save_checkpoint(self, epoch, save_best=False):
+    def _save_checkpoint(self, epoch):
         """
         Saving checkpoints
         :param epoch: current epoch number
@@ -114,7 +120,8 @@ class BaseTrainer:
             'arch': arch,
             'epoch': epoch,
             'state_dict': self.model.state_dict(),
-            'optimizer': self.optimizer.state_dict()
+            'optimizer': self.optimizer.state_dict(),
+            'dataset_stats': self.dataset_stats
         }
         fname = self.ckpts_dir / f'ckpt-epoch{epoch}.pth'
         torch.save(state, fname)

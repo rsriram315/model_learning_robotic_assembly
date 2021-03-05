@@ -1,33 +1,24 @@
 import torch
 import numpy as np
+from model import MLP
 from base import BaseTrainer
-from utils import MetricTracker, ensure_dir
+from utils import MetricTracker, ensure_dir, prepare_device
 
 
 class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model,
-                 criterion, metric_fns,
-                 optimizer, num_epochs,
-                 ckpts_dir, save_period,
-                 early_stop, patience,
-                 log_file, tb_dir,
-                 device, dataloader,
+    def __init__(self,
+                 dataloader,
+                 dataset_stats,
+                 trainer_cfg,
+                 optim_cfg,
+                 model_cfg,
                  valid_dataloader=None,
                  lr_scheduler=None):
 
-        super().__init__(model, criterion,
-                         metric_fns, optimizer,
-                         num_epochs, ckpts_dir,
-                         save_period, early_stop,
-                         patience, log_file, tb_dir)
-
-        for f in [ckpts_dir, log_file, tb_dir]:
-            ensure_dir(f)
-
-        self.device = device
+        ensure_dir(trainer_cfg["ckpts_dir"])
         self.dataloader = dataloader
 
         self.valid_dataloader = valid_dataloader
@@ -36,10 +27,48 @@ class Trainer(BaseTrainer):
         self.lr_scheduler = lr_scheduler
         self.log_step = int(np.sqrt(self.dataloader.batch_size))
 
+        # prepare for (multi-device) GPU training
+        self.device, self.device_ids = prepare_device(model_cfg["n_gpu"])
+
+        model = self._build_model(model_cfg)
+        optimizer = self._build_optim(model, optim_cfg)
+        criterion = torch.nn.MSELoss()
+
+        metric_fns = []
         self.train_metrics = \
-            MetricTracker('loss', *[m.__name__ for m in self.metric_fns])
+            MetricTracker('loss', *[m.__name__ for m in metric_fns])
         self.valid_metrics = \
-            MetricTracker('loss', *[m.__name__ for m in self.metric_fns])
+            MetricTracker('loss', *[m.__name__ for m in metric_fns])
+
+        super().__init__(model,
+                         criterion,
+                         metric_fns,
+                         optimizer,
+                         dataset_stats,
+                         trainer_cfg)
+
+    def _build_model(self, model_cfg):
+        # build model architecture, then print to console
+        model = MLP(model_cfg["input_dims"],
+                    model_cfg["output_dims"])
+        print(model)
+
+        model = model.to(self.device)
+
+        if len(self.device_ids) > 1:
+            model = torch.nn.DataParallel(model, device_ids=self.device_ids)
+        return model
+
+    def _build_optim(self, model, optim_cfg):
+        # build optimizer, learning rate scheduler.
+        # delete every lines containing lr_scheduler for disabling scheduler.
+        trainable_params = filter(lambda p: p.requires_grad,
+                                  model.parameters())
+        optimizer = torch.optim.Adam(trainable_params,
+                                     lr=optim_cfg["lr"],
+                                     weight_decay=optim_cfg["weight_decay"],
+                                     amsgrad=optim_cfg["amsgrad"])
+        return optimizer
 
     def _train_epoch(self, epoch):
         """

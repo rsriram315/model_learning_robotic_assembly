@@ -1,0 +1,81 @@
+{
+    "train": true,
+    "evaluate": true,
+    "visualize": true,
+    "dataset": {
+        "name": "DemoDataset",
+        "seed": 42,
+        "root": "data",
+        "fnames": [],
+        "sample_freq": 1000,
+        "state_attrs": {
+            "name": "PandaStatePublisherarm_states",
+            "attrs": ["tcp_pose_base", "tcp_wrench_base"]
+        },
+        "action_attrs": {
+            "name": "PandaCartesianImpedanceControllercontrollerReference",
+            "attrs": ["pose", "wrench"]
+        },
+        "preprocess": {
+            "normalize": true,
+            "standardize": false,
+            "euler_vec": true,
+            "interp": {
+                "pos": "cubic_spline",
+                "rot": "slerp",
+                "force": "cubic_spline"
+            }
+        },
+        "stats": {
+            "stat_1": null,
+            "stat_2": null
+        },
+        "contact_only": true
+    },
+    "dataloader": {
+        "name": "DemoDataLoader",
+        "batch_size": 512,
+        "shuffle": true,
+        "validation_split": 0.2,
+        "num_workers": 4
+    },
+    "model": {
+        "name": "MLP",
+        "n_gpu": 1,
+        "input_dims": 18,
+        "output_dims": 9
+    },
+    "trainer": {
+        "name": "ensemble",
+        "num_epochs": 150,
+        "num_ensemble": 5,
+        "ckpts_dir": "saved/ckpts/",
+        "save_period": 5,
+        "early_stop": true,
+        "patience": 5,
+        "log_file": "saved/train.log",
+        "tb_dir": "saved/tb_log"
+    },
+    "test": {
+        "num_epochs": 20,
+        "ckpt_pth": "saved/ckpts/ckpt-epoch100.pth",
+        "log_file": "saved/test.log"
+    },
+    "optimizer": {
+        "name": "Adam",
+        "lr": 0.0001,
+        "weight_decay": 0,
+        "amsgrad": true
+    },
+    "eval": {
+        "num_epochs": 20,
+        "ckpt_dir": "saved/ckpts/",
+        "ckpt_pth": null,
+        "log_file": "saved/evaluation.log"
+    },
+    "visualization": {
+        "loss": true,
+        "axis": true,
+        "trajectory": false
+    }
+}

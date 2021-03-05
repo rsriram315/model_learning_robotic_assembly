@@ -1,15 +1,14 @@
 import numpy as np
 import h5py
-from functools import partial
+# from functools import partial
 from pathlib import Path
 from torch.utils.data import Dataset
-from .data_processor import data_stats, normalize,\
-                            SegmentContact, Interpolation
+from .data_processor import Normalization, SegmentContact,\
+                            Interpolation, Standardization
 
 
 class DemoDataset(Dataset):
-    def __init__(self, root, fnames, sample_freq, state_attrs, action_attrs,
-                 preprocess, contact_only):
+    def __init__(self, ds_cfg):
         """
         form (state, action) pair as x, and state at right next time stamp
         as label, pack them together.
@@ -20,14 +19,14 @@ class DemoDataset(Dataset):
         super().__init__()
         self.GRIPPER_CLOSED_THRESHOLD = 0.013
 
-        self.root = Path(root)
-        self.data_paths = [self.root / fn for fn in fnames]
+        self.root = Path(ds_cfg["root"])
+        self.data_paths = [self.root / fn for fn in ds_cfg["fnames"]]
 
-        self.contact_only = contact_only
+        self.contact_only = ds_cfg["contact_only"]
 
-        self.sample_freq = sample_freq
-        self.state_attrs = state_attrs
-        self.action_attrs = action_attrs
+        self.sample_freq = ds_cfg["sample_freq"]
+        self.state_attrs = ds_cfg["state_attrs"]
+        self.action_attrs = ds_cfg["action_attrs"]
 
         self.state_start_times = []
         self.state_end_times = []
@@ -39,32 +38,26 @@ class DemoDataset(Dataset):
         self.states_actions = []
         self.targets = []
 
-        # debug variables
-        self.all_actions_time = None
-        self.all_actions_pos = None
-        self.all_states_force = None
-        self.all_states_pos = None
-        self.all_states_time = None
+        self.stats = ds_cfg["stats"]
 
-        self.preprocess = preprocess
+        # debug variables
+        # self.all_actions_time = None
+        # self.all_actions_pos = None
+        # self.all_states_force = None
+        # self.all_states_pos = None
+        # self.all_states_time = None
+
+        self.preprocess = ds_cfg["preprocess"]
 
         self._read_all_demos()
-
-        if self.preprocess["normalize"]:
-            # state
-            self.states_actions[:, 0] = \
-                self._normalize_pos(self.states_actions[:, 0].copy())
-            # action
-            self.states_actions[:, 1] = \
-                self._normalize_pos(self.states_actions[:, 1].copy())
 
     def __len__(self):
         return len(self.states_actions)
 
-    def __getitem__(self, idx, scale=10):
+    def __getitem__(self, idx, scale=1):
         state, action = self.states_actions[idx]
-        sample = np.hstack((state[:3], action[:3])) * scale
-        target = self.targets[idx, :3] * scale
+        sample = np.hstack((state[:9], action[:9])) * scale
+        target = self.targets[idx, :9] * scale
 
         return np.float32(sample), np.float32(target)
 
@@ -76,14 +69,16 @@ class DemoDataset(Dataset):
                                                   self.contact_only)
 
             # debug variables
-            self.all_states_time = states["time"]
-            self.all_states_force = states["force"]
-            self.all_states_pos = states["pos"]
-            self.all_actions_pos = actions["pos"]
-            self.all_actions_time = actions["time"]
-
+            # self.all_states_time = states["time"]
+            # self.all_states_force = states["force"]
+            # self.all_states_pos = states["pos"]
+            # self.all_actions_pos = actions["pos"]
+            # self.all_actions_time = actions["time"]
+            sl_factor = 10
             states_actions, states_padding = \
-                self._pair_state_action(self.sample_freq, states, actions)
+                self._pair_state_action(self.sample_freq,
+                                        states, actions,
+                                        sl_factor)
 
             # use next state as target, the last target is the end state itself
             targets = states_actions[10:, 0]
@@ -95,6 +90,15 @@ class DemoDataset(Dataset):
 
         self.states_actions = np.array(self.states_actions)
         self.targets = np.array(self.targets)
+
+        if self.preprocess["standardize"]:
+            norm = Standardization(self.stats)
+        elif self.preprocess["normalize"]:
+            norm = Normalization(self.stats)
+
+        self.states_actions = norm.normalize(self.states_actions)
+        self.targets = norm.normalize(self.targets, is_target=True)
+        self.stats = norm.get_stats()
 
     def _read_one_demo(self,
                        data_path,
@@ -188,7 +192,7 @@ class DemoDataset(Dataset):
         seg_contact = SegmentContact()
 
         if is_state:
-            force = data[:, 7:10]  #
+            force = data[:, 7:10].copy()
             contact_start, contact_end = \
                 seg_contact.contact_time(force, time)
 
@@ -209,7 +213,7 @@ class DemoDataset(Dataset):
 
         return np.hstack(time_new), np.vstack(data_new)
 
-    def _pair_state_action(self, sample_freq, states, actions):
+    def _pair_state_action(self, sample_freq, states, actions, sl_factor):
         """
         form state action pair from one demo
         """
@@ -258,27 +262,12 @@ class DemoDataset(Dataset):
             [(s, a) for s, a in zip(states_interp, actions_interp)]
 
         # padding for sliding windows
-        factor = 10
         t_interval = 1.0 / self.sample_freq
         padding_time = \
-            [sample_time[-1] + f * t_interval for f in range(1, factor+1)]
+            [sample_time[-1] + f * t_interval for f in range(1, sl_factor + 1)]
         states_padding = \
             np.hstack((states_pos_interp.interp(padding_time),
                        states_rot_interp.interp(padding_time),
                        states_force_interp.interp(padding_time)))
 
         return np.array(states_actions), np.array(states_padding)
-
-    def _normalize_pos(self, data):
-        """
-        only normalize 3d position
-        """
-        # mean, std = data_stats(data[:, :3])
-        mean, std = data_stats(data)
-
-        # normalized = list(
-        #     map(partial(normalize, mean=mean, std=std), data[:, :3]))
-        normalized = list(
-            map(partial(normalize, mean=mean, std=std), data))
-        # return np.concatenate((normalized, data[:, 3:]), axis=1)
-        return normalized

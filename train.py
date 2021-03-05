@@ -1,93 +1,54 @@
-import argparse
 import torch
 import numpy as np
 from pathlib import Path
-from model import MLP
-from trainer import Trainer
+from trainer import Trainer, EnsembleTrainer
 from dataloaders import DemoDataset, DemoDataLoader
-from utils import prepare_device, read_json
 
 
-# fix random seeds for reproducibility
-SEED = 123
-torch.manual_seed(SEED)
+# # fix random seeds for reproducibility
+# SEED = 123
+# torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
-# torch.backends.cudnn.benchmark = True
+# # torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
-np.random.seed(SEED)
+# np.random.seed(SEED)
 
 
-def train(cfg_path):
-    # setup dataloader instances
-    cfg = read_json(cfg_path)
-    dataset_cfg = cfg["dataset"]
-    dataset_root = Path(dataset_cfg["params"]["root"])
-
+def train(cfg):
     # for demos for training set
-    if len(dataset_cfg["params"]["fnames"]) == 0:
-        demos = [pth.name for pth in list(dataset_root.glob("*.h5"))]
+    if len(cfg["dataset"]["fnames"]) == 0:
+        ds_root = Path(cfg["dataset"]["root"])
+        demos = [pth.name for pth in list(ds_root.glob("*.h5"))]
     else:
-        demos = dataset_cfg["params"]["fnames"]
+        demos = cfg["dataset"]["fnames"]
+
     num_train_demo = int(len(demos) * 0.8)
-    dataset_cfg["params"]["fnames"] = \
-        (np.random.RandomState(dataset_cfg["seed"])
+    cfg["dataset"]["fnames"] = \
+        (np.random.RandomState(cfg["dataset"]["seed"])
            .permutation(demos)[:num_train_demo])
 
-    dataloader_cfg = cfg["dataloader"]
-    optim_cfg = cfg["optimizer"]["args"]
-    dataset = DemoDataset(**dataset_cfg["params"])
+    dataset = DemoDataset(cfg["dataset"])
 
-    # no test data for now
-    dataloader = DemoDataLoader(dataset, dataloader_cfg)
-    # train_dataset = dataset.split_train_test(train=True,
-    #                                          seed=dataset_cfg["seed"])
-    # dataloader = DemoDataLoader(train_dataset, dataloader_cfg)
-
+    dataloader = DemoDataLoader(dataset, cfg["dataloader"])
     valid_dataloader = dataloader.split_validation()
 
     print(f"... {dataloader.n_samples} training samples")
 
-    # build model architecture, then print to console
-    model = MLP(input_dims=6, output_dims=3)
-    print(model)
-    # prepare for (multi-device) GPU training
-    device, device_ids = prepare_device(cfg["n_gpu"])
-    model = model.to(device)
+    trainer_name = cfg["trainer"]["name"]
 
-    if len(device_ids) > 1:
-        model = torch.nn.DataParallel(model, device_ids=device_ids)
-
-    # get function handles of loss and metrics
-    criterion = torch.nn.MSELoss()
-    metrics = []
-
-    # build optimizer, learning rate scheduler. delete every lines containing
-    # lr_scheduler for disabling scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = torch.optim.Adam(trainable_params,
-                                 lr=optim_cfg["lr"],
-                                 weight_decay=optim_cfg["weight_decay"],
-                                 amsgrad=optim_cfg["amsgrad"])
-
-    trainer = Trainer(model,
-                      criterion,
-                      metrics,
-                      optimizer,
-                      **cfg["trainer"],
-                      device=device,
-                      dataloader=dataloader,
-                      valid_dataloader=valid_dataloader)
+    if trainer_name == "mlp":
+        trainer = Trainer(dataloader,
+                          dataset.stats,
+                          cfg["trainer"],
+                          cfg["optimizer"],
+                          cfg["model"],
+                          valid_dataloader=valid_dataloader)
+    elif trainer_name == "ensemble":
+        trainer = EnsembleTrainer(dataloader,
+                                  dataset.stats,
+                                  cfg["trainer"],
+                                  cfg["optimizer"],
+                                  cfg["model"],
+                                  valid_dataloader=valid_dataloader)
 
     trainer.train()
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__)
-
-    parser.add_argument('-c',
-                        '--config',
-                        default=None,
-                        type=str,
-                        help='config file path (default: None)')
-    args = parser.parse_args()
-    train(args.config)

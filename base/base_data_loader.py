@@ -7,10 +7,9 @@ class BaseDataLoader(DataLoader):
     """
     base class for all data loaders
     """
-    def __init__(self, dataset, batch_size, shuffle, validation_split,
-                 num_workers):
-        self.validation_split = validation_split
-        self.shuffle = shuffle
+    def __init__(self, dataset, dl_cfg):
+        self.validation_split = dl_cfg["validation_split"]
+        self.shuffle = dl_cfg["shuffle"]
 
         self.batch_idx = 0
         self.n_samples = len(dataset)
@@ -21,9 +20,9 @@ class BaseDataLoader(DataLoader):
 
         self.init_kwargs = {
             'dataset': dataset,
-            'batch_size': batch_size,
+            'batch_size': dl_cfg["batch_size"],
             'shuffle': self.shuffle,
-            'num_workers': num_workers,
+            'num_workers': dl_cfg["num_workers"],
             'pin_memory': True
         }
         super().__init__(sampler=self.sampler, **self.init_kwargs)
