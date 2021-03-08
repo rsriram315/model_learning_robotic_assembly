@@ -9,6 +9,8 @@ class BaseNormalization:
     def __init__(self, stats):
         self.stat_1 = stats["stat_1"]
         self.stat_2 = stats["stat_2"]
+        self.stat_3 = stats["stat_3"]
+        self.stat_4 = stats["stat_4"]
 
     def _stats(self, data):
         pass
@@ -25,9 +27,19 @@ class BaseNormalization:
         normalized_data = data_offset / self.stat_2[:dim, :]
         return normalized_data
 
+    def residual_normalize(self, data):
+        if self.stat_3 is None or self.stat_4 is None:
+            self.stat_3 = np.amin(data, axis=0)
+            self.stat_4 = np.amax(data, axis=0) - self.stat_3 + 10e-10
+        data_offset = data - self.stat_3
+        normalized_data = data_offset / self.stat_4
+        return normalized_data
+
     def get_stats(self):
         stats = {"stat_1": self.stat_1,
-                 "stat_2": self.stat_2}
+                 "stat_2": self.stat_2,
+                 "stat_3": self.stat_3,
+                 "stat_4": self.stat_4}
         return stats
 
 
@@ -112,12 +124,6 @@ class Interpolation:
 
     def _get_slerp_fn(self):
         return Slerp(self.time, self.rot)
-
-    def _normalize(self, vec):
-        """
-        normalize a vector to become unit length
-        """
-        return (vec.T / np.sqrt(np.sum(vec**2, axis=-1))).T
 
 
 # contact segmentation
