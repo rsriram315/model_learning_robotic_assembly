@@ -20,8 +20,11 @@ class Visualize:
         self.device, self.device_ids = prepare_device(cfg["model"]["n_gpu"])
         self.demo_fnames = self._find_demos(self.cfg["dataset"])
 
+        self.ds_stats = None
+
     def visualize(self):
         model, ds_stats = self._build_model(self.cfg)
+        self.ds_stats = ds_stats
 
         for fname in self.demo_fnames:
             fname = Path(fname)
@@ -42,8 +45,8 @@ class Visualize:
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / fname.stem
-                self._vis_trajectory(preds_per_demo[:3],
-                                     state[:3], time, traj_fname)
+                self._vis_trajectory(preds_per_demo[:, :3],
+                                     state[:, :3], traj_fname)
 
             print(f"... Generated visualization for {fname}")
 
@@ -64,14 +67,14 @@ class Visualize:
 
         # the predicted states should start with the prediction for t=1 not t=0
         # for t in range(1, len(time), subsample):
-        size = 2
+        size = 1
         features = ['pos', 'rot', 'force']
         axis = ['x', 'y', 'z']
 
         for r, feature in enumerate(features):
             for c, ax in enumerate(axis):
                 idx = c + 3 * r
-                axs[r, c].scatter(time[1:], state[:-1, idx], s=size,
+                axs[r, c].scatter(time[1:], state[1:, idx], s=size,
                                   c='tab:blue', label="ground truth")
                 axs[r, c].scatter(time[1:], pred[:-1, idx], s=size,
                                   c='tab:orange', label="predictions")
@@ -83,25 +86,15 @@ class Visualize:
         plt.savefig(fname)
         plt.close(fig)
 
-    def _vis_trajectory(self, pred, state, time, fname, subsample=3):
+    def _vis_trajectory(self, pred, state, fname):
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111, projection='3d')
+        size = 1
 
-        pred = np.array(pred)
-
-        for t in range(1, len(time) - 1, subsample):
-            size = t/100
-            ax.scatter(pred[t-1, 1], pred[t-1, 0], pred[t-1, 2],
-                       s=size, c='tab:orange')
-            ax.scatter(state[t, 1], state[t, 0], state[t, 2],
-                       s=size, c='tab:blue')
-            # ax.scatter(action[t,1], action[t,0], action[t,2],
-            #            s=size, c='tab:green')
-
-        ax.scatter(pred[-1, 1], pred[-1, 0], pred[-1, 2],
-                   label='predicted trajectory', s=size, c='tab:orange')
-        ax.scatter(state[-1, 1], state[-1, 0], state[-1, 2],
-                   label='state trajectory', s=size, c='tab:blue')
+        ax.scatter3D(state[1:, 1], state[1:, 0], state[1:, 2],
+                     label='state trajectory', s=size, c='tab:blue')
+        ax.scatter3D(pred[:-1, 1], pred[:-1, 0], pred[:-1, 2],
+                     label='predicted trajectory', s=size, c='tab:orange')
         # ax.scatter(action_pos[-1,1], action_pos[-1,0], action_pos[-1,2],
         #            label='action trajectory', s=size, c='tab:green')
 
@@ -187,5 +180,5 @@ class Visualize:
 
         num_train_demo = int(len(demos) * 0.8)
         ds_cfg["fnames"] = (np.random.RandomState(ds_cfg["seed"])
-                              .permutation(demos)[num_train_demo:])
+                              .permutation(demos)[:num_train_demo])
         return ds_cfg["fnames"]
