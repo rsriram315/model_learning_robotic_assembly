@@ -28,7 +28,9 @@
         },
         "stats": {
             "stat_1": null,
-            "stat_2": null
+            "stat_2": null,
+            "stat_3": null,
+            "stat_4": null
         },
         "contact_only": true
     },
@@ -42,8 +44,8 @@
     "model": {
         "name": "MLP",
         "n_gpu": 1,
-        "input_dims": 18,
-        "output_dims": 9
+        "input_dims": 6,
+        "output_dims": 3
     },
     "trainer": {
         "name": "mlp",

@@ -1,6 +1,6 @@
 {
-    "train": true,
-    "evaluate": true,
+    "train": false,
+    "evaluate": false,
     "visualize": true,
     "dataset": {
         "name": "DemoDataset",
@@ -28,7 +28,9 @@
         },
         "stats": {
             "stat_1": null,
-            "stat_2": null
+            "stat_2": null,
+            "stat_3": null,
+            "stat_4": null
         },
         "contact_only": true
     },
