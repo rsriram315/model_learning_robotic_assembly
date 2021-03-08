@@ -62,7 +62,10 @@ class BaseTrainer:
         """
         full training logic
         """
-        self.write_log('... Training neural network\n')
+        self.write_log("... Training demos are:\n")
+        for demo in self.dataloader.get_fnames():
+            self.write_log(f"   {demo}\n")
+        self.write_log('\n... Training neural network\n')
 
         best_val_loss = None
         patience_count = 0

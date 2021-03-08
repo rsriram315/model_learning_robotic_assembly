@@ -39,6 +39,7 @@ class DemoDataset(Dataset):
         self.targets = []
 
         self.stats = ds_cfg["stats"]
+        self.demo_fnames = ds_cfg["fnames"]
 
         # debug variables
         # self.all_actions_time = None
@@ -61,6 +62,9 @@ class DemoDataset(Dataset):
 
         return np.float32(sample), np.float32(target)
 
+    def get_fnames(self):
+        return self.demo_fnames
+
     def _read_all_demos(self):
         for data_path in self.data_paths:
             states, actions = self._read_one_demo(data_path,
@@ -81,9 +85,16 @@ class DemoDataset(Dataset):
                                         sl_factor)
 
             # use next state as target, the last target is the end state itself
-            targets = states_actions[10:, 0]
-            # targets = states_actions[1:, 0]
+            targets = states_actions[sl_factor:, 0]
             targets = np.vstack((targets, states_padding))
+
+            # learning the residual
+            # targets = np.vstack((states_actions[:, 0],
+            #                      states_padding))
+            # new_targets = []
+            # for i in range(states_actions[:, 0].shape[0]):
+            #     new_targets.append(targets[i + 10, :] - targets[i, :])
+            # targets = np.array(new_targets)
 
             self.states_actions.extend(states_actions)
             self.targets.extend(targets)
@@ -97,6 +108,7 @@ class DemoDataset(Dataset):
             norm = Normalization(self.stats)
 
         self.states_actions = norm.normalize(self.states_actions)
+        # self.targets = norm.residual_normalize(self.targets)
         self.targets = norm.normalize(self.targets, is_target=True)
         self.stats = norm.get_stats()
 
