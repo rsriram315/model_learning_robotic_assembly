@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from model import MLP
+from dataloaders import Normalization, Standardization
 from pathlib import Path
 from utils import read_json, prepare_device
 from dataloaders import DemoDataset
@@ -21,10 +22,15 @@ class Visualize:
         self.demo_fnames = self._find_demos(self.cfg["dataset"])
 
         self.ds_stats = None
+        self.norm = None
 
     def visualize(self):
         model, ds_stats = self._build_model(self.cfg)
-        self.ds_stats = ds_stats
+
+        if self.cfg["dataset"]["preprocess"]["normalize"]:
+            self.norm = Normalization(ds_stats)
+        elif self.cfg["dataset"]["preprocess"]["standardize"]:
+            self.norm = Standardization(ds_stats)
 
         for fname in self.demo_fnames:
             fname = Path(fname)
@@ -32,7 +38,11 @@ class Visualize:
             losses_per_demo, preds_per_demo = self._evaluate(model, dataset)
 
             time = dataset.sample_time
+
+            # feature only
+            # state = dataset.states_actions[:, 0, 3:6]
             state = dataset.states_actions[:, 0]
+            state = self.norm.inverse_normalize(state, is_target=True)
             # action_pos = dataset.states_actions[:, 1]
 
             if self.vis_cfg["loss"]:
@@ -45,8 +55,8 @@ class Visualize:
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / fname.stem
-                self._vis_trajectory(preds_per_demo[:, :3],
-                                     state[:, :3], traj_fname)
+                self._vis_trajectory(preds_per_demo[:, :3], state[:, :3],
+                                     traj_fname)
 
             print(f"... Generated visualization for {fname}")
 
@@ -74,10 +84,16 @@ class Visualize:
         for r, feature in enumerate(features):
             for c, ax in enumerate(axis):
                 idx = c + 3 * r
-                axs[r, c].scatter(time[1:], state[1:, idx], s=size,
-                                  c='tab:blue', label="ground truth")
-                axs[r, c].scatter(time[1:], pred[:-1, idx], s=size,
-                                  c='tab:orange', label="predictions")
+                axs[r, c].scatter(time[1:],
+                                  state[1:, idx],
+                                  s=size,
+                                  c='tab:blue',
+                                  label="ground truth")
+                axs[r, c].scatter(time[1:],
+                                  pred[:-1, idx],
+                                  s=size,
+                                  c='tab:orange',
+                                  label="predictions")
                 axs[r, c].set_title(f'{feature} {ax} axis')
                 axs[r, c].set_ylabel('coordinate')
                 axs[r, c].legend()
@@ -89,12 +105,21 @@ class Visualize:
     def _vis_trajectory(self, pred, state, fname):
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111, projection='3d')
-        size = 1
+        max_size = 10
+        size_ls = np.arange(0, max_size, max_size / len(state[1:, 1]))
 
-        ax.scatter3D(state[1:, 1], state[1:, 0], state[1:, 2],
-                     label='state trajectory', s=size, c='tab:blue')
-        ax.scatter3D(pred[:-1, 1], pred[:-1, 0], pred[:-1, 2],
-                     label='predicted trajectory', s=size, c='tab:orange')
+        ax.scatter3D(state[1:, 1],
+                     state[1:, 0],
+                     state[1:, 2],
+                     label='state trajectory',
+                     s=size_ls,
+                     c='tab:blue')
+        ax.scatter3D(pred[:-1, 1],
+                     pred[:-1, 0],
+                     pred[:-1, 2],
+                     label='predicted trajectory',
+                     s=size_ls,
+                     c='tab:orange')
         # ax.scatter(action_pos[-1,1], action_pos[-1,0], action_pos[-1,2],
         #            label='action trajectory', s=size, c='tab:green')
 
@@ -123,10 +148,18 @@ class Visualize:
                 target = torch.tensor(target).to('cuda')
 
                 output = model(state_action)
-
                 loss = criterion(output, target)
 
-                preds.append(output.cpu().numpy()[0, :])
+                new_output = \
+                    self.norm.inverse_normalize(output.cpu().numpy()[0],
+                                                is_target=True)
+                # feature only
+                # new_output = \
+                #     self.norm.inverse_normalize(output.cpu().numpy(),
+                #                                 is_target=True)
+                # preds.append(output.cpu().numpy()[0])
+
+                preds.append(new_output[0])
                 losses.append(loss.item())
         return np.array(losses), np.array(preds)
 
@@ -151,8 +184,7 @@ class Visualize:
         model_cfg = cfg["model"]
 
         # build model architecture, then print to console
-        model = MLP(model_cfg["input_dims"],
-                    model_cfg["output_dims"])
+        model = MLP(model_cfg["input_dims"], model_cfg["output_dims"])
 
         ckpt = torch.load(ckpt_pth)
         model.load_state_dict(ckpt["state_dict"])
@@ -178,7 +210,7 @@ class Visualize:
         else:
             demos = ds_cfg["fnames"]
 
-        num_train_demo = int(len(demos) * 0.8)
-        ds_cfg["fnames"] = (np.random.RandomState(ds_cfg["seed"])
-                              .permutation(demos)[:num_train_demo])
+        # num_train_demo = int(len(demos) * 0.8)
+        ds_cfg["fnames"] = (np.random.RandomState(
+            ds_cfg["seed"]).permutation(demos)[:])
         return ds_cfg["fnames"]

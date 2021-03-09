@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from .vis_mlp import Visualize
+from dataloaders import Normalization, Standardization
 
 
 class EnsembleVisualize(Visualize):
@@ -20,6 +21,7 @@ class EnsembleVisualize(Visualize):
 
             time = dataset.sample_time
             state = dataset.states_actions[:, 0]
+            state = self.norm.inverse_normalize(state, is_target=True)
             # action_pos = dataset.states_actions[:, 1]
 
             if self.vis_cfg["loss"]:
@@ -36,8 +38,8 @@ class EnsembleVisualize(Visualize):
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / fname.stem
-                self._vis_trajectory(pred_stats["mean"][i, :3],
-                                     state[:3], time, traj_fname)
+                self._vis_trajectory(pred_stats["mean"][i, :, :3],
+                                     state[:, :3], traj_fname)
 
             print(f"... Generated visualization for {fname}")
 
@@ -58,7 +60,7 @@ class EnsembleVisualize(Visualize):
         plt.savefig(fname)
         plt.close(fig)
 
-    def _vis_axis(self, pred_mean, pred_std, state, time, fname, subsample=3):
+    def _vis_axis(self, pred_mean, pred_std, state, time, fname):
         fig, axs = plt.subplots(3, 3, figsize=(30, 15), sharex='all')
 
         # the predicted states should start with the prediction for t=1 not t=0
@@ -102,6 +104,11 @@ class EnsembleVisualize(Visualize):
                                                         str(n+1)+"/")
             model, ds_stats = self._build_model(self.cfg)
 
+            if self.cfg["dataset"]["preprocess"]["normalize"]:
+                self.norm = Normalization(ds_stats)
+            elif self.cfg["dataset"]["preprocess"]["standardize"]:
+                self.norm = Standardization(ds_stats)
+
             losses_per_model = []
             preds_per_model = []
             demo_lens = []
@@ -127,8 +134,8 @@ class EnsembleVisualize(Visualize):
 
         pred_mean = self.slice_arr(demo_lens, np.mean(preds, axis=0))
         pred_std = self.slice_arr(demo_lens, np.std(preds, axis=0))
-        pred_stats = {"mean": pred_mean,
-                      "std": pred_std}
+        pred_stats = {"mean": np.array(pred_mean),
+                      "std": np.array(pred_std)}
 
         return loss_stats, pred_stats, ds_stats
 

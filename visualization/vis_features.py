@@ -22,7 +22,7 @@ class FeaturesVisualize(Visualize):
         for _, feature in enumerate(features):
             for c, ax in enumerate(axis):
                 idx = c
-                axs[c].scatter(time[1:], state[1:, idx + 3], s=size,
+                axs[c].scatter(time[1:], state[1:, idx], s=size,
                                c='tab:blue', label="ground truth")
                 axs[c].scatter(time[1:], pred[:-1, idx], s=size,
                                c='tab:orange', label="predictions")
