@@ -23,6 +23,7 @@ class DemoDataset(Dataset):
         self.data_paths = [self.root / fn for fn in ds_cfg["fnames"]]
 
         self.contact_only = ds_cfg["contact_only"]
+        self.learn_residual = ds_cfg["learn_residual"]
 
         self.sample_freq = ds_cfg["sample_freq"]
         self.state_attrs = ds_cfg["state_attrs"]
@@ -40,6 +41,7 @@ class DemoDataset(Dataset):
 
         self.stats = ds_cfg["stats"]
         self.demo_fnames = ds_cfg["fnames"]
+        self.preprocess = ds_cfg["preprocess"]
 
         # debug variables
         # self.all_actions_time = None
@@ -48,8 +50,6 @@ class DemoDataset(Dataset):
         # self.all_states_pos = None
         # self.all_states_time = None
 
-        self.preprocess = ds_cfg["preprocess"]
-
         self._read_all_demos()
 
     def __len__(self):
@@ -57,6 +57,8 @@ class DemoDataset(Dataset):
 
     def __getitem__(self, idx, scale=1):
         state, action = self.states_actions[idx]
+        # sample = np.hstack((state[3:6], action[3:6])) * scale
+        # target = self.targets[idx, 3:6] * scale
         sample = np.hstack((state[:9], action[:9])) * scale
         target = self.targets[idx, :9] * scale
 
@@ -78,23 +80,23 @@ class DemoDataset(Dataset):
             # self.all_states_pos = states["pos"]
             # self.all_actions_pos = actions["pos"]
             # self.all_actions_time = actions["time"]
+
             sl_factor = 10
             states_actions, states_padding = \
                 self._pair_state_action(self.sample_freq,
                                         states, actions,
                                         sl_factor)
 
-            # use next state as target, the last target is the end state itself
-            targets = states_actions[sl_factor:, 0]
-            targets = np.vstack((targets, states_padding))
-
-            # learning the residual
-            # targets = np.vstack((states_actions[:, 0],
-            #                      states_padding))
-            # new_targets = []
-            # for i in range(states_actions[:, 0].shape[0]):
-            #     new_targets.append(targets[i + 10, :] - targets[i, :])
-            # targets = np.array(new_targets)
+            if self.learn_residual:
+                # learning the residual
+                tmp_targets = np.vstack((states_actions[:, 0],
+                                         states_padding))
+                targets = (tmp_targets[sl_factor:] -
+                           tmp_targets[:-sl_factor])
+            else:
+                # learn the absolute value
+                targets = states_actions[sl_factor:, 0].copy()
+                targets = np.vstack((targets, states_padding))
 
             self.states_actions.extend(states_actions)
             self.targets.extend(targets)
@@ -108,8 +110,10 @@ class DemoDataset(Dataset):
             norm = Normalization(self.stats)
 
         self.states_actions = norm.normalize(self.states_actions)
-        # self.targets = norm.residual_normalize(self.targets)
-        self.targets = norm.normalize(self.targets, is_target=True)
+        if self.learn_residual:
+            self.targets = norm.residual_normalize(self.targets)
+        else:
+            self.targets = norm.normalize(self.targets, is_target=True)
         self.stats = norm.get_stats()
 
     def _read_one_demo(self,
