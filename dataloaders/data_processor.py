@@ -5,6 +5,9 @@ from scipy.spatial.transform import Rotation as R
 from scipy.ndimage import gaussian_filter1d
 
 
+_FLOAT_EPS = np.finfo(np.float64).eps
+
+
 class BaseNormalization:
     def __init__(self, stats):
         self.stat_1 = stats["stat_1"]
@@ -44,7 +47,7 @@ class Standardization(BaseNormalization):
         mean and variance
         """
         self.stat_1 = np.mean(data, axis=0)
-        self.stat_2 = np.std(data, axis=0) + 10e-10
+        self.stat_2 = np.std(data, axis=0) + _FLOAT_EPS
 
     def normalize(self, data, is_target=False):
         """
@@ -54,28 +57,20 @@ class Standardization(BaseNormalization):
         if self.stat_1 is None or self.stat_2 is None:
             self._stats(data)
         dim = 1 if is_target else 2
-        data_offset = data - self.stat_1[:dim]
-        normalized_data = data_offset / self.stat_2[:dim]
-        return normalized_data
+        return (data - self.stat_1[:dim]) / self.stat_2[:dim]
 
     def inverse_normalize(self, data, is_target=False):
         dim = 1 if is_target else 2
-        scaled_data = data * (self.stat_2[:dim] - 10e-10)
-        inversed_data = scaled_data + self.stat_1[:dim]
-        return inversed_data
+        return data * (self.stat_2[:dim] - _FLOAT_EPS) + self.stat_1[:dim]
 
     def residual_normalize(self, data):
         if self.stat_3 is None or self.stat_4 is None:
             self.stat_3 = np.amin(data, axis=0)
-            self.stat_4 = np.amax(data, axis=0) - self.stat_3 + 10e-10
-        data_offset = data - self.stat_3
-        normalized_data = data_offset / self.stat_4
-        return normalized_data
+            self.stat_4 = np.amax(data, axis=0) - self.stat_3 + _FLOAT_EPS
+        return (data - self.stat_3) / self.stat_4
 
     def residual_inv_normalize(self, data):
-        scaled_data = data * (self.stat_4 - 10e-10)
-        inversed_data = scaled_data + self.stat_3
-        return inversed_data
+        return data * (self.stat_4 - _FLOAT_EPS) + self.stat_3
 
 
 class Normalization(BaseNormalization):
@@ -87,7 +82,7 @@ class Normalization(BaseNormalization):
         mean
         """
         self.stat_1 = np.amin(data, axis=0)
-        self.stat_2 = np.amax(data, axis=0) - self.stat_1 + 10e-10
+        self.stat_2 = np.amax(data, axis=0) - self.stat_1 + _FLOAT_EPS
 
     def normalize(self, data, is_target=False):
         """
@@ -97,15 +92,12 @@ class Normalization(BaseNormalization):
         if self.stat_1 is None or self.stat_2 is None:
             self._stats(data)
         dim = 1 if is_target else 2
-        shifted_data = data - self.stat_1[:dim]
-        normalized_data = shifted_data / self.stat_2[:dim]
-        normalized_data = 2 * (normalized_data - 0.5)
-        return normalized_data
+        normalized_data = (data - self.stat_1[:dim]) / self.stat_2[:dim]
+        return 2 * (normalized_data - 0.5)
 
     def inverse_normalize(self, data, is_target=False):
         dim = 1 if is_target else 2
-        shifted_data = data / 2 + 0.5
-        scaled_data = shifted_data * (self.stat_2[:dim] - 10e-10)
+        scaled_data = (data / 2 + 0.5) * (self.stat_2[:dim] - _FLOAT_EPS)
         inversed_data = scaled_data + self.stat_1[:dim]
         # data_scale = data_offset * self.stat_2[:dim, 3:6]
         # inversed_data = data_scale + self.stat_1[:dim, 3:6]
@@ -114,15 +106,12 @@ class Normalization(BaseNormalization):
     def residual_normalize(self, data):
         if self.stat_3 is None or self.stat_4 is None:
             self.stat_3 = np.amin(data, axis=0)
-            self.stat_4 = np.amax(data, axis=0) - self.stat_3 + 10e-10
-        data_offset = data - self.stat_3
-        normalized_data = data_offset / self.stat_4
-        normalized_data = 2 * (normalized_data - 0.5)
-        return normalized_data
+            self.stat_4 = np.amax(data, axis=0) - self.stat_3 + _FLOAT_EPS
+        normalized_data = (data - self.stat_3) / self.stat_4
+        return 2 * (normalized_data - 0.5)
 
     def residual_inv_normalize(self, data):
-        shifted_data = data / 2 + 0.5
-        scaled_data = shifted_data * (self.stat_4 - 10e-10)
+        scaled_data = (data / 2 + 0.5) * (self.stat_4 - _FLOAT_EPS)
         inversed_data = scaled_data + self.stat_3
         return inversed_data
 
