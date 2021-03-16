@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from model import MLP
+from model import MLP, MCDropout
 from base import BaseTrainer
 from utils import MetricTracker, ensure_dir, prepare_device
 
@@ -49,8 +49,12 @@ class Trainer(BaseTrainer):
 
     def _build_model(self, model_cfg):
         # build model architecture, then print to console
-        model = MLP(model_cfg["input_dims"],
-                    model_cfg["output_dims"])
+        if model_cfg["name"] == "MLP":
+            model = MLP(model_cfg["input_dims"],
+                        model_cfg["output_dims"])
+        elif model_cfg["name"] == "MCDropout":
+            model = MCDropout(model_cfg["input_dims"],
+                              model_cfg["output_dims"])
         print(model)
 
         model = model.to(self.device)
@@ -84,7 +88,6 @@ class Trainer(BaseTrainer):
         tb_step = (epoch - 1) * len(self.dataloader)
 
         for batch_idx, (state_action, target) in enumerate(self.dataloader):
-
             state_action, target = \
                 (state_action.to(self.device, non_blocking=True),
                  target.to(self.device, non_blocking=True))

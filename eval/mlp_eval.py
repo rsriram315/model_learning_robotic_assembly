@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 from functools import partial
-from model import MLP
+from model import MLP, MCDropout
 from dataloaders import DemoDataset, DemoDataLoader
 from logger import write_log
 from utils import prepare_device
@@ -61,6 +61,10 @@ class Evaluate:
 
         dataset = DemoDataset(ds_cfg)
         dataloader = DemoDataLoader(dataset, dl_cfg)
+
+        self.write_log("... Holdout demos are:\n")
+        for demo in self.dataloader.get_fnames():
+            self.write_log(f"   {demo}\n")
         return dataloader, ds_cfg["fnames"]
 
     def _find_ckpt(self, ckpt_dir):
@@ -70,12 +74,18 @@ class Evaluate:
 
     def _build_model(self, model_cfg, ckpt_pth):
         # build model architecture, then print to console
-        model = MLP(model_cfg["input_dims"],
-                    model_cfg["output_dims"])
+        if model_cfg["name"] == "MLP":
+            model = MLP(model_cfg["input_dims"],
+                        model_cfg["output_dims"])
+        elif model_cfg["name"] == "MCDropout":
+            model = MCDropout(model_cfg["input_dims"],
+                              model_cfg["output_dims"])
         print(model)
 
+        # load model checkpoint
         ckpt = torch.load(ckpt_pth)
         model.load_state_dict(ckpt["state_dict"])
+        self.eval_log(f'... Load checkpoint: {ckpt_pth}')
 
         model = model.to(self.device)
         if len(self.device_ids) > 1:
