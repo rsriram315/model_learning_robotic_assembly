@@ -1,6 +1,6 @@
 {
-    "train": false,
-    "evaluate": false,
+    "train": true,
+    "evaluate": true,
     "visualize": true,
     "dataset": {
         "name": "DemoDataset",
@@ -8,6 +8,8 @@
         "root": "data",
         "fnames": [],
         "sample_freq": 1000,
+        "learn_residual": true,
+        "contact_only": true,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_base"]
@@ -31,8 +33,7 @@
             "stat_2": null,
             "stat_3": null,
             "stat_4": null
-        },
-        "contact_only": true
+        }
     },
     "dataloader": {
         "name": "DemoDataLoader",
@@ -78,6 +79,6 @@
     "visualization": {
         "loss": true,
         "axis": true,
-        "trajectory": false
+        "trajectory": true
     }
 }
