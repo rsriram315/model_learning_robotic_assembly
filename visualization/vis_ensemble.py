@@ -13,35 +13,38 @@ class EnsembleVisualize(Visualize):
         super().__init__(cfg)
 
     def visualize(self):
-        loss_stats, pred_stats, ds_stats = self.ensemble_stats()
+        loss_stats, pred_stats, ds_stats = self.pred_stats()
 
         for i in range(len(self.demo_fnames)):
-            fname = Path(self.demo_fnames[i])
-            dataset = self._read_single_demo([fname.name], ds_stats)
+            if self.demo_fnames[i] in self.train_demo_fnames:
+                suffix_fname = Path('train') / Path(self.demo_fnames[i]).stem
+            elif self.demo_fnames[i] in self.test_demo_fnames:
+                suffix_fname = Path('test') / Path(self.demo_fnames[i]).stem
+
+            dataset = self._read_single_demo([self.demo_fnames[i]], ds_stats)
 
             time = dataset.sample_time
             state = dataset.states_actions[:, 0]
             state = self.norm.inverse_normalize(state, is_target=True)
-            # action_pos = dataset.states_actions[:, 1]
 
             if self.vis_cfg["loss"]:
-                loss_fname = self.vis_dir / "loss" / fname.stem
+                loss_fname = self.vis_dir / "loss" / suffix_fname
                 self._vis_loss(loss_stats["mean"][i],
                                loss_stats["std"][i],
                                time, loss_fname)
 
             if self.vis_cfg["axis"]:
-                axis_fname = self.vis_dir / "axis" / fname.stem
+                axis_fname = self.vis_dir / "axis" / suffix_fname
                 self._vis_axis(pred_stats["mean"][i],
                                pred_stats["std"][i],
                                state, time, axis_fname)
 
             if self.vis_cfg["trajectory"]:
-                traj_fname = self.vis_dir / "trajectory" / fname.stem
-                self._vis_trajectory(pred_stats["mean"][i, :, :3],
+                traj_fname = self.vis_dir / "trajectory" / suffix_fname
+                self._vis_trajectory(pred_stats["mean"][i][:, :3],
                                      state[:, :3], traj_fname)
 
-            print(f"... Generated visualization for {fname}")
+            print(f"... Generated visualization for {suffix_fname.name}")
 
     def _vis_loss(self, loss_mean, loss_std, time, fname):
         fig = plt.figure(figsize=(8, 4))
@@ -92,7 +95,7 @@ class EnsembleVisualize(Visualize):
         plt.savefig(fname)
         plt.close(fig)
 
-    def ensemble_stats(self):
+    def pred_stats(self):
         num_ensemble = self.cfg["trainer"]["num_ensemble"]
         dir_prefix = self.cfg["trainer"]["ckpts_dir"]
 
@@ -134,8 +137,8 @@ class EnsembleVisualize(Visualize):
 
         pred_mean = self.slice_arr(demo_lens, np.mean(preds, axis=0))
         pred_std = self.slice_arr(demo_lens, np.std(preds, axis=0))
-        pred_stats = {"mean": np.array(pred_mean),
-                      "std": np.array(pred_std)}
+        pred_stats = {"mean": pred_mean,
+                      "std": pred_std}
 
         return loss_stats, pred_stats, ds_stats
 
@@ -146,4 +149,4 @@ class EnsembleVisualize(Visualize):
         for end in demo_lens:
             res.append(arr[start:start + end])
             start += end
-        return res
+        return np.array(res, dtype=object)

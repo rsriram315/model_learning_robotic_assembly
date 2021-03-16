@@ -4,7 +4,7 @@ import torch
 from model import MLP
 from dataloaders import Normalization, Standardization
 from pathlib import Path
-from utils import read_json, prepare_device
+from utils import prepare_device
 from dataloaders import DemoDataset
 
 
@@ -16,11 +16,16 @@ class Visualize:
         # create dirs
         self.vis_dir = Path("saved/visualizations")
         for name in ["loss", "axis", "trajectory"]:
-            Path(self.vis_dir / name).mkdir(parents=True, exist_ok=True)
+            Path(self.vis_dir / name / 'train').mkdir(parents=True,
+                                                      exist_ok=True)
+            Path(self.vis_dir / name / 'test').mkdir(parents=True,
+                                                     exist_ok=True)
 
         self.device, self.device_ids = prepare_device(cfg["model"]["n_gpu"])
-        self.demo_fnames = self._find_demos(self.cfg["dataset"])
+        self.demo_fnames, self.train_demo_fnames, self.test_demo_fnames =\
+            self._find_demos(self.cfg["dataset"])
 
+        self.learn_residual = cfg["dataset"]["learn_residual"]
         self.ds_stats = None
         self.norm = None
 
@@ -33,8 +38,12 @@ class Visualize:
             self.norm = Standardization(ds_stats)
 
         for fname in self.demo_fnames:
-            fname = Path(fname)
-            dataset = self._read_single_demo([fname.name], ds_stats)
+            if fname in self.train_demo_fnames:
+                suffix_fname = Path('train') / Path(fname).stem
+            elif fname in self.test_demo_fnames:
+                suffix_fname = Path('test') / Path(fname).stem
+
+            dataset = self._read_single_demo([fname], ds_stats)
             losses_per_demo, preds_per_demo = self._evaluate(model, dataset)
 
             time = dataset.sample_time
@@ -43,18 +52,17 @@ class Visualize:
             # state = dataset.states_actions[:, 0, 3:6]
             state = dataset.states_actions[:, 0]
             state = self.norm.inverse_normalize(state, is_target=True)
-            # action_pos = dataset.states_actions[:, 1]
 
             if self.vis_cfg["loss"]:
-                loss_fname = self.vis_dir / "loss" / fname.stem
+                loss_fname = self.vis_dir / "loss" / suffix_fname
                 self._vis_loss(losses_per_demo, time, loss_fname)
 
             if self.vis_cfg["axis"]:
-                axis_fname = self.vis_dir / "axis" / fname.stem
+                axis_fname = self.vis_dir / "axis" / suffix_fname
                 self._vis_axis(preds_per_demo, state, time, axis_fname)
 
             if self.vis_cfg["trajectory"]:
-                traj_fname = self.vis_dir / "trajectory" / fname.stem
+                traj_fname = self.vis_dir / "trajectory" / suffix_fname
                 self._vis_trajectory(preds_per_demo[:, :3], state[:, :3],
                                      traj_fname)
 
@@ -120,8 +128,6 @@ class Visualize:
                      label='predicted trajectory',
                      s=size_ls,
                      c='tab:orange')
-        # ax.scatter(action_pos[-1,1], action_pos[-1,0], action_pos[-1,2],
-        #            label='action trajectory', s=size, c='tab:green')
 
         ax.set_xlabel('Y')
         ax.set_ylabel('X')
@@ -142,17 +148,23 @@ class Visualize:
             for i in range(len(dataset)):
                 state_action, target = dataset.__getitem__(i)
 
-                state_action = state_action[np.newaxis, ...]
-                target = target[np.newaxis, ...]
                 state_action = torch.tensor(state_action).to('cuda')
                 target = torch.tensor(target).to('cuda')
 
                 output = model(state_action)
                 loss = criterion(output, target)
 
-                new_output = \
-                    self.norm.inverse_normalize(output.cpu().numpy()[0],
-                                                is_target=True)
+                if self.learn_residual:
+                    new_res = \
+                        self.norm.residual_inv_normalize(output.cpu().numpy())
+                    new_state = self.norm.inverse_normalize(
+                                    state_action.cpu().numpy()[:9],
+                                    is_target=True)
+                    new_output = new_res + new_state
+                else:
+                    new_output = \
+                        self.norm.inverse_normalize(output.cpu().numpy(),
+                                                    is_target=True)
                 # feature only
                 # new_output = \
                 #     self.norm.inverse_normalize(output.cpu().numpy(),
@@ -164,13 +176,10 @@ class Visualize:
         return np.array(losses), np.array(preds)
 
     def _read_single_demo(self, fname, stats):
-        # setup dataloader instances
-        cfg = read_json("configs/mlp.json")
-        ds_cfg = cfg["dataset"]
+        ds_cfg = self.cfg["dataset"]
         ds_cfg["fnames"] = fname
         ds_cfg["sample_freq"] = 100
         ds_cfg["stats"] = stats
-        # ds_cfg["preprocess"]["normalize"] = false
 
         dataset = DemoDataset(ds_cfg)
         return dataset
@@ -210,7 +219,10 @@ class Visualize:
         else:
             demos = ds_cfg["fnames"]
 
-        # num_train_demo = int(len(demos) * 0.8)
-        ds_cfg["fnames"] = (np.random.RandomState(
-            ds_cfg["seed"]).permutation(demos)[:])
-        return ds_cfg["fnames"]
+        num_train_demo = int(len(demos) * 0.8)
+        train_demos = (np.random.RandomState(
+                        ds_cfg["seed"]).permutation(demos)[:num_train_demo])
+        test_demos = (np.random.RandomState(
+                        ds_cfg["seed"]).permutation(demos)[num_train_demo:])
+        ds_cfg["fnames"] = np.hstack((train_demos, test_demos))
+        return ds_cfg["fnames"], train_demos, test_demos
