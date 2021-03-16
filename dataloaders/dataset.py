@@ -81,7 +81,7 @@ class DemoDataset(Dataset):
             # self.all_actions_pos = actions["pos"]
             # self.all_actions_time = actions["time"]
 
-            sl_factor = 10
+            sl_factor = 10  # sliding window factor
             states_actions, states_padding = \
                 self._pair_state_action(self.sample_freq,
                                         states, actions,

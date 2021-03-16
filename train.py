@@ -22,10 +22,10 @@ def train(cfg):
     else:
         demos = cfg["dataset"]["fnames"]
 
-    # num_train_demo = int(len(demos) * 0.8)
+    num_train_demo = int(len(demos) * 0.8)
     cfg["dataset"]["fnames"] = \
         (np.random.RandomState(cfg["dataset"]["seed"])
-           .permutation(demos)[:])
+           .permutation(demos)[:num_train_demo])
 
     dataset = DemoDataset(cfg["dataset"])
 
