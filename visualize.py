@@ -1,17 +1,18 @@
-from visualization import Visualize, EnsembleVisualize, ResVisualize
+from visualization import Visualize, EnsembleVisualize, MCDropoutVisualize
 # from visualization.vis_features import FeaturesVisualize
 
 
 def visualize(cfg):
-    model_name = cfg["trainer"]["name"]
+    trainer_name = cfg["trainer"]["name"]
+    model_name = cfg["model"]["name"]
 
-    if model_name == "mlp":
-        if cfg["dataset"]["learn_residual"]:
-            vis = ResVisualize(cfg)
-        else:
+    if trainer_name == "mlp":
+        if model_name == "MLP":
             vis = Visualize(cfg)
-            # vis = FeaturesVisualize(cfg)
-    elif model_name == "ensemble":
+        elif model_name == "MCDropout":
+            vis = MCDropoutVisualize(cfg)
+        # vis = FeaturesVisualize(cfg)
+    elif trainer_name == "ensemble":
         vis = EnsembleVisualize(cfg)
 
     vis.visualize()
