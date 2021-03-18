@@ -18,10 +18,3 @@ Multi-layer perceptrons, two hidden layers with 500 neurons per layer.
 $$\mathcal{L}_{dynamics} = \sum_{h=1}^{H} \left\lVert \hat{z}_{t+h} - z_{t+h}\right\rVert ^2 _2, ~\hat{z}_{t+h} = \hat{f}_{\theta_{dyn}}(\hat{z}_{t-l:t, a_{t+h}}), \hat{z}_t = z_{t}$$
 
 - L2 loss, minimize the dynamics prediction error over the horizon H (H=1 for now).
-
-### Remarks
-
-When the arm grasp the object:
-
-- for 02 data, 1292 states, 320 actions
-- for 03 data, 1206 states, 524 actions

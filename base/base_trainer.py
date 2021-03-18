@@ -3,7 +3,7 @@ from pathlib import Path
 from abc import abstractclassmethod
 from functools import partial
 from torch.utils.tensorboard.writer import SummaryWriter
-from logger import write_log
+from utils.logger import write_log
 
 
 class BaseTrainer:

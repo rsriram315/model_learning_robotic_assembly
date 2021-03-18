@@ -95,6 +95,7 @@ class Trainer(BaseTrainer):
             # intialize the gradient to None first
             self.optimizer.zero_grad(set_to_none=True)
             output = self.model(state_action)
+
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()

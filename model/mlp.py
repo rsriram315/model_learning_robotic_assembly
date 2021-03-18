@@ -1,6 +1,8 @@
 import torch.nn as nn
+import torch  # noqa
 import torch.nn.functional as F
 from base import BaseModel
+from dataloaders import compute_rotation_matrix_from_ortho6d  # noqa
 
 
 class MLP(BaseModel):
@@ -14,6 +16,13 @@ class MLP(BaseModel):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+
+        # 6D rotation representation
+        # x = compute_rotation_matrix_from_ortho6d(x)
+
+        # if use cosine and sine, use tanh or clamp
+        # x[:, 6:] = torch.tanh(x[:, 6:])
+        # x[:, 6:] = torch.clamp(x[:, 6:].clone(), min=-1, max=1)
         return x  # should I use softmax for the output
 
 

@@ -1,5 +1,5 @@
-from visualization import Visualize, EnsembleVisualize, MCDropoutVisualize
-# from visualization.vis_features import FeaturesVisualize
+from utils.visualization import Visualize, EnsembleVisualize,\
+                                MCDropoutVisualize
 
 
 def visualize(cfg):

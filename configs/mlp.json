@@ -8,8 +8,9 @@
         "root": "data",
         "fnames": [],
         "sample_freq": 1000,
-        "learn_residual": true,
+        "learn_residual": false,
         "contact_only": true,
+        "rotation_representation": "euler_cos_sin",
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_base"]
@@ -45,12 +46,12 @@
     "model": {
         "name": "MLP",
         "n_gpu": 1,
-        "input_dims": 18,
-        "output_dims": 9
+        "input_dims": 24,
+        "output_dims": 12
     },
     "trainer": {
         "name": "mlp",
-        "num_epochs": 200,
+        "num_epochs": 500,
         "ckpts_dir": "saved/ckpts/",
         "save_period": 5,
         "early_stop": true,

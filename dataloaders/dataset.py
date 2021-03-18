@@ -42,6 +42,7 @@ class DemoDataset(Dataset):
         self.stats = ds_cfg["stats"]
         self.demo_fnames = ds_cfg["fnames"]
         self.preprocess = ds_cfg["preprocess"]
+        self.rot_repr = ds_cfg["rotation_representation"]
 
         # debug variables
         # self.all_actions_time = None
@@ -59,8 +60,8 @@ class DemoDataset(Dataset):
         state, action = self.states_actions[idx]
         # sample = np.hstack((state[3:6], action[3:6])) * scale
         # target = self.targets[idx, 3:6] * scale
-        sample = np.hstack((state[:9], action[:9])) * scale
-        target = self.targets[idx, :9] * scale
+        sample = np.hstack((state[:], action[:])) * scale
+        target = self.targets[idx, :] * scale
 
         return np.float32(sample), np.float32(target)
 
@@ -110,6 +111,7 @@ class DemoDataset(Dataset):
             norm = Normalization(self.stats)
 
         self.states_actions = norm.normalize(self.states_actions)
+
         if self.learn_residual:
             self.targets = norm.residual_normalize(self.targets)
         else:
@@ -208,6 +210,7 @@ class DemoDataset(Dataset):
         seg_contact = SegmentContact()
 
         if is_state:
+            # force position
             force = data[:, 7:10].copy()
             contact_start, contact_end = \
                 seg_contact.contact_time(force, time)
@@ -251,9 +254,11 @@ class DemoDataset(Dataset):
 
         # rotation interpolation
         states_rot_interp = Interpolation(states["rot"], states["time"],
-                                          self.preprocess["interp"]["rot"])
+                                          self.preprocess["interp"]["rot"],
+                                          self.rot_repr)
         actions_rot_interp = Interpolation(actions["rot"], actions["time"],
-                                           self.preprocess["interp"]["rot"])
+                                           self.preprocess["interp"]["rot"],
+                                           self.rot_repr)
 
         # force interpolation
         states_force_interp = \
@@ -266,13 +271,13 @@ class DemoDataset(Dataset):
         # concatenate interpolated values
         states_interp = \
             np.hstack((states_pos_interp.interp(sample_time),
-                       states_rot_interp.interp(sample_time),
-                       states_force_interp.interp(sample_time)))
+                       states_force_interp.interp(sample_time),
+                       states_rot_interp.interp(sample_time)))
 
         actions_interp = \
             np.hstack((actions_pos_interp.interp(sample_time),
-                       actions_rot_interp.interp(sample_time),
-                       actions_force_interp.interp(sample_time)))
+                       actions_force_interp.interp(sample_time),
+                       actions_rot_interp.interp(sample_time)))
 
         states_actions = \
             [(s, a) for s, a in zip(states_interp, actions_interp)]
@@ -283,7 +288,7 @@ class DemoDataset(Dataset):
             [sample_time[-1] + f * t_interval for f in range(1, sl_factor + 1)]
         states_padding = \
             np.hstack((states_pos_interp.interp(padding_time),
-                       states_rot_interp.interp(padding_time),
-                       states_force_interp.interp(padding_time)))
+                       states_force_interp.interp(padding_time),
+                       states_rot_interp.interp(padding_time)))
 
         return np.array(states_actions), np.array(states_padding)

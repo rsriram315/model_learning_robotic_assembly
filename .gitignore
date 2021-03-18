@@ -114,7 +114,8 @@ __MACOSX/
 # custom files
 NOTES/
 JUPYTER/
-SAVEDS/
-saved*/
+saved/
+experiments/
 *.png
 *.jpg
+*.pth

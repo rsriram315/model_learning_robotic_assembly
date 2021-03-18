@@ -5,7 +5,7 @@ from tqdm import tqdm
 from functools import partial
 from model import MLP, MCDropout
 from dataloaders import DemoDataset, DemoDataLoader
-from logger import write_log
+from utils.logger import write_log
 from utils import prepare_device
 
 torch.backends.cudnn.deterministic = True
@@ -62,9 +62,9 @@ class Evaluate:
         dataset = DemoDataset(ds_cfg)
         dataloader = DemoDataLoader(dataset, dl_cfg)
 
-        self.write_log("... Holdout demos are:\n")
-        for demo in self.dataloader.get_fnames():
-            self.write_log(f"   {demo}\n")
+        self.eval_log("... Holdout demos are:\n")
+        for demo in dataloader.get_fnames():
+            self.eval_log(f"   {demo}\n")
         return dataloader, ds_cfg["fnames"]
 
     def _find_ckpt(self, ckpt_dir):

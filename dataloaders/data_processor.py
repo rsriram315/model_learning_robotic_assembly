@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Slerp
 from scipy.spatial.transform import Rotation as R
@@ -14,21 +15,6 @@ class BaseNormalization:
         self.stat_2 = stats["stat_2"]
         self.stat_3 = stats["stat_3"]
         self.stat_4 = stats["stat_4"]
-
-    def _stats(self, data):
-        pass
-
-    def normalize(self, data, is_target=False):
-        pass
-
-    def residual_normalize(self, data):
-        pass
-
-    def inverse_normalize(self, data, is_target=False):
-        pass
-
-    def residual_inv_normalize(self, data):
-        pass
 
     def get_stats(self):
         stats = {"stat_1": self.stat_1,
@@ -92,6 +78,19 @@ class Normalization(BaseNormalization):
         if self.stat_1 is None or self.stat_2 is None:
             self._stats(data)
         dim = 1 if is_target else 2
+
+        # if using 6D, leave the rotation unchanged
+        if data.shape[-1] == 15:
+            # self.stat_1 = np.hstack((self.stat_1[:, :6],
+            #                          np.zeros(18).reshape((2, 9)) - 1))
+            # self.stat_2 = np.hstack((self.stat_2[:, :6],
+            #                          np.ones(18).reshape((2, 9)) + 1))
+            self.stat_1[:, 6:] = np.zeros(9) - 1
+            self.stat_2[:, 6:] = np.ones(9) + 1
+        if data.shape[-1] == 12:
+            self.stat_1[:, 6:] = np.zeros(6) - 1
+            self.stat_2[:, 6:] = np.ones(6) + 1
+
         normalized_data = (data - self.stat_1[:dim]) / self.stat_2[:dim]
         return 2 * (normalized_data - 0.5)
 
@@ -117,10 +116,13 @@ class Normalization(BaseNormalization):
 
 
 class Interpolation:
-    def __init__(self, data, time, interpolation):
+    def __init__(self, data, time, interpolation,
+                 rotation_representation=None):
         self.data = data
         self.time = time
         self.interpolation = interpolation
+
+        self.rot_repr = rotation_representation
 
         if self.interpolation == "cubic_spline":
             self.cs_ls = self._get_cubic_spline_fn()
@@ -161,15 +163,27 @@ class Interpolation:
     def _get_cubic_spline_fn(self):
         num_fns = self.data.shape[1]
 
-        cs_ls = []
+        cs_ls = []  # list of cubic spline interpolated values
         for i in range(num_fns):
             cs_ls.append(CubicSpline(self.time, self.data[:, i]))
         return cs_ls
 
     def _slerp(self, time_stamp):
         # return self.slerp_fn(time_stamp).as_quat()
+
         # output the interpolated euler vector
-        return self.slerp_fn(time_stamp).as_rotvec()
+        # return self.slerp_fn(time_stamp).as_rotvec()
+
+        if self.rot_repr == "euler_cos_sin":
+            # output cosine and sine only
+            euler_angles = self.slerp_fn(time_stamp).as_euler('xyz')
+            cosines = np.cos(euler_angles)
+            sines = np.sin(euler_angles)
+            return np.hstack((cosines, sines))
+
+        elif self.rot_repr == "6D":
+            # output rotation matrix
+            return self.slerp_fn(time_stamp).as_matrix().reshape((-1, 9))
 
     def _get_slerp_fn(self):
         return Slerp(self.time, self.rot)
@@ -295,3 +309,41 @@ class SegmentContact:
         match the first found start and the last found end
         """
         return [start[0] * subsample], [end[-1] * subsample]
+
+
+def normalize_vector(v):
+    batch = v.shape[0]
+    v_mag = torch.sqrt(v.pow(2).sum(1))
+    v_mag = torch.max(v_mag, torch.tensor([1e-8], requires_grad=True,
+                                          dtype=torch.float32).cuda())
+    v_mag = v_mag.view(batch, 1).expand(batch, v.shape[1])
+    v = v / v_mag
+    return v
+
+
+def cross_product(u, v):
+    batch = u.shape[0]
+    i = u[:, 1] * v[:, 2] - u[:, 2] * v[:, 1]
+    j = u[:, 2] * v[:, 0] - u[:, 0] * v[:, 2]
+    k = u[:, 0] * v[:, 1] - u[:, 1] * v[:, 0]
+
+    out = torch.cat((i.view(batch, 1), j.view(batch, 1), k.view(batch, 1)), 1)
+    return out
+
+
+def compute_rotation_matrix_from_ortho6d(raw_output):
+    # first 3 elements are pos
+    x_raw = raw_output[:, 6:9]
+    y_raw = raw_output[:, 9:12]
+
+    x = normalize_vector(x_raw)
+    z = cross_product(x, y_raw)
+    z = normalize_vector(z)
+    y = cross_product(z, x)
+
+    x = x.view(-1, 3)
+    y = y.view(-1, 3)
+    z = z.view(-1, 3)
+
+    output = torch.cat((raw_output[:, :6], x, y, z), 1)
+    return output
