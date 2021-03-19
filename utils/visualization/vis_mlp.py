@@ -78,8 +78,8 @@ class Visualize:
         plt.savefig(fname)
         plt.close(fig)
 
-    def _vis_axis(pred, state, time, fname):
-        fig, axs = plt.subplots(4, 3, figsize=(25, 15), sharex='all')
+    def _vis_axis(self, pred, state, time, fname):
+        fig, axs = plt.subplots(5, 3, figsize=(25, 15), sharex='all')
 
         pred = np.array(pred)
 
@@ -107,7 +107,7 @@ class Visualize:
                 axs[r, c].legend()
                 if c == 0:
                     axs[r, c].set_ylabel('coordinate')
-                if r == 3:
+                if r == 4:
                     axs[r, c].set_xlabel('time')
         plt.savefig(fname)
         plt.close(fig)

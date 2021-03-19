@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from model import MLP, MCDropout
-from base import BaseTrainer
+from .base_trainer import BaseTrainer
 from utils import MetricTracker, ensure_dir, prepare_device
 
 

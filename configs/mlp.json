@@ -1,6 +1,6 @@
 {
-    "train": true,
-    "evaluate": true,
+    "train": false,
+    "evaluate": false,
     "visualize": true,
     "dataset": {
         "name": "DemoDataset",
@@ -10,7 +10,7 @@
         "sample_freq": 1000,
         "learn_residual": false,
         "contact_only": true,
-        "rotation_representation": "euler_cos_sin",
+        "rotation_representation": "6D",
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_base"]
@@ -46,7 +46,7 @@
     "model": {
         "name": "MLP",
         "n_gpu": 1,
-        "input_dims": 24,
+        "input_dims": 30,
         "output_dims": 12
     },
     "trainer": {
