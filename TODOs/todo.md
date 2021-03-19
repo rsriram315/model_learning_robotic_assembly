@@ -6,9 +6,16 @@
   - [x] Learn both sine & cosine of euler angles.
   - [x] Learn the rotation matrix directly (similar to learning sine & cosine, but with 3 more varibles)
   - [x] Learn 6D representation based on this [paper](https://zhouyisjtu.github.io/project_rotation/rotation.html)
-- [ ] Try to do something about MPC
-- [ ] More samples for MCDropout
-- [ ] Use different subset of training data to train ensemble
+- [x] ~~Try to do something about MPC.~~
+- [ ] Check model (6D vs rotation matrix)
+  - [ ] Check the if understand and implement the 6D method correctly.
+  - [ ] Transform the 6D and sine_cosine back to euler angle to check the L2 distance.
+- [ ] Reproduce uncertainty results.
+  - [ ] More samples for MCDropout.
+  - [ ] Use different subset of training data to train ensemble.
+
+![Week 8 todos](img/week8.png)
+
 
 ### Rotation experiment results
 
@@ -17,7 +24,7 @@
   - Results are more stable than just learning the Euler vector, but some values exceeded 1 (normalization need to be done).
   - added tahn activation or clamp only for the rotation values.
   - Some problem I have during training with sine and cosine:
-    - How to limit the range for sine & cosine while enforce $s^2 + c^2 = 1$?
+    - $s^2 + c^2 = 1$, How to limit the range for sine & cosine while enforcing this constraint?
     - When without these constraints, the model fit the training set very well with sine and cosine (**normalized**), but still have large errors in the test set.
     - I tried tanh and clamp to enforce cosine sine in the range [-1, 1] (**without normalization**), results are pretty bad. Without normalization the distribution of these values are similar to axis angle, some are cluster around only -1 or 1, missing the values inbetween.
     - **Tanh activation** can make the value around -1 and 1 especially hard to learn (vanishing gradients) and causing large errors.
