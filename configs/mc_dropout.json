@@ -45,7 +45,7 @@
         "num_workers": 4
     },
     "model": {
-        "name": "MLP",
+        "name": "MCDropout",
         "n_gpu": 1,
         "input_dims": 30,
         "output_dims": 12
@@ -53,6 +53,7 @@
     "trainer": {
         "name": "mlp",
         "num_epochs": 500,
+        "num_mc": 20,
         "ckpts_dir": "saved/ckpts/",
         "save_period": 5,
         "early_stop": true,
@@ -67,7 +68,6 @@
         "amsgrad": true
     },
     "eval": {
-        "num_epochs": 20,
         "ckpt_dir": "saved/ckpts/",
         "ckpt_pth": null,
         "log_file": "saved/evaluation.log"

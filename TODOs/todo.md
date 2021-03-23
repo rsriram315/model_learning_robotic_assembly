@@ -7,12 +7,16 @@
   - [x] Learn the rotation matrix directly (similar to learning sine & cosine, but with 3 more varibles)
   - [x] Learn 6D representation based on this [paper](https://zhouyisjtu.github.io/project_rotation/rotation.html)
 - [x] ~~Try to do something about MPC.~~
-- [ ] Check model (6D vs rotation matrix)
-  - [ ] Check the if understand and implement the 6D method correctly.
-  - [ ] Transform the 6D and sine_cosine back to euler angle to check the L2 distance.
-- [ ] Reproduce uncertainty results.
-  - [ ] More samples for MCDropout.
+- [x] Check model (6D vs rotation matrix)
+  - [x] Check the if understand and implement the 6D method correctly.
+  - [x] Transform the 6D and sine_cosine back to euler angle to check the L2 distance.
+- [x] Reproduce uncertainty results.
+  - [x] More samples for MCDropout.
   - [ ] Use different subset of training data to train ensemble.
+    - The bootstrapping technique is not recommended in the paper [Simple and Scalable Predictive Uncertainty Estimation using Deep Ensembles by Balaji Lakshminarayanan et al., 2016](https://arxiv.org/abs/1612.01474v2).
+    - They argue that using subset of data to train would hurt the performance of the NN, and to produce good result, we need NNs which are both good and diverse.
+    - We also don't have enough data yet. Maybe we can do this experiment later.
+    - The deep ensemble method I used is does not change the architecture of the NNs, and simply aggregate the results from 5 differently initialized NNs, taking the mean and variance of their predictions. However, in that paper, they suggest to do a Gaussian prediction (a mean and variance output for one value) for the regression tasks? Is it overcomplicated in our case or is it the right thing to try?
 
 ![Week 8 todos](img/week8.png)
 

@@ -38,6 +38,7 @@ class DemoDataset(Dataset):
         self.sample_time = []
         self.states_actions = []
         self.targets = []
+        self.sl_factor = ds_cfg["sl_factor"]
 
         self.stats = ds_cfg["stats"]
         self.demo_fnames = ds_cfg["fnames"]
@@ -82,7 +83,7 @@ class DemoDataset(Dataset):
             # self.all_actions_pos = actions["pos"]
             # self.all_actions_time = actions["time"]
 
-            sl_factor = 10  # sliding window factor
+            sl_factor = self.sl_factor  # sliding window factor
             states_actions, states_padding = \
                 self._pair_state_action(self.sample_freq,
                                         states, actions,

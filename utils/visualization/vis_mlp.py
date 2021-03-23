@@ -2,11 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from copy import deepcopy
+from torch.utils.data import DataLoader
 from model import MLP
 from dataloaders import Normalization, Standardization
 from pathlib import Path
 from utils import prepare_device
 from dataloaders import DemoDataset
+from scipy.spatial.transform import Rotation as R
 
 
 class Visualize:
@@ -44,14 +46,12 @@ class Visualize:
             elif fname in self.test_demo_fnames:
                 suffix_fname = Path('test') / Path(fname).stem
 
+            # read dataset
             dataset = self._read_single_demo(deepcopy(self.cfg["dataset"]),
                                              [fname], ds_stats)
-            losses_per_demo, preds_per_demo = self._evaluate(model, dataset)
             time = dataset.sample_time
-
-            # feature only
-            state = dataset.states_actions[:, 0]
-            state = self.norm.inverse_normalize(state, is_target=True)
+            losses_per_demo, preds_per_demo, target_per_demo = \
+                self._evaluate(model, dataset)
 
             if self.vis_cfg["loss"]:
                 loss_fname = self.vis_dir / "loss" / suffix_fname
@@ -59,11 +59,13 @@ class Visualize:
 
             if self.vis_cfg["axis"]:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
-                self._vis_axis(preds_per_demo, state, time, axis_fname)
+                self._vis_axis(preds_per_demo, target_per_demo, time,
+                               axis_fname)
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / suffix_fname
-                self._vis_trajectory(preds_per_demo[:, :3], state[:, :3],
+                self._vis_trajectory(preds_per_demo[:, :3],
+                                     target_per_demo[:, :3],
                                      traj_fname)
 
             print(f"... Generated visualization for {fname}")
@@ -75,31 +77,32 @@ class Visualize:
         ax.scatter(time, loss, s=2)
         ax.set_xlabel("time")
         ax.set_ylabel("loss")
-        plt.savefig(fname)
+
+        plt.tight_layout()
+        plt.savefig(fname, dpi=200)
         plt.close(fig)
 
-    def _vis_axis(self, pred, state, time, fname):
-        fig, axs = plt.subplots(5, 3, figsize=(25, 15), sharex='all')
-
-        pred = np.array(pred)
-
-        # the predicted states should start with the prediction for t=1 not t=0
+    def _vis_axis(self, pred, target, time, fname):
         size = 1
         # features = ['pos', 'force', 'rot_cosine', 'rot_sine']
         features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
-                    'matrix R row 3']
+                    'matrix R row 3', 'euler angles']
         axis = ['x', 'y', 'z']
+
+        rows = len(features)
+        cols = len(axis)
+        fig, axs = plt.subplots(rows, cols, figsize=(30, 20), sharex='all')
 
         for r, feature in enumerate(features):
             for c, ax in enumerate(axis):
                 idx = c + 3 * r
-                axs[r, c].scatter(time[1:],
-                                  state[1:, idx],
+                axs[r, c].scatter(time,
+                                  target[:, idx],
                                   s=size,
                                   c='tab:blue',
                                   label="ground truth")
-                axs[r, c].scatter(time[1:],
-                                  pred[:-1, idx],
+                axs[r, c].scatter(time,
+                                  pred[:, idx],
                                   s=size,
                                   c='tab:orange',
                                   label="predictions")
@@ -107,9 +110,10 @@ class Visualize:
                 axs[r, c].legend()
                 if c == 0:
                     axs[r, c].set_ylabel('coordinate')
-                if r == 4:
+                if r == rows - 1:
                     axs[r, c].set_xlabel('time')
-        plt.savefig(fname)
+        plt.tight_layout()
+        plt.savefig(fname, dpi=200)
         plt.close(fig)
 
     def _vis_trajectory(self, pred, state, fname):
@@ -136,49 +140,66 @@ class Visualize:
         ax.set_zlabel('Z')
         ax.legend()
 
-        plt.savefig(fname)
+        plt.tight_layout()
+        plt.savefig(fname, dpi=200)
         plt.close(fig)
 
     def _evaluate(self, model, dataset):
+        bs = 512  # batch size
+        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False)
         # get function handles of loss and metrics
-        criterion = torch.nn.MSELoss()
+        criterion = torch.nn.MSELoss(reduction='none')
 
         losses = []
         preds = []
+        targets = []
 
         with torch.no_grad():
-            for i in range(len(dataset)):
-                state_action, target = dataset.__getitem__(i)
+            for _, (state_action, target) in enumerate(dataloader):
+                target_angle = (R.from_matrix(target[:, 6:].reshape(-1, 3, 3))
+                                .as_euler('xyz', degrees=True))
 
-                # batch size = 1
-                state_action = state_action[None, ...]
-                target = target[None, ...]
-
-                state_action = torch.tensor(state_action).to('cuda')
-                target = torch.tensor(target).to('cuda')
+                state_action, target = (state_action.to('cuda'),
+                                        target.to('cuda'))
 
                 output = model(state_action)
                 loss = criterion(output, target)
+                loss = torch.sum(loss, dim=1)
 
                 if self.learn_residual:
                     new_res = \
                         self.norm.residual_inv_normalize(output.cpu().numpy())
                     new_state = self.norm.inverse_normalize(
-                                    state_action.cpu().numpy()[:9],
+                                    state_action.cpu().numpy()[:15],
                                     is_target=True)
                     new_output = new_res + new_state
+
+                    target_res = \
+                        self.norm.residual_inv_normalize(target.cpu().numpy())
+                    new_target = target_res + new_state
                 else:
                     new_output = \
                         self.norm.inverse_normalize(output.cpu().numpy(),
                                                     is_target=True)
+                    new_target = \
+                        self.norm.inverse_normalize(target.cpu().numpy(),
+                                                    is_target=True)
 
-                preds.append(new_output[0])
-                losses.append(loss.item())
-        return np.array(losses), np.array(preds)
+                # output euler angles
+                pred_angle = \
+                    (R.from_matrix(new_output[:, 6:].reshape(-1, 3, 3))
+                      .as_euler('xyz', degrees=True))
+
+                losses.extend(loss.cpu().numpy())
+                preds.extend(np.hstack((new_output, pred_angle)))
+                targets.extend(np.hstack((new_target, target_angle)))
+
+        return np.array(losses), np.array(preds), np.array(targets)
 
     def _read_single_demo(self, ds_cfg, fname, stats):
         ds_cfg["fnames"] = fname
         ds_cfg["sample_freq"] = 100
+        ds_cfg["sl_factor"] = 1
         ds_cfg["stats"] = stats
 
         dataset = DemoDataset(ds_cfg)
@@ -204,8 +225,8 @@ class Visualize:
         model.eval()
 
         # restore stats for data
-        dataset_stats = ckpt["dataset_stats"]
-        return model, dataset_stats
+        ds_stats = ckpt["dataset_stats"]
+        return model, ds_stats
 
     def _find_ckpt(self, ckpt_dir):
         ckpt_dir = Path(ckpt_dir)

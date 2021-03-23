@@ -112,6 +112,7 @@ datasets/
 __MACOSX/
 
 # custom files
+Makefile
 NOTES/
 JUPYTER/
 saved/

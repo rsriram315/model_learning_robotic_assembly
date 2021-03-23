@@ -1,6 +1,7 @@
 import setup  # noqa
 import numpy as np
 import torch
+from copy import deepcopy
 from pathlib import Path
 from .vis_ensemble import EnsembleVisualize
 from dataloaders import Normalization, Standardization
@@ -14,7 +15,9 @@ class MCDropoutVisualize(EnsembleVisualize):
 
     def pred_stats(self):
         num_mc = self.cfg["trainer"]["num_mc"]
-        model, ds_stats = self._build_model(self.cfg)
+
+        cfg = deepcopy(self.cfg)
+        model, ds_stats = self._build_model(cfg)
         self.enable_dropout(model)
 
         if self.cfg["dataset"]["preprocess"]["normalize"]:
@@ -22,39 +25,40 @@ class MCDropoutVisualize(EnsembleVisualize):
         elif self.cfg["dataset"]["preprocess"]["standardize"]:
             self.norm = Standardization(ds_stats)
 
-        losses = []
-        preds = []
+        loss_mean = []
+        loss_std = []
+        pred_mean = []
+        pred_std = []
+        targets = []
+        time = []
 
-        for _ in range(num_mc):
-            losses_per_sample = []
-            preds_per_sample = []
-            demo_lens = []
+        for fname in self.demo_fnames:
+            losses_per_demo = []
+            preds_per_demo = []
 
-            for fname in self.demo_fnames:
-                fname = Path(fname)
-                dataset = self._read_single_demo([fname.name], ds_stats)
-                losses_per_demo, preds_per_demo = self._evaluate(model,
-                                                                 dataset)
-                demo_lens.append(len(dataset))
+            fname = Path(fname)
+            dataset = self._read_single_demo(deepcopy(self.cfg["dataset"]),
+                                             [fname.name], ds_stats)
+            time.append(dataset.sample_time)
 
-                losses_per_sample.extend(losses_per_demo)
-                preds_per_sample.extend(preds_per_demo)
+            for n in range(num_mc):
+                losses_per_sample, preds_per_sample, target_per_sample = \
+                    self._evaluate(model, dataset)
 
-            losses.append(losses_per_sample)
-            preds.append(preds_per_sample)
+                losses_per_demo.append(losses_per_sample)
+                preds_per_demo.append(preds_per_sample)
+                if n == 0:
+                    targets.append(target_per_sample)
 
-        demo_lens = demo_lens[:len(self.demo_fnames)]
-        loss_mean = self.slice_arr(demo_lens, np.mean(losses, axis=0))
-        loss_std = self.slice_arr(demo_lens, np.std(losses, axis=0))
-        loss_stats = {"mean": loss_mean,
-                      "std": loss_std}
+            loss_mean.append(np.mean(losses_per_demo, axis=0))
+            loss_std.append(np.std(losses_per_demo, axis=0))
+            pred_mean.append(np.mean(preds_per_demo, axis=0))
+            pred_std.append(np.std(preds_per_demo, axis=0))
 
-        pred_mean = self.slice_arr(demo_lens, np.mean(preds, axis=0))
-        pred_std = self.slice_arr(demo_lens, np.std(preds, axis=0))
-        pred_stats = {"mean": pred_mean,
-                      "std": pred_std}
+        loss_stats = {"mean": loss_mean, "std": loss_std}
+        pred_stats = {"mean": pred_mean, "std": pred_std}
 
-        return loss_stats, pred_stats, ds_stats
+        return loss_stats, pred_stats, targets, time
 
     def enable_dropout(self, m):
         for each_module in m.modules():
@@ -80,5 +84,5 @@ class MCDropoutVisualize(EnsembleVisualize):
             model = torch.nn.DataParallel(model, self.device_ids)
         model.eval()
 
-        dataset_stats = ckpt["dataset_stats"]
-        return model, dataset_stats
+        ds_stats = ckpt["dataset_stats"]
+        return model, ds_stats

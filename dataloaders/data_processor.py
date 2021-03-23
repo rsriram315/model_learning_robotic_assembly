@@ -332,6 +332,16 @@ def cross_product(u, v):
 
 
 def compute_rotation_matrix_from_ortho6d(raw_output):
+    """
+    This orthogonalization is different from the paper.
+    see this issue: 
+    https://github.com/papagina/RotationContinuity/issues/2
+    However, cross product and Gram-Schmidt is equivalent in R^3,
+    but cross product only works in R^3 but the Gram-Schmidt can work in
+    higher dimension.
+    see this question: 
+    https://math.stackexchange.com/questions/1847465/why-to-use-gram-schmidt-process-to-orthonormalise-a-basis-instead-of-cross-produ
+    """
     # first 3 elements are pos
     x_raw = raw_output[:, 6:9]
     y_raw = raw_output[:, 9:12]

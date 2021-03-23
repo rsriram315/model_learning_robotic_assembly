@@ -47,4 +47,6 @@ class MCDropout(BaseModel):
         #               training=self.is_dropout)
         x = self.dropout(F.relu(self.fc2(x)))
         x = self.fc3(x)
+
+        x = compute_rotation_matrix_from_ortho6d(x)
         return x  # should I use softmax for the output

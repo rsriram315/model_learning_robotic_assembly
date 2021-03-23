@@ -8,8 +8,10 @@
         "root": "data",
         "fnames": [],
         "sample_freq": 1000,
-        "learn_residual": true,
+        "sl_factor": 10,
+        "learn_residual": false,
         "contact_only": true,
+        "rotation_representation": "6D",
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_base"]
@@ -45,12 +47,12 @@
     "model": {
         "name": "MLP",
         "n_gpu": 1,
-        "input_dims": 18,
-        "output_dims": 9
+        "input_dims": 30,
+        "output_dims": 12
     },
     "trainer": {
         "name": "ensemble",
-        "num_epochs": 150,
+        "num_epochs": 500,
         "num_ensemble": 5,
         "ckpts_dir": "saved/ckpts/",
         "save_period": 5,
@@ -71,7 +73,6 @@
         "amsgrad": true
     },
     "eval": {
-        "num_epochs": 20,
         "ckpt_dir": "saved/ckpts/",
         "ckpt_pth": null,
         "log_file": "saved/evaluation.log"
