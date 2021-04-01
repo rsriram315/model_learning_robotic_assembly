@@ -11,7 +11,6 @@ def visualize(cfg):
             vis = Visualize(cfg)
         elif model_name == "MCDropout":
             vis = MCDropoutVisualize(cfg)
-        # vis = FeaturesVisualize(cfg)
     elif trainer_name == "ensemble":
         vis = EnsembleVisualize(cfg)
 

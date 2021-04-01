@@ -5,13 +5,9 @@ import pandas as pd
 from pathlib import Path
 from itertools import repeat
 from collections import OrderedDict
-# from types import SimpleNamespace
 
 
 def ensure_dir(fname):
-    # fname = Path(fname)
-    # if not fname.is_dir():
-    #     fname.mkdir(parents=True, exist_ok=False)
     os.makedirs(os.path.dirname(fname), exist_ok=True)
 
 
@@ -27,14 +23,6 @@ def read_json(fname):
     fname = Path(fname)
     with fname.open('rt') as handle:
         return json.load(handle, object_hook=OrderedDict)
-
-    # with open(json_file, 'r') as f:
-    #     try:
-    #         params = json.load(f, object_hook=lambda d: SimpleNamespace(**d))
-    #     except ValueError as err:
-    #         print(f"... Invalid json: {err}")
-    #         return -1
-    # return params
 
 
 def write_json(content, fname):
@@ -83,9 +71,6 @@ class MetricTracker:
             self._data[col].values[:] = 0
 
     def update(self, key, value, n=1):
-        # if self.tb_writer is not None:
-        #     self.tb_writer.add_scalar(key, value,)
-        #     self.tb_writer.flush()
         self._data.total[key] += value * n
         self._data.counts[key] += n
         self._data.average[key] = (self._data.total[key] /

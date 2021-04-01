@@ -5,6 +5,7 @@ from train import train
 from evaluate import evaluate
 from visualize import visualize
 from utils import read_json
+from rollout import rollout  # noqa
 
 
 def main(cfg_path):
@@ -17,6 +18,8 @@ def main(cfg_path):
         evaluate(deepcopy(cfg))
     if cfg["visualize"]:
         visualize(deepcopy(cfg))
+    if cfg["rollout"]:
+        rollout(deepcopy(cfg))
 
 
 if __name__ == '__main__':

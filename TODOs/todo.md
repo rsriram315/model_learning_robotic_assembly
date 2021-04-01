@@ -1,5 +1,18 @@
 # TODOs
 
+## Week 9
+
+- [ ] Learn the delta of the input (state and action)
+  - it would be very tricky for the rotation, because we need to transform the rotation later.
+  - Is it really necessary, one trick we can do is to learn the residual except for the rotation, but this also make things complicated.
+  - [ ] have a look at the code in this [paper](https://arxiv.org/pdf/1708.02596.pdf), see how they deal with learning the residual while make things remain simple.
+- [ ] Use ensemble and MC-Dropout to generate multi-step predictions.
+  1. Use random ensemble / MC sample for each prediction
+  2. Use mean of all ensemble / MC samples for each prediction
+- [ ] Add perterbation to the training data (data augmentation).
+  1. [via zero mean Gaussian Noise](https://arxiv.org/pdf/1708.02596.pdf).
+  2. [via affine transformation](https://arxiv.org/pdf/2009.05085.pdf)
+
 ## Week 8
 
 - [x] Find a better representation of the orientation, here is a [good reference](https://datascience.stackexchange.com/questions/36370/how-to-learn-3d-orientations-reliably?newreg=2954130d00c34b45b3f34538eea02a1e)
@@ -17,6 +30,7 @@
     - They argue that using subset of data to train would hurt the performance of the NN, and to produce good result, we need NNs which are both good and diverse.
     - We also don't have enough data yet. Maybe we can do this experiment later.
     - The deep ensemble method I used is does not change the architecture of the NNs, and simply aggregate the results from 5 differently initialized NNs, taking the mean and variance of their predictions. However, in that paper, they suggest to do a Gaussian prediction (a mean and variance output for one value) for the regression tasks? Is it overcomplicated in our case or is it the right thing to try?
+- [x] normalize for the cosine and sine output
 
 ![Week 8 todos](img/week8.png)
 

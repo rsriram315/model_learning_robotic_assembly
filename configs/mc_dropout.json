@@ -1,7 +1,9 @@
 {
+    "name": "mc_dropout",
     "train": false,
     "evaluate": false,
-    "visualize": true,
+    "visualize": false,
+    "rollout": true,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
@@ -23,7 +25,6 @@
         "preprocess": {
             "normalize": true,
             "standardize": false,
-            "euler_vec": true,
             "interp": {
                 "pos": "cubic_spline",
                 "rot": "slerp",
@@ -53,7 +54,6 @@
     "trainer": {
         "name": "mlp",
         "num_epochs": 500,
-        "num_mc": 20,
         "ckpts_dir": "saved/ckpts/",
         "save_period": 5,
         "early_stop": true,
@@ -68,6 +68,7 @@
         "amsgrad": true
     },
     "eval": {
+        "num_mc": 20,
         "ckpt_dir": "saved/ckpts/",
         "ckpt_pth": null,
         "log_file": "saved/evaluation.log"

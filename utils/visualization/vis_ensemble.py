@@ -1,4 +1,3 @@
-import setup  # noqa
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,9 +8,9 @@ from dataloaders import Normalization, Standardization
 
 
 class EnsembleVisualize(Visualize):
-    def __init__(self, cfg):
+    def __init__(self, cfg, vis_dir="saved/visualizations"):
         self.cfg = cfg
-        super().__init__(cfg)
+        super().__init__(cfg, vis_dir)
 
     def visualize(self):
         loss_stats, pred_stats, targets, time = self.pred_stats()
@@ -62,7 +61,7 @@ class EnsembleVisualize(Visualize):
 
     def _vis_axis(self, pred_mean, pred_std, target, time, fname):
         size = 1
-        # features = ['pos', 'force', 'rot_cosine', 'rot_sine']
+        # features = ['pos', 'force', 'rot_cosine', 'rot_sine', 'euler angles']
         features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
                     'matrix R row 3', 'euler angles']
         axis = ['x', 'y', 'z']

@@ -1,4 +1,3 @@
-import setup  # noqa
 import os
 from copy import deepcopy
 from .mlp_eval import Evaluate

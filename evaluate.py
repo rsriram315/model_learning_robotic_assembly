@@ -13,11 +13,11 @@ np.random.seed(SEED)
 
 
 def evaluate(cfg):
-    model_name = cfg["trainer"]["name"]
+    trainer_name = cfg["trainer"]["name"]
 
-    if model_name == "mlp":
+    if trainer_name == "mlp":
         eval = Evaluate(cfg)
-    elif model_name == "ensemble":
+    elif trainer_name == "ensemble":
         eval = EnsembleEvaluate(cfg)
 
     eval.evaluate()

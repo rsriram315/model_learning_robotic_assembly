@@ -1,7 +1,9 @@
 {
-    "train": true,
-    "evaluate": true,
-    "visualize": true,
+    "name": "ensemble",
+    "train": false,
+    "evaluate": false,
+    "visualize": false,
+    "rollout": true,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
@@ -23,7 +25,6 @@
         "preprocess": {
             "normalize": true,
             "standardize": false,
-            "euler_vec": true,
             "interp": {
                 "pos": "cubic_spline",
                 "rot": "slerp",
@@ -60,11 +61,6 @@
         "patience": 5,
         "log_file": "saved/train.log",
         "tb_dir": "saved/tb_log"
-    },
-    "test": {
-        "num_epochs": 20,
-        "ckpt_pth": "saved/ckpts/ckpt-epoch100.pth",
-        "log_file": "saved/test.log"
     },
     "optimizer": {
         "name": "Adam",

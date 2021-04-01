@@ -12,12 +12,13 @@ from scipy.spatial.transform import Rotation as R
 
 
 class Visualize:
-    def __init__(self, cfg):
+    def __init__(self, cfg, vis_dir="saved/visualizations"):
         self.cfg = cfg
         self.vis_cfg = cfg["visualization"]
+        self.rot_repr = cfg["dataset"]["rotation_representation"]
 
         # create dirs
-        self.vis_dir = Path("saved/visualizations")
+        self.vis_dir = Path(vis_dir)
         for name in ["loss", "axis", "trajectory"]:
             Path(self.vis_dir / name / 'train').mkdir(parents=True,
                                                       exist_ok=True)
@@ -84,14 +85,14 @@ class Visualize:
 
     def _vis_axis(self, pred, target, time, fname):
         size = 1
-        # features = ['pos', 'force', 'rot_cosine', 'rot_sine']
+        # features = ['pos', 'force', 'rot_cosine', 'rot_sine', 'euler angles']
         features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
                     'matrix R row 3', 'euler angles']
         axis = ['x', 'y', 'z']
 
         rows = len(features)
         cols = len(axis)
-        fig, axs = plt.subplots(rows, cols, figsize=(30, 20), sharex='all')
+        fig, axs = plt.subplots(rows, cols, figsize=(25, 20), sharex='all')
 
         for r, feature in enumerate(features):
             for c, ax in enumerate(axis):
@@ -156,9 +157,6 @@ class Visualize:
 
         with torch.no_grad():
             for _, (state_action, target) in enumerate(dataloader):
-                target_angle = (R.from_matrix(target[:, 6:].reshape(-1, 3, 3))
-                                .as_euler('xyz', degrees=True))
-
                 state_action, target = (state_action.to('cuda'),
                                         target.to('cuda'))
 
@@ -167,28 +165,51 @@ class Visualize:
                 loss = torch.sum(loss, dim=1)
 
                 if self.learn_residual:
-                    new_res = \
-                        self.norm.residual_inv_normalize(output.cpu().numpy())
-                    new_state = self.norm.inverse_normalize(
-                                    state_action.cpu().numpy()[:15],
-                                    is_target=True)
+                    new_res = self.norm.res_inv_normalize(output.cpu()
+                                                                .numpy())
+                    target_res = self.norm.res_inv_normalize(target.cpu()
+                                                                   .numpy())
+                    new_state = self.norm.inv_normalize(
+                                    state_action.cpu().numpy()[:, :15],
+                                    is_state=True)
                     new_output = new_res + new_state
-
-                    target_res = \
-                        self.norm.residual_inv_normalize(target.cpu().numpy())
                     new_target = target_res + new_state
                 else:
-                    new_output = \
-                        self.norm.inverse_normalize(output.cpu().numpy(),
-                                                    is_target=True)
-                    new_target = \
-                        self.norm.inverse_normalize(target.cpu().numpy(),
-                                                    is_target=True)
+                    new_output = self.norm.inv_normalize(output.cpu().numpy(),
+                                                         is_state=True)
+                    new_target = self.norm.inv_normalize(target.cpu().numpy(),
+                                                         is_state=True)
 
-                # output euler angles
-                pred_angle = \
-                    (R.from_matrix(new_output[:, 6:].reshape(-1, 3, 3))
-                      .as_euler('xyz', degrees=True))
+                if self.rot_repr == "6D":
+                    # output euler angles
+                    pred_angle = \
+                        (R.from_matrix(new_output[:, 6:].reshape(-1, 3, 3))
+                          .as_euler('xyz', degrees=True))
+                    target_angle = \
+                        (R.from_matrix(new_target[:, 6:].reshape(-1, 3, 3))
+                          .as_euler('xyz', degrees=True))
+
+                elif self.rot_repr == "euler_cos_sin":
+                    # sine, cosine
+                    pred_angle_x = np.arctan2(new_output[:, 9],
+                                              new_output[:, 6]) * 180 / np.pi
+                    pred_angle_y = np.arctan2(new_output[:, 10],
+                                              new_output[:, 7]) * 180 / np.pi
+                    pred_angle_z = np.arctan2(new_output[:, 11],
+                                              new_output[:, 8]) * 180 / np.pi
+                    pred_angle = np.hstack((pred_angle_x[..., None],
+                                            pred_angle_y[..., None],
+                                            pred_angle_z[..., None]))
+
+                    target_angle_x = np.arctan2(new_target[:, 9],
+                                                new_target[:, 6]) * 180 / np.pi
+                    target_angle_y = np.arctan2(new_target[:, 10],
+                                                new_target[:, 7]) * 180 / np.pi
+                    target_angle_z = np.arctan2(new_target[:, 11],
+                                                new_target[:, 8]) * 180 / np.pi
+                    target_angle = np.hstack((target_angle_x[..., None],
+                                              target_angle_y[..., None],
+                                              target_angle_z[..., None]))
 
                 losses.extend(loss.cpu().numpy())
                 preds.extend(np.hstack((new_output, pred_angle)))

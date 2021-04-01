@@ -1,4 +1,3 @@
-import setup  # noqa
 import numpy as np
 import torch
 from copy import deepcopy
@@ -9,16 +8,15 @@ from model import MCDropout
 
 
 class MCDropoutVisualize(EnsembleVisualize):
-    def __init__(self, cfg):
+    def __init__(self, cfg, vis_dir="saved/visualizations"):
         self.cfg = cfg
-        super().__init__(cfg)
+        super().__init__(cfg, vis_dir)
 
     def pred_stats(self):
-        num_mc = self.cfg["trainer"]["num_mc"]
+        num_mc = self.cfg["eval"]["num_mc"]
 
         cfg = deepcopy(self.cfg)
         model, ds_stats = self._build_model(cfg)
-        self.enable_dropout(model)
 
         if self.cfg["dataset"]["preprocess"]["normalize"]:
             self.norm = Normalization(ds_stats)
@@ -83,6 +81,7 @@ class MCDropoutVisualize(EnsembleVisualize):
         if len(self.device_ids) > 1:
             model = torch.nn.DataParallel(model, self.device_ids)
         model.eval()
+        self.enable_dropout(model)
 
         ds_stats = ckpt["dataset_stats"]
         return model, ds_stats

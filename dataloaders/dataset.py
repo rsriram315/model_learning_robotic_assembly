@@ -26,31 +26,23 @@ class DemoDataset(Dataset):
         self.learn_residual = ds_cfg["learn_residual"]
 
         self.sample_freq = ds_cfg["sample_freq"]
+        self.sl_factor = ds_cfg["sl_factor"]
         self.state_attrs = ds_cfg["state_attrs"]
         self.action_attrs = ds_cfg["action_attrs"]
 
         self.state_start_times = []
         self.state_end_times = []
-
         self.action_start_times = []
         self.action_end_times = []
 
         self.sample_time = []
         self.states_actions = []
         self.targets = []
-        self.sl_factor = ds_cfg["sl_factor"]
 
         self.stats = ds_cfg["stats"]
         self.demo_fnames = ds_cfg["fnames"]
         self.preprocess = ds_cfg["preprocess"]
         self.rot_repr = ds_cfg["rotation_representation"]
-
-        # debug variables
-        # self.all_actions_time = None
-        # self.all_actions_pos = None
-        # self.all_states_force = None
-        # self.all_states_pos = None
-        # self.all_states_time = None
 
         self._read_all_demos()
 
@@ -76,14 +68,8 @@ class DemoDataset(Dataset):
                                                   self.action_attrs,
                                                   self.contact_only)
 
-            # debug variables
-            # self.all_states_time = states["time"]
-            # self.all_states_force = states["force"]
-            # self.all_states_pos = states["pos"]
-            # self.all_actions_pos = actions["pos"]
-            # self.all_actions_time = actions["time"]
-
-            sl_factor = self.sl_factor  # sliding window factor
+            # sliding window factor, data_sampling_freq / pred_freq
+            sl_factor = self.sl_factor
             states_actions, states_padding = \
                 self._pair_state_action(self.sample_freq,
                                         states, actions,
@@ -114,9 +100,9 @@ class DemoDataset(Dataset):
         self.states_actions = norm.normalize(self.states_actions)
 
         if self.learn_residual:
-            self.targets = norm.residual_normalize(self.targets)
+            self.targets = norm.res_normalize(self.targets)
         else:
-            self.targets = norm.normalize(self.targets, is_target=True)
+            self.targets = norm.normalize(self.targets, is_state=True)
         self.stats = norm.get_stats()
 
     def _read_one_demo(self,

@@ -25,34 +25,48 @@ class BaseNormalization:
 
 
 class Standardization(BaseNormalization):
+    """
+    Standardization of data, (x - mean(x)) / std(x)
+    """
     def __init__(self, stats):
         super().__init__(stats)
 
-    def _stats(self, data):
+    def _stats(self, data, is_res=False):
         """
         mean and variance
         """
-        self.stat_1 = np.mean(data, axis=0)
-        self.stat_2 = np.std(data, axis=0) + _FLOAT_EPS
+        stat_1 = np.mean(data, axis=0)
+        stat_2 = np.std(data, axis=0) + _FLOAT_EPS
 
-    def normalize(self, data, is_target=False):
+        if is_res:
+            stat_1, stat_2 = stat_1[None, ...], stat_2[None, ...]
+
+        # leave the rotation unchanged
+        if data.shape[-1] == 15:
+            stat_1[:, 6:] = np.zeros(9)
+            stat_2[:, 6:] = np.ones(9)
+        if data.shape[-1] == 12:
+            stat_1[:, 6:] = np.zeros(6)
+            stat_2[:, 6:] = np.ones(6)
+        return stat_1, stat_2
+
+    def normalize(self, data, is_state=False):
         """
         standard normalization for data
         """
         # Subtract the mean, and scale to the interval [0,1]
         if self.stat_1 is None or self.stat_2 is None:
-            self._stats(data)
-        dim = 1 if is_target else 2
+            self.stat_1, self.stat_2 = self._stats(data)
+        dim = 1 if is_state else 2
         return (data - self.stat_1[:dim]) / self.stat_2[:dim]
 
-    def inverse_normalize(self, data, is_target=False):
-        dim = 1 if is_target else 2
+    def inverse_normalize(self, data, is_state=False):
+        dim = 1 if is_state else 2
         return data * (self.stat_2[:dim] - _FLOAT_EPS) + self.stat_1[:dim]
 
     def residual_normalize(self, data):
         if self.stat_3 is None or self.stat_4 is None:
-            self.stat_3 = np.amin(data, axis=0)
-            self.stat_4 = np.amax(data, axis=0) - self.stat_3 + _FLOAT_EPS
+            self.stat_3, self.stat_4 = self._stats(data)
         return (data - self.stat_3) / self.stat_4
 
     def residual_inv_normalize(self, data):
@@ -60,59 +74,63 @@ class Standardization(BaseNormalization):
 
 
 class Normalization(BaseNormalization):
+    """
+    Normalization of data, (x - min(x)) / (max(x) - min(x)).
+    """
     def __init__(self, stats):
         super().__init__(stats)
 
-    def _stats(self, data):
-        """
-        mean
-        """
-        self.stat_1 = np.amin(data, axis=0)
-        self.stat_2 = np.amax(data, axis=0) - self.stat_1 + _FLOAT_EPS
+    def _stats(self, data, is_res=False):
+        stat_1 = np.amin(data, axis=0)
+        stat_2 = np.amax(data, axis=0) - stat_1 + _FLOAT_EPS
 
-    def normalize(self, data, is_target=False):
+        if is_res:
+            # leave the rotation unchanged
+            if data.shape[-1] == 15:
+                stat_1[6:] = np.zeros(9) - 1
+                stat_2[6:] = np.ones(9) + 1
+            if data.shape[-1] == 12:
+                stat_1[6:] = np.zeros(6) - 1
+                stat_2[6:] = np.ones(6) + 1
+        else:
+            # leave the rotation unchanged
+            if data.shape[-1] == 15:
+                stat_1[:, 6:] = np.zeros(9) - 1
+                stat_2[:, 6:] = np.ones(9) + 1
+            if data.shape[-1] == 12:
+                stat_1[:, 6:] = np.zeros(6) - 1
+                stat_2[:, 6:] = np.ones(6) + 1
+        return stat_1, stat_2
+
+    def normalize(self, data, is_state=False):
         """
         standard normalization for data
         """
         # Subtract the minimum, and scale to the interval [-1,1]
         if self.stat_1 is None or self.stat_2 is None:
-            self._stats(data)
-        dim = 1 if is_target else 2
+            self.stat_1, self.stat_2 = self._stats(data)
 
-        # if using 6D, leave the rotation unchanged
-        if data.shape[-1] == 15:
-            # self.stat_1 = np.hstack((self.stat_1[:, :6],
-            #                          np.zeros(18).reshape((2, 9)) - 1))
-            # self.stat_2 = np.hstack((self.stat_2[:, :6],
-            #                          np.ones(18).reshape((2, 9)) + 1))
-            self.stat_1[:, 6:] = np.zeros(9) - 1
-            self.stat_2[:, 6:] = np.ones(9) + 1
-        if data.shape[-1] == 12:
-            self.stat_1[:, 6:] = np.zeros(6) - 1
-            self.stat_2[:, 6:] = np.ones(6) + 1
-
+        dim = 1 if is_state else 2
         normalized_data = (data - self.stat_1[:dim]) / self.stat_2[:dim]
         return 2 * (normalized_data - 0.5)
 
-    def inverse_normalize(self, data, is_target=False):
-        dim = 1 if is_target else 2
+    def inv_normalize(self, data, is_state=False):
+        dim = 1 if is_state else 2
         scaled_data = (data / 2 + 0.5) * (self.stat_2[:dim] - _FLOAT_EPS)
         inversed_data = scaled_data + self.stat_1[:dim]
-        # data_scale = data_offset * self.stat_2[:dim, 3:6]
-        # inversed_data = data_scale + self.stat_1[:dim, 3:6]
         return inversed_data
 
-    def residual_normalize(self, data):
+    def res_normalize(self, data):
         if self.stat_3 is None or self.stat_4 is None:
-            self.stat_3 = np.amin(data, axis=0)
-            self.stat_4 = np.amax(data, axis=0) - self.stat_3 + _FLOAT_EPS
-        normalized_data = (data - self.stat_3) / self.stat_4
-        return 2 * (normalized_data - 0.5)
+            self.stat_3, self.stat_4 = self._stats(data, is_res=True)
 
-    def residual_inv_normalize(self, data):
-        scaled_data = (data / 2 + 0.5) * (self.stat_4 - _FLOAT_EPS)
-        inversed_data = scaled_data + self.stat_3
-        return inversed_data
+        normalized_res = (data - self.stat_3) / self.stat_4
+        return 2 * (normalized_res - 0.5)
+
+    def res_inv_normalize(self, data):
+        scaled_res = (data / 2 + 0.5) * (self.stat_4 - _FLOAT_EPS)
+        inversed_res = scaled_res + self.stat_3
+        return inversed_res
 
 
 class Interpolation:
@@ -169,11 +187,6 @@ class Interpolation:
         return cs_ls
 
     def _slerp(self, time_stamp):
-        # return self.slerp_fn(time_stamp).as_quat()
-
-        # output the interpolated euler vector
-        # return self.slerp_fn(time_stamp).as_rotvec()
-
         if self.rot_repr == "euler_cos_sin":
             # output cosine and sine only
             euler_angles = self.slerp_fn(time_stamp).as_euler('xyz')
@@ -334,12 +347,12 @@ def cross_product(u, v):
 def compute_rotation_matrix_from_ortho6d(raw_output):
     """
     This orthogonalization is different from the paper.
-    see this issue: 
+    see this issue:
     https://github.com/papagina/RotationContinuity/issues/2
     However, cross product and Gram-Schmidt is equivalent in R^3,
     but cross product only works in R^3 but the Gram-Schmidt can work in
     higher dimension.
-    see this question: 
+    see this question:
     https://math.stackexchange.com/questions/1847465/why-to-use-gram-schmidt-process-to-orthonormalise-a-basis-instead-of-cross-produ
     """
     # first 3 elements are pos

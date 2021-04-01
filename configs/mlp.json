@@ -1,7 +1,9 @@
 {
-    "train": false,
-    "evaluate": false,
+    "name": "mlp",
+    "train": true,
+    "evaluate": true,
     "visualize": true,
+    "rollout": true,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
@@ -23,7 +25,6 @@
         "preprocess": {
             "normalize": true,
             "standardize": false,
-            "euler_vec": true,
             "interp": {
                 "pos": "cubic_spline",
                 "rot": "slerp",
@@ -39,7 +40,7 @@
     },
     "dataloader": {
         "name": "DemoDataLoader",
-        "batch_size": 512,
+        "batch_size": 1024,
         "shuffle": true,
         "validation_split": 0.2,
         "num_workers": 4
@@ -73,8 +74,8 @@
         "log_file": "saved/evaluation.log"
     },
     "visualization": {
-        "loss": true,
+        "loss": false,
         "axis": true,
-        "trajectory": true
+        "trajectory": false
     }
 }
