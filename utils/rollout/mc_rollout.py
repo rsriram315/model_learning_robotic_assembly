@@ -21,9 +21,9 @@ class MCRollout(MCDropoutVisualize):
         cfg = deepcopy(self.cfg)
         model, ds_stats = self._build_model(cfg)
 
-        if self.cfg["dataset"]["preprocess"]["normalize"]:
+        if cfg["dataset"]["preprocess"]["normalize"]:
             self.norm = Normalization(ds_stats)
-        elif self.cfg["dataset"]["preprocess"]["standardize"]:
+        elif cfg["dataset"]["preprocess"]["standardize"]:
             self.norm = Standardization(ds_stats)
 
         loss_mean = []
@@ -35,18 +35,20 @@ class MCRollout(MCDropoutVisualize):
 
         for fname in self.demo_fnames:
             fname = Path(fname)
-            dataset = self._read_single_demo(deepcopy(self.cfg["dataset"]),
+            dataset = self._read_single_demo(cfg["dataset"],
                                              [fname.name], ds_stats)
             time.append(dataset.sample_time)
 
-            losses, preds_mean, preds_std, target = self._evaluate(model,
-                                                                   dataset)
+            losses_per_demo, preds_mean, preds_std, target_per_demo = \
+                self._evaluate(model, dataset)
 
-            loss_mean.append(losses)
-            loss_std.append(np.zeros_like(losses))
+            self.losses += np.sum(losses_per_demo)
+
+            loss_mean.append(losses_per_demo)
+            loss_std.append(np.zeros_like(losses_per_demo))
             pred_mean.append(preds_mean)
             pred_std.append(preds_std)
-            targets.append(target)
+            targets.append(target_per_demo)
 
         loss_stats = {"mean": loss_mean, "std": loss_std}
         pred_stats = {"mean": pred_mean, "std": pred_std}
@@ -67,54 +69,60 @@ class MCRollout(MCDropoutVisualize):
 
         with torch.no_grad():
             for i in range(len(dataset)):
-                s_a, t = dataset.__getitem__(i)
+                s_a, target = dataset.__getitem__(i)
+                state_orig = np.copy(s_a[:15])
 
                 if rollout < self.horizon:
-                    s_a[:15] = rollout_pred
+                    s_a[:15] = np.copy(rollout_pred)
                     rollout += 1
                 else:
                     rollout = 0
 
+                # expand to num_mc x feature_dim
                 state_action = np.vstack([s_a for _ in range(num_mc)])
                 state_action = torch.tensor(state_action).to('cuda')
-                target = np.vstack([t for _ in range(num_mc)])
-                target = torch.tensor(target).to('cuda')
+                target = torch.tensor(target[None, ...]).to('cuda')
 
                 output = model(state_action)
-                loss = criterion(output, target)
-                rollout_pred = torch.mean(output, dim=0).cpu().numpy()
 
                 if self.learn_residual:
-                    new_res = self.norm.res_inv_normalize(output.cpu().numpy())
-                    target_res = self.norm.res_inv_normalize(target.cpu()
-                                                                   .numpy())
-                    new_state = self.norm.inv_normalize(
-                                    state_action.cpu().numpy()[:15],
-                                    is_state=True)
-                    new_output = new_res + new_state
-                    new_target = target_res + new_state
-                else:
-                    new_output = \
-                        self.norm.inv_normalize(output.cpu().numpy(),
-                                                is_state=True)
-                    new_target = \
-                        self.norm.inv_normalize(target.cpu().numpy(),
-                                                is_state=True)
+                    recover_res = \
+                        self.norm.res_inv_normalize(output.cpu().numpy())
+                    target_res = \
+                        self.norm.res_inv_normalize(target.cpu().numpy())
+                    recover_state = \
+                        self.norm.inv_normalize(state_orig[None, None, :])
+                    recover_output = recover_res + recover_state
+                    recover_target = target_res + recover_state
 
+                    recover_mean_output = np.mean(recover_output, axis=0,
+                                                  keepdims=True)
+                    rollout_pred = self.norm.normalize(
+                                    recover_mean_output[:, None, :])
+                else:
+                    recover_output = \
+                        self.norm.inv_normalize(
+                            output.cpu().numpy()[:, None, :])
+                    recover_target = \
+                        self.norm.inv_normalize(
+                            target.cpu().numpy()[:, None, :])
+                    rollout_pred = np.mean(output.cpu().numpy(), keepdim=True)
+
+                loss = criterion(torch.Tensor(recover_mean_output),
+                                 torch.Tensor(recover_target))
                 # output euler angles
                 pred_angle = \
-                    (R.from_matrix(new_output[:, 6:].reshape(-1, 3, 3))
+                    (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
                       .as_euler('xyz', degrees=True))
                 target_angle = \
-                    (R.from_matrix(new_target[:, 6:].reshape(-1, 3, 3))
+                    (R.from_matrix(recover_target[:, 6:].reshape(-1, 3, 3))
                       .as_euler('xyz', degrees=True))
 
-                losses.append(loss.item() / num_mc)
-                preds_mean.append(np.hstack((np.mean(new_output, axis=0),
-                                            np.mean(pred_angle, axis=0))))
-                preds_std.append(np.hstack((np.std(new_output, axis=0),
-                                           np.std(pred_angle, axis=0))))
-                targets.append(np.hstack((new_target, target_angle))[0])
+                preds = np.hstack((recover_output, pred_angle))
+                preds_mean.append(np.mean(preds, axis=0))
+                preds_std.append(np.std(preds, axis=0))
+                targets.extend(np.hstack((recover_target, target_angle)))
+                losses.append(loss.item())
 
         return (np.array(losses), np.array(preds_mean), np.array(preds_std),
                 np.array(targets))

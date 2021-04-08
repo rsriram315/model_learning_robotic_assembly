@@ -11,7 +11,7 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 10,
-        "learn_residual": false,
+        "learn_residual": true,
         "contact_only": true,
         "rotation_representation": "6D",
         "state_attrs": {
@@ -40,7 +40,7 @@
     },
     "dataloader": {
         "name": "DemoDataLoader",
-        "batch_size": 512,
+        "batch_size": 1024,
         "shuffle": true,
         "validation_split": 0.2,
         "num_workers": 4
@@ -64,7 +64,7 @@
     },
     "optimizer": {
         "name": "Adam",
-        "lr": 0.0001,
+        "lr": 0.001,
         "weight_decay": 0,
         "amsgrad": true
     },
@@ -74,8 +74,8 @@
         "log_file": "saved/evaluation.log"
     },
     "visualization": {
-        "loss": true,
+        "loss": false,
         "axis": true,
-        "trajectory": true
+        "trajectory": false
     }
 }

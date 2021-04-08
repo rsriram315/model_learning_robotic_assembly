@@ -1,14 +1,15 @@
 import numpy as np
 import h5py
-# from functools import partial
 from pathlib import Path
 from torch.utils.data import Dataset
 from .data_processor import Normalization, SegmentContact,\
                             Interpolation, Standardization
 
+GRIPPER_CLOSED_THRESHOLD = 0.013
+
 
 class DemoDataset(Dataset):
-    def __init__(self, ds_cfg):
+    def __init__(self, ds_cfg, augment=False):
         """
         form (state, action) pair as x, and state at right next time stamp
         as label, pack them together.
@@ -17,8 +18,8 @@ class DemoDataset(Dataset):
             params: dataset dict in the config.json
         """
         super().__init__()
-        self.GRIPPER_CLOSED_THRESHOLD = 0.013
 
+        self.augment = augment
         self.root = Path(ds_cfg["root"])
         self.data_paths = [self.root / fn for fn in ds_cfg["fnames"]]
 
@@ -51,8 +52,6 @@ class DemoDataset(Dataset):
 
     def __getitem__(self, idx, scale=1):
         state, action = self.states_actions[idx]
-        # sample = np.hstack((state[3:6], action[3:6])) * scale
-        # target = self.targets[idx, 3:6] * scale
         sample = np.hstack((state[:], action[:])) * scale
         target = self.targets[idx, :] * scale
 
@@ -97,12 +96,14 @@ class DemoDataset(Dataset):
         elif self.preprocess["normalize"]:
             norm = Normalization(self.stats)
 
-        self.states_actions = norm.normalize(self.states_actions)
+        self.states_actions = norm.normalize(self.states_actions,
+                                             augment=self.augment)
 
         if self.learn_residual:
-            self.targets = norm.res_normalize(self.targets)
+            self.targets = norm.res_normalize(self.targets[:, None, :])
         else:
-            self.targets = norm.normalize(self.targets, is_state=True)
+            self.targets = norm.normalize(self.targets[:, None, :],
+                                          augment=self.augment)
         self.stats = norm.get_stats()
 
     def _read_one_demo(self,
@@ -174,7 +175,7 @@ class DemoDataset(Dataset):
                         object
             stop_time: the last recorded time when the gripper grasp the object
         """
-        mask_thres = [s > self.GRIPPER_CLOSED_THRESHOLD for s in states[:, 0]]
+        mask_thres = [s > GRIPPER_CLOSED_THRESHOLD for s in states[:, 0]]
         mask_t = np.convolve(list(map(int, mask_thres)), [1, -1], 'valid')
 
         start_idx = np.argmin(mask_t) + 1

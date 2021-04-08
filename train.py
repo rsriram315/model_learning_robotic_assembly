@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from copy import deepcopy
 from pathlib import Path
 from trainer import Trainer, EnsembleTrainer
 from dataloaders import DemoDataset, DemoDataLoader
@@ -15,6 +16,7 @@ torch.backends.cudnn.enabled = True
 
 
 def train(cfg):
+    cfg = deepcopy(cfg)
     # for demos for training set
     if len(cfg["dataset"]["fnames"]) == 0:
         ds_root = Path(cfg["dataset"]["root"])
@@ -27,15 +29,12 @@ def train(cfg):
         (np.random.RandomState(cfg["dataset"]["seed"])
            .permutation(demos)[:num_train_demo])
 
-    dataset = DemoDataset(cfg["dataset"])
-
+    dataset = DemoDataset(cfg["dataset"], augment=False)
     dataloader = DemoDataLoader(dataset, cfg["dataloader"])
     valid_dataloader = dataloader.split_validation()
-
     print(f"... {dataloader.n_samples} training samples")
 
     trainer_name = cfg["trainer"]["name"]
-
     if trainer_name == "mlp":
         trainer = Trainer(dataloader,
                           dataset.stats,

@@ -1,6 +1,5 @@
 import setup  # noqa
 import argparse
-from copy import deepcopy
 from train import train
 from evaluate import evaluate
 from visualize import visualize
@@ -13,13 +12,13 @@ def main(cfg_path):
     cfg = read_json(cfg_path)
 
     if cfg["train"]:
-        train(deepcopy(cfg))
+        train(cfg)
     if cfg["evaluate"]:
-        evaluate(deepcopy(cfg))
+        evaluate(cfg)
     if cfg["visualize"]:
-        visualize(deepcopy(cfg))
+        visualize(cfg)
     if cfg["rollout"]:
-        rollout(deepcopy(cfg))
+        rollout(cfg)
 
 
 if __name__ == '__main__':

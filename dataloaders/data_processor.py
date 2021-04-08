@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from copy import deepcopy
 from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Slerp
 from scipy.spatial.transform import Rotation as R
@@ -7,6 +8,47 @@ from scipy.ndimage import gaussian_filter1d
 
 
 _FLOAT_EPS = np.finfo(np.float64).eps
+
+
+def add_noise(data, noise_lv=0.01):
+    data = deepcopy(data)
+    data_mean = np.mean(data, axis=0)
+    std_noise = data_mean * noise_lv
+    for i in range(1):
+        for j in range(data_mean.shape[1]):
+            data[:, i, j] = np.copy(data[:, i, j] +
+                                    np.random.normal(0,
+                                    np.absolute(std_noise[i, j]),
+                                    (data.shape[0],)))
+    return data
+
+
+class HomogeneousTransform:
+    def __init__(self):
+        self.homogeneous_matrix = None
+
+    def transform(self, data):
+        num_sample = data.shape[0]
+
+        # generate random homegeneous_matrix
+        if self.homogeneous_matrix is None:
+            self.rotation_matrix = R.random(num_sample).as_matrix()
+            translation = np.random.randn(num_sample, 3)
+
+            self.homogeneous_matrix = np.zeros((num_sample, 4, 4))
+            self.homogeneous_matrix[:, :3, :3] = self.rotation_matrix
+            self.homogeneous_matrix[:, :, -1] = np.hstack((translation,
+                                                          np.ones((num_sample,
+                                                                   1))))
+
+        for i in range(num_sample):
+            for j in range(data.shape[1]):
+                data[i, j, :3] = np.copy(self.homogeneous_matrix[i] @
+                                         np.hstack((data[i, j, :3], 1)))[:3]
+                data[i, j, 6:] = (np.copy(data[i, j, 6:].reshape(3, 3) @
+                                          self.homogeneous_matrix[i, :3, :3])
+                                  .flatten())
+        return data
 
 
 class BaseNormalization:
@@ -50,18 +92,19 @@ class Standardization(BaseNormalization):
             stat_2[:, 6:] = np.ones(6)
         return stat_1, stat_2
 
-    def normalize(self, data, is_state=False):
+    def normalize(self, data):
         """
         standard normalization for data
         """
         # Subtract the mean, and scale to the interval [0,1]
         if self.stat_1 is None or self.stat_2 is None:
             self.stat_1, self.stat_2 = self._stats(data)
-        dim = 1 if is_state else 2
+
+        dim = data.shape[1]
         return (data - self.stat_1[:dim]) / self.stat_2[:dim]
 
-    def inverse_normalize(self, data, is_state=False):
-        dim = 1 if is_state else 2
+    def inverse_normalize(self, data):
+        dim = data.shape[1]
         return data * (self.stat_2[:dim] - _FLOAT_EPS) + self.stat_1[:dim]
 
     def residual_normalize(self, data):
@@ -79,30 +122,22 @@ class Normalization(BaseNormalization):
     """
     def __init__(self, stats):
         super().__init__(stats)
+        self.homogeneous_transform = HomogeneousTransform()
 
-    def _stats(self, data, is_res=False):
+    def _stats(self, data):
         stat_1 = np.amin(data, axis=0)
         stat_2 = np.amax(data, axis=0) - stat_1 + _FLOAT_EPS
 
-        if is_res:
-            # leave the rotation unchanged
-            if data.shape[-1] == 15:
-                stat_1[6:] = np.zeros(9) - 1
-                stat_2[6:] = np.ones(9) + 1
-            if data.shape[-1] == 12:
-                stat_1[6:] = np.zeros(6) - 1
-                stat_2[6:] = np.ones(6) + 1
-        else:
-            # leave the rotation unchanged
-            if data.shape[-1] == 15:
-                stat_1[:, 6:] = np.zeros(9) - 1
-                stat_2[:, 6:] = np.ones(9) + 1
-            if data.shape[-1] == 12:
-                stat_1[:, 6:] = np.zeros(6) - 1
-                stat_2[:, 6:] = np.ones(6) + 1
+        # leave the rotation unchanged
+        if data.shape[-1] == 15:
+            stat_1[:, 6:] = np.zeros(9) - 1
+            stat_2[:, 6:] = np.ones(9) + 1
+        if data.shape[-1] == 12:
+            stat_1[:, 6:] = np.zeros(6) - 1
+            stat_2[:, 6:] = np.ones(6) + 1
         return stat_1, stat_2
 
-    def normalize(self, data, is_state=False):
+    def normalize(self, data, augment=False):
         """
         standard normalization for data
         """
@@ -110,21 +145,30 @@ class Normalization(BaseNormalization):
         if self.stat_1 is None or self.stat_2 is None:
             self.stat_1, self.stat_2 = self._stats(data)
 
-        dim = 1 if is_state else 2
+        if augment:
+            # data = add_noise(data)
+            data = self.homogeneous_transform.transform(data)
+
+        dim = data.shape[1]  # check if state action or not
         normalized_data = (data - self.stat_1[:dim]) / self.stat_2[:dim]
+        if dim == 1:
+            normalized_data = np.squeeze(normalized_data, axis=1)
         return 2 * (normalized_data - 0.5)
 
-    def inv_normalize(self, data, is_state=False):
-        dim = 1 if is_state else 2
+    def inv_normalize(self, data):
+        dim = data.shape[1]  # check if state action or not
         scaled_data = (data / 2 + 0.5) * (self.stat_2[:dim] - _FLOAT_EPS)
         inversed_data = scaled_data + self.stat_1[:dim]
+        if dim == 1:
+            inversed_data = np.squeeze(inversed_data, axis=1)
         return inversed_data
 
     def res_normalize(self, data):
         if self.stat_3 is None or self.stat_4 is None:
-            self.stat_3, self.stat_4 = self._stats(data, is_res=True)
+            self.stat_3, self.stat_4 = self._stats(data)
 
         normalized_res = (data - self.stat_3) / self.stat_4
+        normalized_res = np.squeeze(normalized_res, axis=1)
         return 2 * (normalized_res - 0.5)
 
     def res_inv_normalize(self, data):
@@ -197,6 +241,7 @@ class Interpolation:
         elif self.rot_repr == "6D":
             # output rotation matrix
             return self.slerp_fn(time_stamp).as_matrix().reshape((-1, 9))
+            # return self.slerp_fn(time_stamp).as_quat()
 
     def _get_slerp_fn(self):
         return Slerp(self.time, self.rot)

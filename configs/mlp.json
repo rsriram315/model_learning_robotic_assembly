@@ -1,7 +1,7 @@
 {
     "name": "mlp",
-    "train": true,
-    "evaluate": true,
+    "train": false,
+    "evaluate": false,
     "visualize": true,
     "rollout": true,
     "dataset": {
@@ -11,7 +11,7 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 10,
-        "learn_residual": false,
+        "learn_residual": true,
         "contact_only": true,
         "rotation_representation": "6D",
         "state_attrs": {
@@ -63,7 +63,7 @@
     },
     "optimizer": {
         "name": "Adam",
-        "lr": 0.0001,
+        "lr": 0.001,
         "weight_decay": 0,
         "amsgrad": true
     },
@@ -74,7 +74,7 @@
         "log_file": "saved/evaluation.log"
     },
     "visualization": {
-        "loss": false,
+        "loss": true,
         "axis": true,
         "trajectory": false
     }

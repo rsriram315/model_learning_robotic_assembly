@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from copy import deepcopy
 from pathlib import Path
 from tqdm import tqdm
 from functools import partial
@@ -14,21 +15,24 @@ torch.backends.cudnn.enabled = True
 
 class Evaluate:
     def __init__(self, cfg):
-        self.eval_log = partial(write_log, cfg["eval"]["log_file"])
+        self.cfg = deepcopy(cfg)
+        self.eval_log = partial(write_log, self.cfg["eval"]["log_file"])
 
-        self.device, self.device_ids = prepare_device(cfg["model"]["n_gpu"])
+        self.device, self.device_ids = prepare_device(
+                                        self.cfg["model"]["n_gpu"])
 
-        if cfg["eval"]["ckpt_pth"] is None:
-            ckpt_pth = self._find_ckpt(cfg["eval"]["ckpt_dir"])
+        if self.cfg["eval"]["ckpt_pth"] is None:
+            ckpt_pth = self._find_ckpt(self.cfg["eval"]["ckpt_dir"])
         else:
-            ckpt_pth = cfg["test"]["ckpt_pth"]
+            ckpt_pth = self.cfg["test"]["ckpt_pth"]
 
-        self.model, self.ds_stats = self._build_model(cfg["model"], ckpt_pth)
+        self.model, self.ds_stats = self._build_model(self.cfg["model"],
+                                                      ckpt_pth)
         self.eval_log(f'... Load checkpoint: {ckpt_pth}')
 
-        cfg["dataset"]["stats"] = self.ds_stats
-        self.dataloader, self.demo_fnames = self._load_demos(cfg["dataset"],
-                                                             cfg["dataloader"])
+        self.cfg["dataset"]["stats"] = self.ds_stats
+        self.dataloader, self.demo_fnames =\
+            self._load_demos(self.cfg["dataset"], self.cfg["dataloader"])
 
     def evaluate(self):
         criterion = torch.nn.MSELoss(reduction='mean')

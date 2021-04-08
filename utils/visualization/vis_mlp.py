@@ -13,9 +13,9 @@ from scipy.spatial.transform import Rotation as R
 
 class Visualize:
     def __init__(self, cfg, vis_dir="saved/visualizations"):
-        self.cfg = cfg
-        self.vis_cfg = cfg["visualization"]
-        self.rot_repr = cfg["dataset"]["rotation_representation"]
+        self.cfg = deepcopy(cfg)
+        self.vis_cfg = self.cfg["visualization"]
+        self.rot_repr = self.cfg["dataset"]["rotation_representation"]
 
         # create dirs
         self.vis_dir = Path(vis_dir)
@@ -25,11 +25,12 @@ class Visualize:
             Path(self.vis_dir / name / 'test').mkdir(parents=True,
                                                      exist_ok=True)
 
-        self.device, self.device_ids = prepare_device(cfg["model"]["n_gpu"])
+        self.device, self.device_ids = prepare_device(
+                                        self.cfg["model"]["n_gpu"])
         self.demo_fnames, self.train_demo_fnames, self.test_demo_fnames =\
             self._find_demos(self.cfg["dataset"])
 
-        self.learn_residual = cfg["dataset"]["learn_residual"]
+        self.learn_residual = self.cfg["dataset"]["learn_residual"]
         self.ds_stats = None
         self.norm = None
 
@@ -48,7 +49,7 @@ class Visualize:
                 suffix_fname = Path('test') / Path(fname).stem
 
             # read dataset
-            dataset = self._read_single_demo(deepcopy(self.cfg["dataset"]),
+            dataset = self._read_single_demo(self.cfg["dataset"],
                                              [fname], ds_stats)
             time = dataset.sample_time
             losses_per_demo, preds_per_demo, target_per_demo = \
@@ -120,7 +121,7 @@ class Visualize:
     def _vis_trajectory(self, pred, state, fname):
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111, projection='3d')
-        max_size = 10
+        max_size = 100
         size_ls = np.arange(0, max_size, max_size / len(state[1:, 1]))
 
         ax.scatter3D(state[1:, 1],
@@ -165,61 +166,65 @@ class Visualize:
                 loss = torch.sum(loss, dim=1)
 
                 if self.learn_residual:
-                    new_res = self.norm.res_inv_normalize(output.cpu()
-                                                                .numpy())
+                    recover_res = \
+                        self.norm.res_inv_normalize(output.cpu().numpy())
                     target_res = self.norm.res_inv_normalize(target.cpu()
                                                                    .numpy())
-                    new_state = self.norm.inv_normalize(
-                                    state_action.cpu().numpy()[:, :15],
-                                    is_state=True)
-                    new_output = new_res + new_state
-                    new_target = target_res + new_state
+                    recover_state = self.norm.inv_normalize(
+                                state_action.cpu().numpy()[:, None, :15])
+                    recover_output = recover_res + recover_state
+                    recover_target = target_res + recover_state
                 else:
-                    new_output = self.norm.inv_normalize(output.cpu().numpy(),
-                                                         is_state=True)
-                    new_target = self.norm.inv_normalize(target.cpu().numpy(),
-                                                         is_state=True)
+                    recover_output = \
+                        self.norm.inv_normalize(
+                            output.cpu().numpy()[:, None, :])
+                    recover_target = \
+                        self.norm.inv_normalize(
+                            target.cpu().numpy()[:, None, :])
 
                 if self.rot_repr == "6D":
                     # output euler angles
                     pred_angle = \
-                        (R.from_matrix(new_output[:, 6:].reshape(-1, 3, 3))
+                        (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
                           .as_euler('xyz', degrees=True))
                     target_angle = \
-                        (R.from_matrix(new_target[:, 6:].reshape(-1, 3, 3))
+                        (R.from_matrix(recover_target[:, 6:].reshape(-1, 3, 3))
                           .as_euler('xyz', degrees=True))
 
                 elif self.rot_repr == "euler_cos_sin":
                     # sine, cosine
-                    pred_angle_x = np.arctan2(new_output[:, 9],
-                                              new_output[:, 6]) * 180 / np.pi
-                    pred_angle_y = np.arctan2(new_output[:, 10],
-                                              new_output[:, 7]) * 180 / np.pi
-                    pred_angle_z = np.arctan2(new_output[:, 11],
-                                              new_output[:, 8]) * 180 / np.pi
+                    pred_angle_x = np.arctan2(recover_output[:, 9],
+                                              recover_output[:, 6]) * 180 / np.pi
+                    pred_angle_y = np.arctan2(recover_output[:, 10],
+                                              recover_output[:, 7]) * 180 / np.pi
+                    pred_angle_z = np.arctan2(recover_output[:, 11],
+                                              recover_output[:, 8]) * 180 / np.pi
                     pred_angle = np.hstack((pred_angle_x[..., None],
                                             pred_angle_y[..., None],
                                             pred_angle_z[..., None]))
 
-                    target_angle_x = np.arctan2(new_target[:, 9],
-                                                new_target[:, 6]) * 180 / np.pi
-                    target_angle_y = np.arctan2(new_target[:, 10],
-                                                new_target[:, 7]) * 180 / np.pi
-                    target_angle_z = np.arctan2(new_target[:, 11],
-                                                new_target[:, 8]) * 180 / np.pi
+                    target_angle_x = np.arctan2(recover_target[:, 9],
+                                                recover_target[:, 6]) * 180 / np.pi
+                    target_angle_y = np.arctan2(recover_target[:, 10],
+                                                recover_target[:, 7]) * 180 / np.pi
+                    target_angle_z = np.arctan2(recover_target[:, 11],
+                                                recover_target[:, 8]) * 180 / np.pi
                     target_angle = np.hstack((target_angle_x[..., None],
                                               target_angle_y[..., None],
                                               target_angle_z[..., None]))
 
                 losses.extend(loss.cpu().numpy())
-                preds.extend(np.hstack((new_output, pred_angle)))
-                targets.extend(np.hstack((new_target, target_angle)))
+                preds.extend(np.hstack((recover_output, pred_angle)))
+                targets.extend(np.hstack((recover_target, target_angle)))
 
         return np.array(losses), np.array(preds), np.array(targets)
 
     def _read_single_demo(self, ds_cfg, fname, stats):
+        ds_cfg = deepcopy(ds_cfg)
         ds_cfg["fnames"] = fname
-        ds_cfg["sample_freq"] = 100
+        sample_freq = ds_cfg["sample_freq"]
+        sl_factor = ds_cfg["sl_factor"]
+        ds_cfg["sample_freq"] = int(sample_freq / sl_factor)
         ds_cfg["sl_factor"] = 1
         ds_cfg["stats"] = stats
 
@@ -256,6 +261,7 @@ class Visualize:
 
     def _find_demos(self, ds_cfg):
         # for demos for test set
+        ds_cfg = deepcopy(ds_cfg)
         if len(ds_cfg["fnames"]) == 0:
             ds_root = Path(ds_cfg["root"])
             demos = [pth.name for pth in list(ds_root.glob("*.h5"))]

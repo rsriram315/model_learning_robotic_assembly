@@ -6,6 +6,7 @@ from utils.rollout import Rollout, MCRollout, EnsembleRollout,\
 def rollout(cfg):
     losses = []
     horizons = [5, 10, 15, 20]
+    # horizons = [200]
 
     for h in horizons:
         if cfg["name"] == "mlp":
@@ -13,8 +14,8 @@ def rollout(cfg):
         elif cfg["name"] == "mc_dropout":
             vis = MCRollout(cfg, horizon=h)
         elif cfg["name"] == "ensemble":
-            # vis = EnsembleRollout(cfg, horizon=h)
-            vis = EnsembleRandomRollout(cfg, horizon=h)
+            vis = EnsembleRollout(cfg, horizon=h)
+            # vis = EnsembleRandomRollout(cfg, horizon=h)
         vis.visualize()
         losses.append(vis.losses)
 

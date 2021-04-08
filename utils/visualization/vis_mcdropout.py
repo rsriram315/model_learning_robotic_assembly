@@ -13,14 +13,13 @@ class MCDropoutVisualize(EnsembleVisualize):
         super().__init__(cfg, vis_dir)
 
     def pred_stats(self):
-        num_mc = self.cfg["eval"]["num_mc"]
-
         cfg = deepcopy(self.cfg)
+        num_mc = cfg["eval"]["num_mc"]
         model, ds_stats = self._build_model(cfg)
 
-        if self.cfg["dataset"]["preprocess"]["normalize"]:
+        if cfg["dataset"]["preprocess"]["normalize"]:
             self.norm = Normalization(ds_stats)
-        elif self.cfg["dataset"]["preprocess"]["standardize"]:
+        elif cfg["dataset"]["preprocess"]["standardize"]:
             self.norm = Standardization(ds_stats)
 
         loss_mean = []
@@ -35,7 +34,7 @@ class MCDropoutVisualize(EnsembleVisualize):
             preds_per_demo = []
 
             fname = Path(fname)
-            dataset = self._read_single_demo(deepcopy(self.cfg["dataset"]),
+            dataset = self._read_single_demo(cfg["dataset"],
                                              [fname.name], ds_stats)
             time.append(dataset.sample_time)
 

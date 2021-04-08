@@ -1,17 +1,27 @@
 # TODOs
 
-## Week 9
+## Week 11
 
-- [ ] Learn the delta of the input (state and action)
-  - it would be very tricky for the rotation, because we need to transform the rotation later.
-  - Is it really necessary, one trick we can do is to learn the residual except for the rotation, but this also make things complicated.
-  - [ ] have a look at the code in this [paper](https://arxiv.org/pdf/1708.02596.pdf), see how they deal with learning the residual while make things remain simple.
-- [ ] Use ensemble and MC-Dropout to generate multi-step predictions.
+- [ ] Fix the scaling issue at the loss, make sure they scale equally in every feature.
+- [ ] Fix the ugly euler angle scale in axis figure.
+- [ ] Try to augment the data with randomly, not all
+
+## Week 9 & 10
+
+- [x] Learn the delta of the input (state and action)
+  - To make the rotation matrice + residuals satisfy the orthonormal and determinant = 1 properties. I just make the output of the forwardpass - the input rotation matrix.
+- [x] Use ensemble and MC-Dropout to generate multi-step predictions.
+  - sum of the L2 loss and divided by the sample / ensemble number
   1. Use random ensemble / MC sample for each prediction
   2. Use mean of all ensemble / MC samples for each prediction
-- [ ] Add perterbation to the training data (data augmentation).
-  1. [via zero mean Gaussian Noise](https://arxiv.org/pdf/1708.02596.pdf).
-  2. [via affine transformation](https://arxiv.org/pdf/2009.05085.pdf)
+  3. Evaluate the performance of the rollout using the sum of L2 loss of the predicted state (pos, force and rot)
+- [x] Add perterbation to the training data (data augmentation).
+  - [x] [via zero mean Gaussian Noise](https://arxiv.org/pdf/1708.02596.pdf).
+    - A zero mean Gaussian with 0.001 standard deviation, added before normalization.
+    - Std scales with the data mean.
+    - Rotation perturb on rotation matrix
+  - [x] [via affine transformation](https://arxiv.org/pdf/2009.05085.pdf)
+    - give each sample a random transform, the space become too large for the model and the limited data
 
 ## Week 8
 

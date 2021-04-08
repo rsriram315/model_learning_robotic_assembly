@@ -9,7 +9,6 @@ from dataloaders import Normalization, Standardization
 
 class EnsembleVisualize(Visualize):
     def __init__(self, cfg, vis_dir="saved/visualizations"):
-        self.cfg = cfg
         super().__init__(cfg, vis_dir)
 
     def visualize(self):
@@ -96,9 +95,6 @@ class EnsembleVisualize(Visualize):
         plt.close(fig)
 
     def pred_stats(self):
-        num_ensemble = self.cfg["trainer"]["num_ensemble"]
-        dir_prefix = self.cfg["trainer"]["ckpts_dir"]
-
         loss_mean = []
         loss_std = []
         pred_mean = []
@@ -108,13 +104,15 @@ class EnsembleVisualize(Visualize):
 
         # get the dataset stats
         cfg = deepcopy(self.cfg)
+        num_ensemble = cfg["trainer"]["num_ensemble"]
+        dir_prefix = cfg["trainer"]["ckpts_dir"]
         cfg["eval"]["ckpt_dir"] = os.path.join(dir_prefix,
                                                str(1)+"/")
         _, ds_stats = self._build_model(cfg)
 
-        if self.cfg["dataset"]["preprocess"]["normalize"]:
+        if cfg["dataset"]["preprocess"]["normalize"]:
             self.norm = Normalization(ds_stats)
-        elif self.cfg["dataset"]["preprocess"]["standardize"]:
+        elif cfg["dataset"]["preprocess"]["standardize"]:
             self.norm = Standardization(ds_stats)
 
         for fname in self.demo_fnames:
@@ -122,7 +120,7 @@ class EnsembleVisualize(Visualize):
             preds_per_demo = []
 
             fname = Path(fname)
-            dataset = self._read_single_demo(deepcopy(self.cfg["dataset"]),
+            dataset = self._read_single_demo(cfg["dataset"],
                                              [fname.name], ds_stats)
             time.append(dataset.sample_time)
 
