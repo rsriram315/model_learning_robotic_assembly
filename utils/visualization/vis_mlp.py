@@ -4,7 +4,7 @@ import torch
 from copy import deepcopy
 from torch.utils.data import DataLoader
 from model import MLP
-from dataloaders import Normalization, Standardization
+from dataloaders import Normalization
 from pathlib import Path
 from utils import prepare_device
 from dataloaders import DemoDataset
@@ -15,7 +15,6 @@ class Visualize:
     def __init__(self, cfg, vis_dir="saved/visualizations"):
         self.cfg = deepcopy(cfg)
         self.vis_cfg = self.cfg["visualization"]
-        self.rot_repr = self.cfg["dataset"]["rotation_representation"]
 
         # create dirs
         self.vis_dir = Path(vis_dir)
@@ -30,17 +29,12 @@ class Visualize:
         self.demo_fnames, self.train_demo_fnames, self.test_demo_fnames =\
             self._find_demos(self.cfg["dataset"])
 
-        self.learn_residual = self.cfg["dataset"]["learn_residual"]
         self.ds_stats = None
         self.norm = None
 
     def visualize(self):
         model, ds_stats = self._build_model(self.cfg)
-
-        if self.cfg["dataset"]["preprocess"]["normalize"]:
-            self.norm = Normalization(ds_stats)
-        elif self.cfg["dataset"]["preprocess"]["standardize"]:
-            self.norm = Standardization(ds_stats)
+        self.norm = Normalization(ds_stats)
 
         for fname in self.demo_fnames:
             if fname in self.train_demo_fnames:
@@ -86,7 +80,6 @@ class Visualize:
 
     def _vis_axis(self, pred, target, time, fname):
         size = 1
-        # features = ['pos', 'force', 'rot_cosine', 'rot_sine', 'euler angles']
         features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
                     'matrix R row 3', 'euler angles']
         axis = ['x', 'y', 'z']
@@ -165,53 +158,22 @@ class Visualize:
                 loss = criterion(output, target)
                 loss = torch.sum(loss, dim=1)
 
-                if self.learn_residual:
-                    recover_res = \
-                        self.norm.res_inv_normalize(output.cpu().numpy())
-                    target_res = self.norm.res_inv_normalize(target.cpu()
-                                                                   .numpy())
-                    recover_state = self.norm.inv_normalize(
-                                state_action.cpu().numpy()[:, None, :15])
-                    recover_output = recover_res + recover_state
-                    recover_target = target_res + recover_state
-                else:
-                    recover_output = \
-                        self.norm.inv_normalize(
-                            output.cpu().numpy()[:, None, :])
-                    recover_target = \
-                        self.norm.inv_normalize(
-                            target.cpu().numpy()[:, None, :])
+                recover_res = \
+                    self.norm.res_inv_normalize(output.cpu().numpy())
+                target_res = self.norm.res_inv_normalize(target.cpu()
+                                                                .numpy())
+                recover_state = self.norm.inv_normalize(
+                            state_action.cpu().numpy()[:, None, :15])
+                recover_output = recover_res + recover_state
+                recover_target = target_res + recover_state
 
-                if self.rot_repr == "6D":
-                    # output euler angles
-                    pred_angle = \
-                        (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
-                          .as_euler('xyz', degrees=True))
-                    target_angle = \
-                        (R.from_matrix(recover_target[:, 6:].reshape(-1, 3, 3))
-                          .as_euler('xyz', degrees=True))
-
-                elif self.rot_repr == "euler_cos_sin":
-                    # sine, cosine
-                    pred_angle_x = np.arctan2(recover_output[:, 9],
-                                              recover_output[:, 6]) * 180 / np.pi
-                    pred_angle_y = np.arctan2(recover_output[:, 10],
-                                              recover_output[:, 7]) * 180 / np.pi
-                    pred_angle_z = np.arctan2(recover_output[:, 11],
-                                              recover_output[:, 8]) * 180 / np.pi
-                    pred_angle = np.hstack((pred_angle_x[..., None],
-                                            pred_angle_y[..., None],
-                                            pred_angle_z[..., None]))
-
-                    target_angle_x = np.arctan2(recover_target[:, 9],
-                                                recover_target[:, 6]) * 180 / np.pi
-                    target_angle_y = np.arctan2(recover_target[:, 10],
-                                                recover_target[:, 7]) * 180 / np.pi
-                    target_angle_z = np.arctan2(recover_target[:, 11],
-                                                recover_target[:, 8]) * 180 / np.pi
-                    target_angle = np.hstack((target_angle_x[..., None],
-                                              target_angle_y[..., None],
-                                              target_angle_z[..., None]))
+                # output euler angles
+                pred_angle = \
+                    (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
+                        .as_euler('xyz', degrees=True))
+                target_angle = \
+                    (R.from_matrix(recover_target[:, 6:].reshape(-1, 3, 3))
+                        .as_euler('xyz', degrees=True))
 
                 losses.extend(loss.cpu().numpy())
                 preds.extend(np.hstack((recover_output, pred_angle)))

@@ -11,9 +11,7 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 10,
-        "learn_residual": true,
         "contact_only": true,
-        "rotation_representation": "6D",
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_base"]
@@ -24,7 +22,6 @@
         },
         "preprocess": {
             "normalize": true,
-            "standardize": false,
             "interp": {
                 "pos": "cubic_spline",
                 "rot": "slerp",

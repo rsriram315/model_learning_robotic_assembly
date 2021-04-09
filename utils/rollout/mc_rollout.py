@@ -3,7 +3,7 @@ import numpy as np
 from copy import deepcopy
 from pathlib import Path
 from scipy.spatial.transform import Rotation as R
-from dataloaders import Normalization, Standardization
+from dataloaders import Normalization
 from visualize import MCDropoutVisualize
 
 
@@ -20,11 +20,7 @@ class MCRollout(MCDropoutVisualize):
     def pred_stats(self):
         cfg = deepcopy(self.cfg)
         model, ds_stats = self._build_model(cfg)
-
-        if cfg["dataset"]["preprocess"]["normalize"]:
-            self.norm = Normalization(ds_stats)
-        elif cfg["dataset"]["preprocess"]["standardize"]:
-            self.norm = Standardization(ds_stats)
+        self.norm = Normalization(ds_stats)
 
         loss_mean = []
         loss_std = []
@@ -85,28 +81,19 @@ class MCRollout(MCDropoutVisualize):
 
                 output = model(state_action)
 
-                if self.learn_residual:
-                    recover_res = \
-                        self.norm.res_inv_normalize(output.cpu().numpy())
-                    target_res = \
-                        self.norm.res_inv_normalize(target.cpu().numpy())
-                    recover_state = \
-                        self.norm.inv_normalize(state_orig[None, None, :])
-                    recover_output = recover_res + recover_state
-                    recover_target = target_res + recover_state
+                recover_res = \
+                    self.norm.res_inv_normalize(output.cpu().numpy())
+                target_res = \
+                    self.norm.res_inv_normalize(target.cpu().numpy())
+                recover_state = \
+                    self.norm.inv_normalize(state_orig[None, None, :])
+                recover_output = recover_res + recover_state
+                recover_target = target_res + recover_state
 
-                    recover_mean_output = np.mean(recover_output, axis=0,
-                                                  keepdims=True)
-                    rollout_pred = self.norm.normalize(
-                                    recover_mean_output[:, None, :])
-                else:
-                    recover_output = \
-                        self.norm.inv_normalize(
-                            output.cpu().numpy()[:, None, :])
-                    recover_target = \
-                        self.norm.inv_normalize(
-                            target.cpu().numpy()[:, None, :])
-                    rollout_pred = np.mean(output.cpu().numpy(), keepdim=True)
+                recover_mean_output = np.mean(recover_output, axis=0,
+                                              keepdims=True)
+                rollout_pred = self.norm.normalize(
+                                recover_mean_output[:, None, :])
 
                 loss = criterion(torch.Tensor(recover_mean_output),
                                  torch.Tensor(recover_target))

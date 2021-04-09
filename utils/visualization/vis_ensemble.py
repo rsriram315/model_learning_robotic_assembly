@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 from pathlib import Path
 from .vis_mlp import Visualize
-from dataloaders import Normalization, Standardization
+from dataloaders import Normalization
 
 
 class EnsembleVisualize(Visualize):
@@ -60,7 +60,6 @@ class EnsembleVisualize(Visualize):
 
     def _vis_axis(self, pred_mean, pred_std, target, time, fname):
         size = 1
-        # features = ['pos', 'force', 'rot_cosine', 'rot_sine', 'euler angles']
         features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
                     'matrix R row 3', 'euler angles']
         axis = ['x', 'y', 'z']
@@ -109,11 +108,7 @@ class EnsembleVisualize(Visualize):
         cfg["eval"]["ckpt_dir"] = os.path.join(dir_prefix,
                                                str(1)+"/")
         _, ds_stats = self._build_model(cfg)
-
-        if cfg["dataset"]["preprocess"]["normalize"]:
-            self.norm = Normalization(ds_stats)
-        elif cfg["dataset"]["preprocess"]["standardize"]:
-            self.norm = Standardization(ds_stats)
+        self.norm = Normalization(ds_stats)
 
         for fname in self.demo_fnames:
             losses_per_demo = []

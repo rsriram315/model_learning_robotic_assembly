@@ -3,13 +3,13 @@ import h5py
 from pathlib import Path
 from torch.utils.data import Dataset
 from .data_processor import Normalization, SegmentContact,\
-                            Interpolation, Standardization
+                            Interpolationn
 
 GRIPPER_CLOSED_THRESHOLD = 0.013
 
 
 class DemoDataset(Dataset):
-    def __init__(self, ds_cfg, augment=False):
+    def __init__(self, ds_cfg):
         """
         form (state, action) pair as x, and state at right next time stamp
         as label, pack them together.
@@ -19,13 +19,10 @@ class DemoDataset(Dataset):
         """
         super().__init__()
 
-        self.augment = augment
         self.root = Path(ds_cfg["root"])
         self.data_paths = [self.root / fn for fn in ds_cfg["fnames"]]
 
         self.contact_only = ds_cfg["contact_only"]
-        self.learn_residual = ds_cfg["learn_residual"]
-
         self.sample_freq = ds_cfg["sample_freq"]
         self.sl_factor = ds_cfg["sl_factor"]
         self.state_attrs = ds_cfg["state_attrs"]
@@ -43,7 +40,6 @@ class DemoDataset(Dataset):
         self.stats = ds_cfg["stats"]
         self.demo_fnames = ds_cfg["fnames"]
         self.preprocess = ds_cfg["preprocess"]
-        self.rot_repr = ds_cfg["rotation_representation"]
 
         self._read_all_demos()
 
@@ -74,16 +70,11 @@ class DemoDataset(Dataset):
                                         states, actions,
                                         sl_factor)
 
-            if self.learn_residual:
-                # learning the residual
-                tmp_targets = np.vstack((states_actions[:, 0],
-                                         states_padding))
-                targets = (tmp_targets[sl_factor:] -
-                           tmp_targets[:-sl_factor])
-            else:
-                # learn the absolute value
-                targets = states_actions[sl_factor:, 0].copy()
-                targets = np.vstack((targets, states_padding))
+            # learning the residual
+            tmp_targets = np.vstack((states_actions[:, 0],
+                                     states_padding))
+            targets = (tmp_targets[sl_factor:] -
+                       tmp_targets[:-sl_factor])
 
             self.states_actions.extend(states_actions)
             self.targets.extend(targets)
@@ -91,19 +82,9 @@ class DemoDataset(Dataset):
         self.states_actions = np.array(self.states_actions)
         self.targets = np.array(self.targets)
 
-        if self.preprocess["standardize"]:
-            norm = Standardization(self.stats)
-        elif self.preprocess["normalize"]:
-            norm = Normalization(self.stats)
-
-        self.states_actions = norm.normalize(self.states_actions,
-                                             augment=self.augment)
-
-        if self.learn_residual:
-            self.targets = norm.res_normalize(self.targets[:, None, :])
-        else:
-            self.targets = norm.normalize(self.targets[:, None, :],
-                                          augment=self.augment)
+        norm = Normalization(self.stats)
+        self.states_actions = norm.normalize(self.states_actions)
+        self.targets = norm.res_normalize(self.targets[:, None, :])
         self.stats = norm.get_stats()
 
     def _read_one_demo(self,
@@ -242,11 +223,9 @@ class DemoDataset(Dataset):
 
         # rotation interpolation
         states_rot_interp = Interpolation(states["rot"], states["time"],
-                                          self.preprocess["interp"]["rot"],
-                                          self.rot_repr)
+                                          self.preprocess["interp"]["rot"])
         actions_rot_interp = Interpolation(actions["rot"], actions["time"],
-                                           self.preprocess["interp"]["rot"],
-                                           self.rot_repr)
+                                           self.preprocess["interp"]["rot"])
 
         # force interpolation
         states_force_interp = \

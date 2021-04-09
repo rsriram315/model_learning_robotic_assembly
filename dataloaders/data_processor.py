@@ -66,88 +66,29 @@ class BaseNormalization:
         return stats
 
 
-class Standardization(BaseNormalization):
-    """
-    Standardization of data, (x - mean(x)) / std(x)
-    """
-    def __init__(self, stats):
-        super().__init__(stats)
-
-    def _stats(self, data, is_res=False):
-        """
-        mean and variance
-        """
-        stat_1 = np.mean(data, axis=0)
-        stat_2 = np.std(data, axis=0) + _FLOAT_EPS
-
-        if is_res:
-            stat_1, stat_2 = stat_1[None, ...], stat_2[None, ...]
-
-        # leave the rotation unchanged
-        if data.shape[-1] == 15:
-            stat_1[:, 6:] = np.zeros(9)
-            stat_2[:, 6:] = np.ones(9)
-        if data.shape[-1] == 12:
-            stat_1[:, 6:] = np.zeros(6)
-            stat_2[:, 6:] = np.ones(6)
-        return stat_1, stat_2
-
-    def normalize(self, data):
-        """
-        standard normalization for data
-        """
-        # Subtract the mean, and scale to the interval [0,1]
-        if self.stat_1 is None or self.stat_2 is None:
-            self.stat_1, self.stat_2 = self._stats(data)
-
-        dim = data.shape[1]
-        return (data - self.stat_1[:dim]) / self.stat_2[:dim]
-
-    def inverse_normalize(self, data):
-        dim = data.shape[1]
-        return data * (self.stat_2[:dim] - _FLOAT_EPS) + self.stat_1[:dim]
-
-    def residual_normalize(self, data):
-        if self.stat_3 is None or self.stat_4 is None:
-            self.stat_3, self.stat_4 = self._stats(data)
-        return (data - self.stat_3) / self.stat_4
-
-    def residual_inv_normalize(self, data):
-        return data * (self.stat_4 - _FLOAT_EPS) + self.stat_3
-
-
 class Normalization(BaseNormalization):
     """
     Normalization of data, (x - min(x)) / (max(x) - min(x)).
     """
     def __init__(self, stats):
         super().__init__(stats)
-        self.homogeneous_transform = HomogeneousTransform()
 
     def _stats(self, data):
         stat_1 = np.amin(data, axis=0)
         stat_2 = np.amax(data, axis=0) - stat_1 + _FLOAT_EPS
 
         # leave the rotation unchanged
-        if data.shape[-1] == 15:
-            stat_1[:, 6:] = np.zeros(9) - 1
-            stat_2[:, 6:] = np.ones(9) + 1
-        if data.shape[-1] == 12:
-            stat_1[:, 6:] = np.zeros(6) - 1
-            stat_2[:, 6:] = np.ones(6) + 1
+        stat_1[:, 6:] = np.zeros(9) - 1
+        stat_2[:, 6:] = np.ones(9) + 1
         return stat_1, stat_2
 
-    def normalize(self, data, augment=False):
+    def normalize(self, data):
         """
         standard normalization for data
         """
         # Subtract the minimum, and scale to the interval [-1,1]
         if self.stat_1 is None or self.stat_2 is None:
             self.stat_1, self.stat_2 = self._stats(data)
-
-        if augment:
-            # data = add_noise(data)
-            data = self.homogeneous_transform.transform(data)
 
         dim = data.shape[1]  # check if state action or not
         normalized_data = (data - self.stat_1[:dim]) / self.stat_2[:dim]
@@ -178,13 +119,10 @@ class Normalization(BaseNormalization):
 
 
 class Interpolation:
-    def __init__(self, data, time, interpolation,
-                 rotation_representation=None):
+    def __init__(self, data, time, interpolation):
         self.data = data
         self.time = time
         self.interpolation = interpolation
-
-        self.rot_repr = rotation_representation
 
         if self.interpolation == "cubic_spline":
             self.cs_ls = self._get_cubic_spline_fn()
@@ -231,17 +169,8 @@ class Interpolation:
         return cs_ls
 
     def _slerp(self, time_stamp):
-        if self.rot_repr == "euler_cos_sin":
-            # output cosine and sine only
-            euler_angles = self.slerp_fn(time_stamp).as_euler('xyz')
-            cosines = np.cos(euler_angles)
-            sines = np.sin(euler_angles)
-            return np.hstack((cosines, sines))
-
-        elif self.rot_repr == "6D":
-            # output rotation matrix
-            return self.slerp_fn(time_stamp).as_matrix().reshape((-1, 9))
-            # return self.slerp_fn(time_stamp).as_quat()
+        # output rotation matrix
+        return self.slerp_fn(time_stamp).as_matrix().reshape((-1, 9))
 
     def _get_slerp_fn(self):
         return Slerp(self.time, self.rot)

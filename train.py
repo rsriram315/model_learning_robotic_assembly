@@ -29,7 +29,7 @@ def train(cfg):
         (np.random.RandomState(cfg["dataset"]["seed"])
            .permutation(demos)[:num_train_demo])
 
-    dataset = DemoDataset(cfg["dataset"], augment=False)
+    dataset = DemoDataset(cfg["dataset"])
     dataloader = DemoDataLoader(dataset, cfg["dataloader"])
     valid_dataloader = dataloader.split_validation()
     print(f"... {dataloader.n_samples} training samples")

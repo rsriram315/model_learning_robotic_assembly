@@ -3,7 +3,7 @@ import torch
 from copy import deepcopy
 from pathlib import Path
 from .vis_ensemble import EnsembleVisualize
-from dataloaders import Normalization, Standardization
+from dataloaders import Normalization
 from model import MCDropout
 
 
@@ -16,11 +16,7 @@ class MCDropoutVisualize(EnsembleVisualize):
         cfg = deepcopy(self.cfg)
         num_mc = cfg["eval"]["num_mc"]
         model, ds_stats = self._build_model(cfg)
-
-        if cfg["dataset"]["preprocess"]["normalize"]:
-            self.norm = Normalization(ds_stats)
-        elif cfg["dataset"]["preprocess"]["standardize"]:
-            self.norm = Standardization(ds_stats)
+        self.norm = Normalization(ds_stats)
 
         loss_mean = []
         loss_std = []

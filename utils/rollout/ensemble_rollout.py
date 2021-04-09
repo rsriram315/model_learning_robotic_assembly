@@ -5,7 +5,7 @@ from pathlib import Path
 from copy import deepcopy
 from scipy.spatial.transform import Rotation as R
 from utils.visualization import EnsembleVisualize
-from dataloaders import Normalization, Standardization
+from dataloaders import Normalization
 
 
 torch.backends.cudnn.deterministic = True
@@ -33,10 +33,7 @@ class EnsembleRollout(EnsembleVisualize):
                                                str(1)+"/")
         _, ds_stats = self._build_model(cfg)
 
-        if cfg["dataset"]["preprocess"]["normalize"]:
-            self.norm = Normalization(ds_stats)
-        elif cfg["dataset"]["preprocess"]["standardize"]:
-            self.norm = Standardization(ds_stats)
+        self.norm = Normalization(ds_stats)
 
         for fname in self.demo_fnames:
             fname = Path(fname)
@@ -99,30 +96,20 @@ class EnsembleRollout(EnsembleVisualize):
 
                 output_per_demo = torch.cat(output_ls, dim=0)
 
-                if self.learn_residual:
-                    recover_res = \
-                        self.norm.res_inv_normalize(output_per_demo
-                                                    .cpu().numpy())
-                    target_res = \
-                        self.norm.res_inv_normalize(target.cpu().numpy())
-                    recover_state = \
-                        self.norm.inv_normalize(state_orig[None, None, :])
-                    recover_output = recover_res + recover_state
-                    recover_target = target_res + recover_state
+                recover_res = \
+                    self.norm.res_inv_normalize(output_per_demo
+                                                .cpu().numpy())
+                target_res = \
+                    self.norm.res_inv_normalize(target.cpu().numpy())
+                recover_state = \
+                    self.norm.inv_normalize(state_orig[None, None, :])
+                recover_output = recover_res + recover_state
+                recover_target = target_res + recover_state
 
-                    recover_mean_output = np.mean(recover_output, axis=0,
-                                                  keepdims=True)
-                    rollout_pred = self.norm.normalize(
-                                    recover_mean_output[:, None, :])
-                else:
-                    recover_output = \
-                        self.norm.inv_normalize(
-                            output_per_demo.cpu().numpy()[:, None, :])
-                    recover_target = \
-                        self.norm.inv_normalize(
-                            target.cpu().numpy()[:, None, :])
-                    rollout_pred = np.mean(output_per_demo.cpu().numpy(),
-                                           keepdims=True)
+                recover_mean_output = np.mean(recover_output, axis=0,
+                                              keepdims=True)
+                rollout_pred = self.norm.normalize(
+                                recover_mean_output[:, None, :])
 
                 loss = criterion(torch.Tensor(recover_mean_output),
                                  torch.Tensor(recover_target))

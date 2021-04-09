@@ -52,27 +52,19 @@ class EnsembleRandomRollout(Rollout):
                 model, _ = self._build_model(cfg)
 
                 output = model(state_action)
-                if self.learn_residual:
-                    recover_res = \
-                        self.norm.res_inv_normalize(output.cpu().numpy())
-                    target_res = \
-                        self.norm.res_inv_normalize(target.cpu().numpy())
-                    recover_state = \
-                        self.norm.inv_normalize(state_orig[None, None, :])
-                    recover_output = recover_res + recover_state
-                    recover_target = target_res + recover_state
 
-                    rollout_pred = \
-                        self.norm.normalize(recover_output[:, None, :])
-                else:
-                    recover_output = \
-                        self.norm.inv_normalize(
-                            output.cpu().numpy()[:, None, :])
-                    recover_target = \
-                        self.norm.inv_normalize(
-                            target.cpu().numpy()[:, None, :])
+                # learn residuals
+                recover_res = \
+                    self.norm.res_inv_normalize(output.cpu().numpy())
+                target_res = \
+                    self.norm.res_inv_normalize(target.cpu().numpy())
+                recover_state = \
+                    self.norm.inv_normalize(state_orig[None, None, :])
+                recover_output = recover_res + recover_state
+                recover_target = target_res + recover_state
 
-                    rollout_pred = output.clone().cpu().numpy()
+                rollout_pred = \
+                    self.norm.normalize(recover_output[:, None, :])
 
                 loss = criterion(torch.Tensor(recover_output),
                                  torch.Tensor(recover_target))
