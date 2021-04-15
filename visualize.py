@@ -1,4 +1,4 @@
-from utils.visualization import Visualize, EnsembleVisualize,\
+from utils.visualization import MLPVisualize, EnsembleVisualize,\
                                 MCDropoutVisualize
 
 
@@ -8,7 +8,7 @@ def visualize(cfg):
 
     if trainer_name == "mlp":
         if model_name == "MLP":
-            vis = Visualize(cfg)
+            vis = MLPVisualize(cfg)
         elif model_name == "MCDropout":
             vis = MCDropoutVisualize(cfg)
     elif trainer_name == "ensemble":

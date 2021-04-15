@@ -12,15 +12,8 @@ _FLOAT_EPS = np.finfo(np.float64).eps
 
 def add_noise(data, noise_lv=0.01):
     data = deepcopy(data)
-    data_mean = np.mean(data, axis=0)
-    std_noise = data_mean * noise_lv
-    for i in range(1):
-        for j in range(data_mean.shape[1]):
-            data[:, i, j] = np.copy(data[:, i, j] +
-                                    np.random.normal(0,
-                                    np.absolute(std_noise[i, j]),
-                                    (data.shape[0],)))
-    return data
+    noise = np.random.normal(0, noise_lv, size=data.shape[0])
+    return data + noise
 
 
 class HomogeneousTransform:
@@ -51,12 +44,25 @@ class HomogeneousTransform:
         return data
 
 
-class BaseNormalization:
+class Normalization:
+    """
+    Normalization of data, (x - min(x)) / (max(x) - min(x)).
+    """
     def __init__(self, stats):
         self.stat_1 = stats["stat_1"]
         self.stat_2 = stats["stat_2"]
         self.stat_3 = stats["stat_3"]
         self.stat_4 = stats["stat_4"]
+
+    def _stats(self, data, is_res):
+        stat_1 = np.amin(data, axis=0)
+        stat_2 = np.amax(data, axis=0) - stat_1 + _FLOAT_EPS
+
+        if not is_res:
+            # leave the rotation unchanged
+            stat_1[:, 6:] = np.zeros(9) - 1
+            stat_2[:, 6:] = np.ones(9) + 1
+        return stat_1, stat_2
 
     def get_stats(self):
         stats = {"stat_1": self.stat_1,
@@ -65,57 +71,41 @@ class BaseNormalization:
                  "stat_4": self.stat_4}
         return stats
 
-
-class Normalization(BaseNormalization):
-    """
-    Normalization of data, (x - min(x)) / (max(x) - min(x)).
-    """
-    def __init__(self, stats):
-        super().__init__(stats)
-
-    def _stats(self, data):
-        stat_1 = np.amin(data, axis=0)
-        stat_2 = np.amax(data, axis=0) - stat_1 + _FLOAT_EPS
-
-        # leave the rotation unchanged
-        stat_1[:, 6:] = np.zeros(9) - 1
-        stat_2[:, 6:] = np.ones(9) + 1
-        return stat_1, stat_2
-
-    def normalize(self, data):
+    def normalize(self, data, is_res=False):
         """
         standard normalization for data
         """
-        # Subtract the minimum, and scale to the interval [-1,1]
-        if self.stat_1 is None or self.stat_2 is None:
-            self.stat_1, self.stat_2 = self._stats(data)
+        if is_res:
+            if self.stat_3 is None or self.stat_4 is None:
+                stat_1, stat_2 = self._stats(data, is_res)
+                self.stat_3, self.stat_4 = stat_1, stat_2
+            else:
+                stat_1, stat_2 = self.stat_3, self.stat_4
+        else:
+            if self.stat_1 is None or self.stat_2 is None:
+                stat_1, stat_2 = self._stats(data, is_res)
+                self.stat_1, self.stat_2 = stat_1, stat_2
+            else:
+                stat_1, stat_2 = self.stat_1, self.stat_2
 
         dim = data.shape[1]  # check if state action or not
-        normalized_data = (data - self.stat_1[:dim]) / self.stat_2[:dim]
+        normalized_data = (data - stat_1[:dim]) / stat_2[:dim]
         if dim == 1:
             normalized_data = np.squeeze(normalized_data, axis=1)
         return 2 * (normalized_data - 0.5)
 
-    def inv_normalize(self, data):
+    def inv_normalize(self, data, is_res=False):
+        if is_res:
+            stat_1, stat_2 = self.stat_3, self.stat_4
+        else:
+            stat_1, stat_2 = self.stat_1, self.stat_2
+
         dim = data.shape[1]  # check if state action or not
-        scaled_data = (data / 2 + 0.5) * (self.stat_2[:dim] - _FLOAT_EPS)
-        inversed_data = scaled_data + self.stat_1[:dim]
+        scaled_data = (data / 2 + 0.5) * (stat_2[:dim] - _FLOAT_EPS)
+        inversed_data = scaled_data + stat_1[:dim]
         if dim == 1:
             inversed_data = np.squeeze(inversed_data, axis=1)
         return inversed_data
-
-    def res_normalize(self, data):
-        if self.stat_3 is None or self.stat_4 is None:
-            self.stat_3, self.stat_4 = self._stats(data)
-
-        normalized_res = (data - self.stat_3) / self.stat_4
-        normalized_res = np.squeeze(normalized_res, axis=1)
-        return 2 * (normalized_res - 0.5)
-
-    def res_inv_normalize(self, data):
-        scaled_res = (data / 2 + 0.5) * (self.stat_4 - _FLOAT_EPS)
-        inversed_res = scaled_res + self.stat_3
-        return inversed_res
 
 
 class Interpolation:

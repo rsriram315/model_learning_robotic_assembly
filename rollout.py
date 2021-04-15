@@ -1,23 +1,24 @@
 import matplotlib.pyplot as plt
-from utils.rollout import Rollout, MCRollout, EnsembleRollout,\
+import numpy as np
+from utils.rollout import MLPRollout, MCRollout, EnsembleRollout,\
                           EnsembleRandomRollout
 
 
 def rollout(cfg):
     losses = []
     horizons = [5, 10, 15, 20]
-    # horizons = [200]
+    # horizons = [20]
 
     for h in horizons:
         if cfg["name"] == "mlp":
-            vis = Rollout(cfg, horizon=h)
+            vis = MLPRollout(cfg, horizon=h)
         elif cfg["name"] == "mc_dropout":
             vis = MCRollout(cfg, horizon=h)
         elif cfg["name"] == "ensemble":
             vis = EnsembleRollout(cfg, horizon=h)
             # vis = EnsembleRandomRollout(cfg, horizon=h)
         vis.visualize()
-        losses.append(vis.losses)
+        losses.append(np.mean(vis.losses))
 
     fig = plt.figure(figsize=(8, 4))
     ax = fig.add_subplot(111)

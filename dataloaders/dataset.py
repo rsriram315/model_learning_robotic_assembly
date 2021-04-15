@@ -3,13 +3,13 @@ import h5py
 from pathlib import Path
 from torch.utils.data import Dataset
 from .data_processor import Normalization, SegmentContact,\
-                            Interpolationn
+                            Interpolation, add_noise
 
 GRIPPER_CLOSED_THRESHOLD = 0.013
 
 
 class DemoDataset(Dataset):
-    def __init__(self, ds_cfg):
+    def __init__(self, ds_cfg, is_train=False):
         """
         form (state, action) pair as x, and state at right next time stamp
         as label, pack them together.
@@ -18,7 +18,7 @@ class DemoDataset(Dataset):
             params: dataset dict in the config.json
         """
         super().__init__()
-
+        self.is_train = is_train
         self.root = Path(ds_cfg["root"])
         self.data_paths = [self.root / fn for fn in ds_cfg["fnames"]]
 
@@ -46,11 +46,15 @@ class DemoDataset(Dataset):
     def __len__(self):
         return len(self.states_actions)
 
-    def __getitem__(self, idx, scale=1):
+    def __getitem__(self, idx):
         state, action = self.states_actions[idx]
-        sample = np.hstack((state[:], action[:])) * scale
-        target = self.targets[idx, :] * scale
+        target = self.targets[idx, :]
+        if self.is_train:
+            if np.random.uniform() < 0.2:  # 0.2 probility to add noise
+                state = add_noise(state)
+                target = add_noise(target)
 
+        sample = np.hstack((state, action))
         return np.float32(sample), np.float32(target)
 
     def get_fnames(self):
@@ -64,17 +68,18 @@ class DemoDataset(Dataset):
                                                   self.contact_only)
 
             # sliding window factor, data_sampling_freq / pred_freq
-            sl_factor = self.sl_factor
             states_actions, states_padding = \
                 self._pair_state_action(self.sample_freq,
                                         states, actions,
-                                        sl_factor)
+                                        self.sl_factor)
 
             # learning the residual
             tmp_targets = np.vstack((states_actions[:, 0],
-                                     states_padding))
-            targets = (tmp_targets[sl_factor:] -
-                       tmp_targets[:-sl_factor])
+                                    states_padding))
+            targets = (tmp_targets[self.sl_factor:] -
+                       tmp_targets[:-self.sl_factor])
+            # targets = np.copy(states_actions[self.sl_factor:, 0])
+            # targets = np.vstack((targets, states_padding))
 
             self.states_actions.extend(states_actions)
             self.targets.extend(targets)
@@ -84,7 +89,8 @@ class DemoDataset(Dataset):
 
         norm = Normalization(self.stats)
         self.states_actions = norm.normalize(self.states_actions)
-        self.targets = norm.res_normalize(self.targets[:, None, :])
+        self.targets = norm.normalize(self.targets[:, None, :],
+                                      is_res=True)
         self.stats = norm.get_stats()
 
     def _read_one_demo(self,

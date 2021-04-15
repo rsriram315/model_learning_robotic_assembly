@@ -3,14 +3,14 @@
     "train": true,
     "evaluate": true,
     "visualize": true,
-    "rollout": false,
+    "rollout": true,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
         "root": "data",
         "fnames": [],
         "sample_freq": 1000,
-        "sl_factor": 10,
+        "sl_factor": 100,
         "contact_only": true,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
@@ -65,7 +65,6 @@
         "amsgrad": true
     },
     "eval": {
-        "num_epochs": 20,
         "ckpt_dir": "saved/ckpts/",
         "ckpt_pth": null,
         "log_file": "saved/evaluation.log"

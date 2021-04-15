@@ -77,17 +77,21 @@ class Evaluate:
         return ckpt_pths[0]
 
     def _build_model(self, model_cfg, ckpt_pth):
+        ckpt = torch.load(ckpt_pth)
+        dataset_stats = ckpt["dataset_stats"]
+
         # build model architecture, then print to console
         if model_cfg["name"] == "MLP":
             model = MLP(model_cfg["input_dims"],
-                        model_cfg["output_dims"])
+                        model_cfg["output_dims"],
+                        dataset_stats)
         elif model_cfg["name"] == "MCDropout":
             model = MCDropout(model_cfg["input_dims"],
-                              model_cfg["output_dims"])
+                              model_cfg["output_dims"],
+                              dataset_stats)
         print(model)
 
         # load model checkpoint
-        ckpt = torch.load(ckpt_pth)
         model.load_state_dict(ckpt["state_dict"])
         self.eval_log(f'... Load checkpoint: {ckpt_pth}')
 
@@ -96,5 +100,4 @@ class Evaluate:
             model = torch.nn.DataParallel(model, self.device_ids)
         model.eval()
 
-        dataset_stats = ckpt["dataset_stats"]
         return model, dataset_stats

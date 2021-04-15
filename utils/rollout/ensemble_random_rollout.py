@@ -3,14 +3,14 @@ import torch
 import numpy as np
 from copy import deepcopy
 from scipy.spatial.transform import Rotation as R
-from .mlp_rollout import Rollout
+from .mlp_rollout import MLPRollout
 
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.enabled = True
 
 
-class EnsembleRandomRollout(Rollout):
+class EnsembleRandomRollout(MLPRollout):
     def __init__(self, cfg, horizon):
         # a initial ckpt path is needed
         init_cfg = deepcopy(cfg)

@@ -30,9 +30,9 @@ class Trainer(BaseTrainer):
         # prepare for (multi-device) GPU training
         self.device, self.device_ids = prepare_device(model_cfg["n_gpu"])
 
-        model = self._build_model(model_cfg)
+        model = self._build_model(model_cfg, dataset_stats)
         optimizer = self._build_optim(model, optim_cfg)
-        criterion = torch.nn.MSELoss()
+        criterion = torch.nn.MSELoss(reduction='mean')
 
         metric_fns = []
         self.train_metrics = \
@@ -47,16 +47,18 @@ class Trainer(BaseTrainer):
                          dataset_stats,
                          trainer_cfg)
 
-    def _build_model(self, model_cfg):
+    def _build_model(self, model_cfg, ds_stats):
         # build model architecture, then print to console
         if model_cfg["name"] == "MLP":
             model = MLP(model_cfg["input_dims"],
-                        model_cfg["output_dims"])
+                        model_cfg["output_dims"],
+                        ds_stats)
         elif model_cfg["name"] == "MCDropout":
             model = MCDropout(model_cfg["input_dims"],
-                              model_cfg["output_dims"])
-        print(model)
+                              model_cfg["output_dims"],
+                              ds_stats)
 
+        print(model)
         model = model.to(self.device)
 
         if len(self.device_ids) > 1:
@@ -88,6 +90,7 @@ class Trainer(BaseTrainer):
         tb_step = (epoch - 1) * len(self.dataloader)
 
         for batch_idx, (state_action, target) in enumerate(self.dataloader):
+
             state_action, target = \
                 (state_action.to(self.device, non_blocking=True),
                  target.to(self.device, non_blocking=True))

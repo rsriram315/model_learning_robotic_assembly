@@ -1,71 +1,104 @@
 import torch
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from utils.visualization import Visualize
+from utils.visualization import MLPVisualize
 
 
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.enabled = True
-
-
-class Rollout(Visualize):
+class MLPRollout(MLPVisualize):
     def __init__(self, cfg, horizon):
         super().__init__(cfg, vis_dir=f"saved/visualizations_{horizon}")
         self.horizon = horizon
-        self.losses = 0
+        self.losses = []
 
     def _evaluate(self, model, dataset):
         rollout = self.horizon  # current rollout step
-        # rollout = len(dataset)
-        rollout_pred = None
+        ro_pred = None  # rollout_predictions
 
         # get function handles of loss and metrics
-        criterion = torch.nn.MSELoss(reduction='sum')
+        criterion = torch.nn.MSELoss(reduction='none')
         losses = []
         preds = []
+        gt_states = []
+        ro_states = []
         targets = []
 
         with torch.no_grad():
             for i in range(len(dataset)):
                 state_action, target = dataset.__getitem__(i)
-                state_orig = np.copy(state_action[:15])
+                gt_states.append(np.copy(state_action[:15]))
+                targets.append(np.copy(target))
 
                 if rollout < self.horizon:
-                    state_action[:15] = rollout_pred
+                    state_action[:15] = np.copy(ro_pred)
                     rollout += 1
                 else:
                     rollout = 0
+                ro_states.append(np.copy(state_action[:15]))
 
+                # batch_size x 15
                 state_action = torch.tensor(state_action[None, ...]).to('cuda')
                 target = torch.tensor(target[None, ...]).to('cuda')
-
                 output = model(state_action)
 
-                recover_res = \
-                    self.norm.res_inv_normalize(output.cpu().numpy())
-                target_res = \
-                    self.norm.res_inv_normalize(target.cpu().numpy())
-                recover_state = \
-                    self.norm.inv_normalize(state_orig[None, None, :])
-                recover_output = recover_res + recover_state
-                recover_target = target_res + recover_state
+                # get rollout prediction in the correct scale
+                ro_pred = output.cpu().numpy()
+                ro_pred = self.norm.inv_normalize(ro_pred[:, None, :],
+                                                  is_res=True)
+                ro_pred += self.norm.inv_normalize(ro_states[-1]
+                                                   [None, None, :])
+                ro_pred = self.norm.normalize(ro_pred[:, None, :])
 
-                rollout_pred = \
-                    self.norm.normalize(recover_output[:, None, :])
+                loss = criterion(torch.tensor(ro_pred),
+                                 torch.tensor(gt_states[-1][None, ...]))
+                loss = torch.sum(loss, dim=1)
+                # ro_pred = output.clone().cpu().numpy()
+                # loss = criterion(torch.tensor(ro_pred),
+                #                  torch.tensor(gt_states[-1][None, ...]))
+                # loss = torch.sum(loss, dim=1)
 
-                loss = criterion(torch.Tensor(recover_output),
-                                 torch.Tensor(recover_target))
-                # output euler angles
-                pred_angle = \
-                    (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
-                      .as_euler('xyz', degrees=True))
-                target_angle = \
-                    (R.from_matrix(recover_target[:, 6:].reshape(-1, 3, 3))
-                      .as_euler('xyz', degrees=True))
+                losses.extend(loss.cpu().numpy())
+                preds.extend(output.cpu().numpy())
 
-                losses.append(loss.item())
-                preds.extend(np.hstack((recover_output, pred_angle)))
-                targets.extend(np.hstack((recover_target, target_angle)))
+        self.losses.extend(losses)
+        return (np.array(losses), np.array(preds),
+                (np.array(gt_states), np.array(ro_states)),
+                np.array(targets))
 
-        self.losses += np.sum(losses)
-        return np.array(losses), np.array(preds), np.array(targets)
+    def _recover_data(self, pred, state, target):
+        gt_state, rollout_state = state
+
+        curr_gt_state = self.norm.inv_normalize(gt_state[:, None, :])
+        curr_rollout_state = self.norm.inv_normalize(rollout_state[:, None, :])
+
+        recover_target = self.norm.inv_normalize(target[:, None, :],
+                                                 is_res=True)
+        recover_output = self.norm.inv_normalize(pred[:, None, :],
+                                                 is_res=True)
+        recover_target += curr_gt_state
+        recover_output += curr_rollout_state
+
+        # output euler angles
+        pred_angle = (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
+                       .as_euler('xyz', degrees=True))
+        target_angle = (R.from_matrix(recover_target[:, 6:].reshape(-1, 3, 3))
+                         .as_euler('xyz', degrees=True))
+
+        recover_output = np.hstack((recover_output, pred_angle))
+        recover_target = np.hstack((recover_target, target_angle))
+        return recover_output, recover_target
+
+    # for learning absolute values
+    # def _recover_data(self, pred, state, target):
+    #     recover_target = self.norm.inv_normalize(target[:, None, :])
+    #     recover_output = self.norm.inv_normalize(pred[:, None, :])
+
+    #     # output euler angles
+    #     pred_angle = (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
+    #                    .as_euler('xyz', degrees=True))
+    #     target_angle = (R.from_matrix(recover_target[:, 6:]
+    #                      .reshape(-1, 3, 3))
+    #                      .as_euler('xyz', degrees=True))
+
+    #     recover_output = np.hstack((recover_output, pred_angle))
+    #     recover_target = np.hstack((recover_target, target_angle))
+    #     return recover_output, recover_target

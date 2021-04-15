@@ -1,10 +1,26 @@
 # TODOs
 
+## Week 12
+
+- [ ] Fix the $\Delta s$ of rotation.
+  - Not just subtracting to get $\Delta s$ (because the rotation matrix is not at Euclidean space), but use the rotation transformation.
+- [ ] Fix the Homogeneous transformation for data augmentation.
+  - The disturbances should be bounded
+- [ ] What is the reward function?
+  - negative L2 loss?
+- [ ] Use ground truth dynamics to evaluate the algorithm first?
+
+
 ## Week 11
 
-- [ ] Fix the scaling issue at the loss, make sure they scale equally in every feature.
-- [ ] Fix the ugly euler angle scale in axis figure.
-- [ ] Try to augment the data with randomly, not all
+- [x] Fix the scaling issue at the loss, make sure they scale equally in every feature.
+- [x] Try to match the prediction horizon in the paper keypoints to the future.
+  - action command in the paper is at 5Hz, 2 second horizon, corresponds to 10 rollout prediction.
+- [x] Fix the ugly euler angle scale in axis figure.
+  - just clip the values to [-180, 180] 
+- [x] Try to augment the data with randomly, not all
+  - add noise on the input state and target residuals
+- [x] Residual rotation matrix?
 
 ## Week 9 & 10
 

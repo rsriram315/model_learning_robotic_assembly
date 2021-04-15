@@ -3,46 +3,55 @@ import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from pathlib import Path
-from .vis_mlp import Visualize
+from .base_vis import BaseVisualize
 from dataloaders import Normalization
 
 
-class EnsembleVisualize(Visualize):
+class EnsembleVisualize(BaseVisualize):
     def __init__(self, cfg, vis_dir="saved/visualizations"):
         super().__init__(cfg, vis_dir)
 
     def visualize(self):
-        loss_stats, pred_stats, targets, time = self.pred_stats()
+        # get the dataset stats
+        cfg = deepcopy(self.cfg)
+        cfg["eval"]["ckpt_dir"] = \
+            os.path.join(cfg["trainer"]["ckpts_dir"], str(1)+"/")
 
-        for i in range(len(self.demo_fnames)):
-            if self.demo_fnames[i] in self.train_demo_fnames:
-                suffix_fname = Path('train') / Path(self.demo_fnames[i]).stem
-            elif self.demo_fnames[i] in self.test_demo_fnames:
-                suffix_fname = Path('test') / Path(self.demo_fnames[i]).stem
+        _, cfg = self._build_model(cfg)
+        self.norm = Normalization(cfg["dataset"]["stats"])
+
+        for fname in self.demo_fnames:
+            loss_stats, pred_stats, targets, time = \
+                self.pred_stats(cfg, fname)
+
+            if fname in self.train_demo_fnames:
+                suffix_fname = Path('train') / Path(fname).stem
+            elif fname in self.test_demo_fnames:
+                suffix_fname = Path('test') / Path(fname).stem
 
             if self.vis_cfg["loss"]:
                 loss_fname = self.vis_dir / "loss" / suffix_fname
-                self._vis_loss(loss_stats["mean"][i],
-                               loss_stats["std"][i],
-                               time[i], loss_fname)
+                self._vis_loss(loss_stats["mean"],
+                               loss_stats["std"],
+                               time, loss_fname)
 
             if self.vis_cfg["axis"]:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
-                self._vis_axis(pred_stats["mean"][i],
-                               pred_stats["std"][i],
-                               targets[i], time[i], axis_fname)
+                self._vis_axis(pred_stats["mean"],
+                               pred_stats["std"],
+                               targets, time, axis_fname)
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / suffix_fname
-                self._vis_trajectory(pred_stats["mean"][i][:, :3],
-                                     targets[i][:, :3], traj_fname)
+                self._vis_trajectory(pred_stats["mean"][:, :3],
+                                     targets[:, :3], traj_fname)
 
             print(f"... Generated visualization for {suffix_fname.name}")
 
     def _vis_loss(self, loss_mean, loss_std, time, fname):
         fig = plt.figure(figsize=(8, 4))
         ax = fig.add_subplot(111)
-        ax.set_title(f"sum of the loss: {sum(loss_mean)}")
+        ax.set_title(f"mean of the loss: {np.mean(loss_mean)}")
 
         ax.plot(time, loss_mean)
         ax.fill_between(time,
@@ -74,11 +83,16 @@ class EnsembleVisualize(Visualize):
 
                 axs[r, c].plot(time, pred_mean[:, idx],
                                c='tab:orange', label='mean predictions')
+
+                upper_ci = pred_mean[:, idx] + 2 * pred_std[:, idx]
+                lower_ci = pred_mean[:, idx] - 2 * pred_std[:, idx]
+                # fixed the angle confidence interval exceeds [-180, 180]
+                if idx >= 11:
+                    upper_ci = np.clip(upper_ci, -185, 185)
+                    lower_ci = np.clip(lower_ci, -185, 185)
                 axs[r, c].fill_between(time,
-                                       (pred_mean[:, idx] +
-                                        2 * pred_std[:, idx]),
-                                       (pred_mean[:, idx] -
-                                        2 * pred_std[:, idx]),
+                                       upper_ci,
+                                       lower_ci,
                                        alpha=0.5, color='tab:orange',
                                        label='confidence interval')
 
@@ -93,51 +107,32 @@ class EnsembleVisualize(Visualize):
         plt.savefig(fname, dpi=200)
         plt.close(fig)
 
-    def pred_stats(self):
-        loss_mean = []
-        loss_std = []
-        pred_mean = []
-        pred_std = []
-        targets = []
-        time = []
-
-        # get the dataset stats
-        cfg = deepcopy(self.cfg)
-        num_ensemble = cfg["trainer"]["num_ensemble"]
+    def pred_stats(self, cfg, fname):
         dir_prefix = cfg["trainer"]["ckpts_dir"]
-        cfg["eval"]["ckpt_dir"] = os.path.join(dir_prefix,
-                                               str(1)+"/")
-        _, ds_stats = self._build_model(cfg)
-        self.norm = Normalization(ds_stats)
+        losses_per_demo = []
+        preds_per_demo = []
 
-        for fname in self.demo_fnames:
-            losses_per_demo = []
-            preds_per_demo = []
+        fname = Path(fname)
+        dataset = self._read_single_demo(cfg["dataset"],
+                                         [fname.name])
 
-            fname = Path(fname)
-            dataset = self._read_single_demo(cfg["dataset"],
-                                             [fname.name], ds_stats)
-            time.append(dataset.sample_time)
+        for n in range(cfg["trainer"]["num_ensemble"]):
+            cfg["eval"]["ckpt_dir"] = os.path.join(dir_prefix,
+                                                   str(n+1)+"/")
+            model, _ = self._build_model(cfg)
 
-            for n in range(num_ensemble):
-                cfg["eval"]["ckpt_dir"] = os.path.join(dir_prefix,
-                                                       str(n+1)+"/")
-                model, ds_stats = self._build_model(cfg)
+            loss, pred, state, target = \
+                self._evaluate(model, dataset)
 
-                losses_per_model, preds_per_model, target_per_model = \
-                    self._evaluate(model, dataset)
+            recover_pred, recover_target = \
+                self._recover_data(pred, state, target)
 
-                losses_per_demo.append(losses_per_model)
-                preds_per_demo.append(preds_per_model)
-                if n == 0:
-                    targets.append(target_per_model)
+            losses_per_demo.append(loss)
+            preds_per_demo.append(recover_pred)
 
-            loss_mean.append(np.mean(losses_per_demo, axis=0))
-            loss_std.append(np.std(losses_per_demo, axis=0))
-            pred_mean.append(np.mean(preds_per_demo, axis=0))
-            pred_std.append(np.std(preds_per_demo, axis=0))
+        loss_stat = {"mean": np.mean(losses_per_demo, axis=0),
+                     "std": np.std(losses_per_demo, axis=0)}
+        pred_stat = {"mean": np.mean(preds_per_demo, axis=0),
+                     "std": np.std(preds_per_demo, axis=0)}
 
-        loss_stats = {"mean": loss_mean, "std": loss_std}
-        pred_stats = {"mean": pred_mean, "std": pred_std}
-
-        return loss_stats, pred_stats, targets, time
+        return loss_stat, pred_stat, recover_target, dataset.sample_time

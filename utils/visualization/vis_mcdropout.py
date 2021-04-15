@@ -12,46 +12,64 @@ class MCDropoutVisualize(EnsembleVisualize):
         self.cfg = cfg
         super().__init__(cfg, vis_dir)
 
-    def pred_stats(self):
+    def visualize(self):
+        # get the dataset stats
         cfg = deepcopy(self.cfg)
-        num_mc = cfg["eval"]["num_mc"]
-        model, ds_stats = self._build_model(cfg)
-        self.norm = Normalization(ds_stats)
-
-        loss_mean = []
-        loss_std = []
-        pred_mean = []
-        pred_std = []
-        targets = []
-        time = []
 
         for fname in self.demo_fnames:
-            losses_per_demo = []
-            preds_per_demo = []
+            loss_stats, pred_stats, targets, time = \
+                self.pred_stats(cfg, fname)
 
-            fname = Path(fname)
-            dataset = self._read_single_demo(cfg["dataset"],
-                                             [fname.name], ds_stats)
-            time.append(dataset.sample_time)
+            if fname in self.train_demo_fnames:
+                suffix_fname = Path('train') / Path(fname).stem
+            elif fname in self.test_demo_fnames:
+                suffix_fname = Path('test') / Path(fname).stem
 
-            for n in range(num_mc):
-                losses_per_sample, preds_per_sample, target_per_sample = \
-                    self._evaluate(model, dataset)
+            if self.vis_cfg["loss"]:
+                loss_fname = self.vis_dir / "loss" / suffix_fname
+                self._vis_loss(loss_stats["mean"],
+                               loss_stats["std"],
+                               time, loss_fname)
 
-                losses_per_demo.append(losses_per_sample)
-                preds_per_demo.append(preds_per_sample)
-                if n == 0:
-                    targets.append(target_per_sample)
+            if self.vis_cfg["axis"]:
+                axis_fname = self.vis_dir / "axis" / suffix_fname
+                self._vis_axis(pred_stats["mean"],
+                               pred_stats["std"],
+                               targets, time, axis_fname)
 
-            loss_mean.append(np.mean(losses_per_demo, axis=0))
-            loss_std.append(np.std(losses_per_demo, axis=0))
-            pred_mean.append(np.mean(preds_per_demo, axis=0))
-            pred_std.append(np.std(preds_per_demo, axis=0))
+            if self.vis_cfg["trajectory"]:
+                traj_fname = self.vis_dir / "trajectory" / suffix_fname
+                self._vis_trajectory(pred_stats["mean"][:, :3],
+                                     targets[:, :3], traj_fname)
 
-        loss_stats = {"mean": loss_mean, "std": loss_std}
-        pred_stats = {"mean": pred_mean, "std": pred_std}
+            print(f"... Generated visualization for {suffix_fname.name}")
 
-        return loss_stats, pred_stats, targets, time
+    def pred_stats(self, cfg, fname):
+        losses_per_demo = []
+        preds_per_demo = []
+        model, cfg = self._build_model(cfg)
+        self.norm = Normalization(cfg["dataset"]["stats"])
+
+        fname = Path(fname)
+        dataset = self._read_single_demo(cfg["dataset"],
+                                         [fname.name])
+
+        for _ in range(cfg["eval"]["num_mc"]):
+            loss, pred, state, target = \
+                self._evaluate(model, dataset)
+
+            recover_pred, recover_target = \
+                self._recover_data(pred, state, target)
+
+            losses_per_demo.append(loss)
+            preds_per_demo.append(recover_pred)
+
+        loss_stats = {"mean": np.mean(losses_per_demo, axis=0),
+                      "std": np.std(losses_per_demo, axis=0)}
+        pred_stats = {"mean": np.mean(preds_per_demo, axis=0),
+                      "std": np.std(preds_per_demo, axis=0)}
+
+        return loss_stats, pred_stats, recover_target, dataset.sample_time
 
     def enable_dropout(self, m):
         for each_module in m.modules():
@@ -64,12 +82,13 @@ class MCDropoutVisualize(EnsembleVisualize):
         else:
             ckpt_pth = cfg["eval"]["ckpt_pth"]
 
+        ckpt = torch.load(ckpt_pth)
         model_cfg = cfg["model"]
+        cfg["dataset"]["stats"] = ckpt["dataset_stats"]
 
         # build model architecture, then print to console
-        model = MCDropout(model_cfg["input_dims"], model_cfg["output_dims"])
-
-        ckpt = torch.load(ckpt_pth)
+        model = MCDropout(model_cfg["input_dims"], model_cfg["output_dims"],
+                          ckpt["dataset_stats"])
         model.load_state_dict(ckpt["state_dict"])
 
         model = model.to(self.device)
@@ -78,5 +97,4 @@ class MCDropoutVisualize(EnsembleVisualize):
         model.eval()
         self.enable_dropout(model)
 
-        ds_stats = ckpt["dataset_stats"]
-        return model, ds_stats
+        return model, cfg
