@@ -3,7 +3,8 @@ import h5py
 from pathlib import Path
 from torch.utils.data import Dataset
 from .data_processor import Normalization, SegmentContact,\
-                            Interpolation, add_noise
+                            Interpolation, add_noise, rotation_diff,\
+                            homogeneous_transform
 
 GRIPPER_CLOSED_THRESHOLD = 0.013
 
@@ -52,7 +53,9 @@ class DemoDataset(Dataset):
         if self.is_train:
             if np.random.uniform() < 0.2:  # 0.2 probility to add noise
                 state = add_noise(state)
+                state = homogeneous_transform(state)
                 target = add_noise(target)
+                target = homogeneous_transform(target, r_noise=0.00001)
 
         sample = np.hstack((state, action))
         return np.float32(sample), np.float32(target)
@@ -76,10 +79,12 @@ class DemoDataset(Dataset):
             # learning the residual
             tmp_targets = np.vstack((states_actions[:, 0],
                                     states_padding))
-            targets = (tmp_targets[self.sl_factor:] -
-                       tmp_targets[:-self.sl_factor])
-            # targets = np.copy(states_actions[self.sl_factor:, 0])
-            # targets = np.vstack((targets, states_padding))
+            targets = np.zeros_like(tmp_targets[self.sl_factor:])
+            # pos and force residuals
+            targets[:, :6] = (tmp_targets[self.sl_factor:, :6] -
+                              tmp_targets[:-self.sl_factor, :6])
+            targets[:, 6:] = rotation_diff(tmp_targets[self.sl_factor:, 6:],
+                                           tmp_targets[:-self.sl_factor, 6:])
 
             self.states_actions.extend(states_actions)
             self.targets.extend(targets)
@@ -142,6 +147,7 @@ class DemoDataset(Dataset):
                     t, d = self._contact(t, d, is_state)
 
                 data[n]["pos"] = np.array(d[:, :3])
+                # quaternions [x, y, z, w]
                 data[n]["rot"] = np.array(d[:, 3:7])
                 data[n]["force"] = np.array(d[:, 7:10])
                 data[n]["wrench"] = np.array(d[:, 10:13])
@@ -170,7 +176,6 @@ class DemoDataset(Dataset):
 
         start_time = time_stamp[start_idx]
         stop_time = time_stamp[stop_idx]
-
         return start_time, stop_time
 
     def _contact(self, time, data, is_state):
@@ -204,7 +209,6 @@ class DemoDataset(Dataset):
         for s, e in zip(contact_start, contact_end):
             time_new.append(time[s:e])
             data_new.append(data[s:e, :])
-
         return np.hstack(time_new), np.vstack(data_new)
 
     def _pair_state_action(self, sample_freq, states, actions, sl_factor):
@@ -263,5 +267,4 @@ class DemoDataset(Dataset):
             np.hstack((states_pos_interp.interp(padding_time),
                        states_force_interp.interp(padding_time),
                        states_rot_interp.interp(padding_time)))
-
         return np.array(states_actions), np.array(states_padding)

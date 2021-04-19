@@ -51,7 +51,7 @@ class EnsembleRollout(EnsembleVisualize):
         ro_pred = None
 
         # get function handles of loss and metrics
-        criterion = torch.nn.MSELoss(reduction='none')
+        criterion = torch.nn.MSELoss(reduction='mean')
         losses = []
         pred_mean = []
         pred_std = []
@@ -103,7 +103,7 @@ class EnsembleRollout(EnsembleVisualize):
 
                 loss = criterion(torch.tensor(ro_pred),
                                  torch.tensor(gt_states[-1][None, ...]))
-                losses.extend(torch.sum(loss, dim=1))
+                losses.extend(loss)
 
         self.losses.extend(losses)
         return (np.array(losses),

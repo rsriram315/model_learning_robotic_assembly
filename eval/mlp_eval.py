@@ -26,11 +26,10 @@ class Evaluate:
         else:
             ckpt_pth = self.cfg["test"]["ckpt_pth"]
 
-        self.model, self.ds_stats = self._build_model(self.cfg["model"],
-                                                      ckpt_pth)
+        self.model, self.cfg = self._build_model(self.cfg,
+                                                 ckpt_pth)
         self.eval_log(f'... Load checkpoint: {ckpt_pth}')
 
-        self.cfg["dataset"]["stats"] = self.ds_stats
         self.dataloader, self.demo_fnames =\
             self._load_demos(self.cfg["dataset"], self.cfg["dataloader"])
 
@@ -76,19 +75,19 @@ class Evaluate:
         ckpt_pths = [pth for pth in list(ckpt_dir.glob("*.pth"))]
         return ckpt_pths[0]
 
-    def _build_model(self, model_cfg, ckpt_pth):
+    def _build_model(self, cfg, ckpt_pth):
         ckpt = torch.load(ckpt_pth)
-        dataset_stats = ckpt["dataset_stats"]
+        cfg["dataset"]["stats"] = ckpt["dataset_stats"]
+        model_cfg = cfg["model"]
 
         # build model architecture, then print to console
         if model_cfg["name"] == "MLP":
             model = MLP(model_cfg["input_dims"],
-                        model_cfg["output_dims"],
-                        dataset_stats)
+                        model_cfg["output_dims"])
         elif model_cfg["name"] == "MCDropout":
             model = MCDropout(model_cfg["input_dims"],
                               model_cfg["output_dims"],
-                              dataset_stats)
+                              model_cfg["dataset"]["stats"])
         print(model)
 
         # load model checkpoint
@@ -100,4 +99,4 @@ class Evaluate:
             model = torch.nn.DataParallel(model, self.device_ids)
         model.eval()
 
-        return model, dataset_stats
+        return model, cfg

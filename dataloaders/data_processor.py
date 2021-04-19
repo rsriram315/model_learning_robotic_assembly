@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from copy import deepcopy
 from scipy.interpolate import CubicSpline
 from scipy.spatial.transform import Slerp
 from scipy.spatial.transform import Rotation as R
@@ -10,38 +9,53 @@ from scipy.ndimage import gaussian_filter1d
 _FLOAT_EPS = np.finfo(np.float64).eps
 
 
-def add_noise(data, noise_lv=0.01):
-    data = deepcopy(data)
-    noise = np.random.normal(0, noise_lv, size=data.shape[0])
-    return data + noise
+def add_noise(data, noise_lv=0.1):
+    noise = np.random.normal(0, noise_lv, size=3)
+    data[3:6] = data[3:6] + noise
+    return data
 
 
-class HomogeneousTransform:
-    def __init__(self):
-        self.homogeneous_matrix = None
+def homogeneous_transform(data, r_noise=0.001, t_noise=0.1):
+    # generate random homegeneous_matrix
+    noisy_r = R.from_euler('zyx', np.random.normal(0, r_noise, size=3) * np.pi)
+    rotation_matrix = noisy_r.as_matrix()
+    # rotation_matrix = np.identity(3) + np.random.normal(0, r_noise, size=3)
+    translation = np.random.normal(0, t_noise, size=3)
 
-    def transform(self, data):
-        num_sample = data.shape[0]
+    homogeneous_matrix = np.zeros((4, 4))
+    homogeneous_matrix[:3, :3] = rotation_matrix
+    homogeneous_matrix[:, -1] = np.hstack((translation, 1))
 
-        # generate random homegeneous_matrix
-        if self.homogeneous_matrix is None:
-            self.rotation_matrix = R.random(num_sample).as_matrix()
-            translation = np.random.randn(num_sample, 3)
+    data[:3] = np.copy(homogeneous_matrix @
+                       np.hstack((data[:3], 1)))[:3]
+    data[6:] = (np.copy(data[6:].reshape(3, 3) @
+                        homogeneous_matrix[:3, :3]).flatten())
+    return data
 
-            self.homogeneous_matrix = np.zeros((num_sample, 4, 4))
-            self.homogeneous_matrix[:, :3, :3] = self.rotation_matrix
-            self.homogeneous_matrix[:, :, -1] = np.hstack((translation,
-                                                          np.ones((num_sample,
-                                                                   1))))
 
-        for i in range(num_sample):
-            for j in range(data.shape[1]):
-                data[i, j, :3] = np.copy(self.homogeneous_matrix[i] @
-                                         np.hstack((data[i, j, :3], 1)))[:3]
-                data[i, j, 6:] = (np.copy(data[i, j, 6:].reshape(3, 3) @
-                                          self.homogeneous_matrix[i, :3, :3])
-                                  .flatten())
-        return data
+def rotation_diff(target_rot, init_rot):
+    init_r = R.from_matrix(init_rot.reshape(-1, 3, 3))
+    target_r = R.from_matrix(target_rot.reshape(-1, 3, 3))
+    diff_r = target_r * init_r.inv()
+    return diff_r.as_matrix().reshape(-1, 9)
+
+
+def recover_rotation(diff_state, init_state):
+    init_rot = R.from_matrix(init_state[:, 6:].reshape(-1, 3, 3))
+    diff_rot = R.from_matrix(diff_state[:, 6:].reshape(-1, 3, 3))
+    target_rot = diff_rot * init_rot
+
+    # output orientation matrix
+    recover_target = np.copy(diff_state)
+    recover_target[:, 6:] = target_rot.as_matrix().reshape(-1, 9)
+    return recover_target
+
+
+def add_euler_angle(state):
+    rot = R.from_matrix(state[:, 6:].reshape(-1, 3, 3))
+    # output euler angles
+    euler_angle = rot.as_euler('xyz', degrees=True)
+    return np.hstack((state, euler_angle))
 
 
 class Normalization:
@@ -54,14 +68,12 @@ class Normalization:
         self.stat_3 = stats["stat_3"]
         self.stat_4 = stats["stat_4"]
 
-    def _stats(self, data, is_res):
+    def _stats(self, data):
         stat_1 = np.amin(data, axis=0)
         stat_2 = np.amax(data, axis=0) - stat_1 + _FLOAT_EPS
 
-        if not is_res:
-            # leave the rotation unchanged
-            stat_1[:, 6:] = np.zeros(9) - 1
-            stat_2[:, 6:] = np.ones(9) + 1
+        stat_1[:, 6:] = np.zeros(9) - 1
+        stat_2[:, 6:] = np.ones(9) + 1
         return stat_1, stat_2
 
     def get_stats(self):
@@ -77,13 +89,13 @@ class Normalization:
         """
         if is_res:
             if self.stat_3 is None or self.stat_4 is None:
-                stat_1, stat_2 = self._stats(data, is_res)
+                stat_1, stat_2 = self._stats(data)
                 self.stat_3, self.stat_4 = stat_1, stat_2
             else:
                 stat_1, stat_2 = self.stat_3, self.stat_4
         else:
             if self.stat_1 is None or self.stat_2 is None:
-                stat_1, stat_2 = self._stats(data, is_res)
+                stat_1, stat_2 = self._stats(data)
                 self.stat_1, self.stat_2 = stat_1, stat_2
             else:
                 stat_1, stat_2 = self.stat_1, self.stat_2

@@ -1,14 +1,13 @@
+import torch
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
+from pathlib import Path
 from copy import deepcopy
 from torch.utils.data import DataLoader
 from model import MLP
 from dataloaders import Normalization
-from pathlib import Path
 from utils import prepare_device
-from dataloaders import DemoDataset
-from scipy.spatial.transform import Rotation as R
+from dataloaders import DemoDataset, recover_rotation, add_euler_angle
 
 
 class BaseVisualize:
@@ -141,39 +140,19 @@ class BaseVisualize:
         plt.close(fig)
 
     def _recover_data(self, pred, state, target):
-        curr_state = self.norm.inv_normalize(state[:, None, :])
-        recover_target = self.norm.inv_normalize(target[:, None, :],
-                                                 is_res=True)
-        recover_output = self.norm.inv_normalize(pred[:, None, :],
-                                                 is_res=True)
-        recover_target += curr_state
-        recover_output += curr_state
+        curr_state = self.norm.inv_normalize(state)
+        recover_target = self.norm.inv_normalize(target, is_res=True)
+        recover_output = self.norm.inv_normalize(pred, is_res=True)
+        # recover pos and forces
+        recover_target[:, :6] += curr_state[:, :6]
+        recover_output[:, :6] += curr_state[:, :6]
 
-        # output euler angles
-        pred_angle = (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
-                       .as_euler('xyz', degrees=True))
-        target_angle = (R.from_matrix(recover_target[:, 6:].reshape(-1, 3, 3))
-                         .as_euler('xyz', degrees=True))
-
-        recover_output = np.hstack((recover_output, pred_angle))
-        recover_target = np.hstack((recover_target, target_angle))
+        # recover rotation matrix and add euler angles
+        recover_target = recover_rotation(recover_target, curr_state)
+        recover_target = add_euler_angle(recover_target)
+        recover_output = recover_rotation(recover_output, curr_state)
+        recover_output = add_euler_angle(recover_output)
         return recover_output, recover_target
-
-    # for learning the absolute values
-    # def _recover_data(self, pred, state, target):
-    #     recover_target = self.norm.inv_normalize(target[:, None, :])
-    #     recover_output = self.norm.inv_normalize(pred[:, None, :])
-
-    #     # output euler angles
-    #     pred_angle = (R.from_matrix(recover_output[:, 6:].reshape(-1, 3, 3))
-    #                    .as_euler('xyz', degrees=True))
-    #     target_angle = (R.from_matrix(recover_target[:, 6:]
-    #                       .reshape(-1, 3, 3))
-    #                      .as_euler('xyz', degrees=True))
-
-    #     recover_output = np.hstack((recover_output, pred_angle))
-    #     recover_target = np.hstack((recover_target, target_angle))
-    #     return recover_output, recover_target
 
     def _evaluate(self, model, dataset):
         bs = 1024  # batch size
@@ -188,18 +167,17 @@ class BaseVisualize:
 
         with torch.no_grad():
             for _, (state_action, target) in enumerate(dataloader):
-                states.extend(state_action[:, :15].numpy())
-                targets.extend(target.numpy())
+                states.extend(state_action[:, None, :15].numpy())
+                targets.extend(target[:, None, :].numpy())
 
                 state_action, target = (state_action.to('cuda'),
                                         target.to('cuda'))
                 output = model(state_action)
-
                 loss = criterion(output, target)
-                loss = torch.sum(loss, dim=1)
+                loss = torch.mean(loss, axis=1)
 
                 losses.extend(loss.cpu().numpy())
-                preds.extend(output.cpu().numpy())
+                preds.extend(output.cpu().numpy()[:, None, :])
 
         return (np.array(losses), np.array(preds),
                 np.array(states), np.array(targets))
@@ -228,8 +206,7 @@ class BaseVisualize:
 
         # build model architecture, then print to console
         model = MLP(model_cfg["input_dims"],
-                    model_cfg["output_dims"],
-                    cfg["dataset"]["stats"])
+                    model_cfg["output_dims"])
         model.load_state_dict(ckpt["state_dict"])
 
         model = model.to(self.device)

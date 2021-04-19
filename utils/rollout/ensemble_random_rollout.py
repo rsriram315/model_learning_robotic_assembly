@@ -26,7 +26,7 @@ class EnsembleRandomRollout(MLPRollout):
         dir_prefix = cfg["trainer"]["ckpts_dir"]
 
         # get function handles of loss and metrics
-        criterion = torch.nn.MSELoss(reduction='sum')
+        criterion = torch.nn.MSELoss(reduction='mean')
         losses = []
         preds = []
         targets = []

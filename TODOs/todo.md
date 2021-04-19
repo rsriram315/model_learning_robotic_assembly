@@ -2,8 +2,9 @@
 
 ## Week 12
 
-- [ ] Fix the $\Delta s$ of rotation.
+- [x] Fix the $\Delta s$ of rotation.
   - Not just subtracting to get $\Delta s$ (because the rotation matrix is not at Euclidean space), but use the rotation transformation.
+  - Results are much better than before!
 - [ ] Fix the Homogeneous transformation for data augmentation.
   - The disturbances should be bounded
 - [ ] What is the reward function?
