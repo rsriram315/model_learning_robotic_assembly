@@ -1,16 +1,29 @@
 # TODOs
 
+## Week 13
+
+- start the spacenavd service via this command `sudo systemctl status spacenavd.service`
+- [give the python-pid enough permission to read spacemouse usb without sudo](https://askubuntu.com/a/1150889/1021137)
+
 ## Week 12
 
 - [x] Fix the $\Delta s$ of rotation.
   - Not just subtracting to get $\Delta s$ (because the rotation matrix is not at Euclidean space), but use the rotation transformation.
+  - Previously: $R_{diff} = R_{t+1} - R_t$
+  - Now: $R_{diff} = R_{t+1} * R_{t}^{-1}$
   - Results are much better than before!
-- [ ] Fix the Homogeneous transformation for data augmentation.
+- [x] Fix the Homogeneous transformation for data augmentation.
   - The disturbances should be bounded
-- [ ] What is the reward function?
+- [ ] Two options to build the simulator
+  1. MuJoCo via Ros -> add PegInHole simulation
+  2. MuJoCo via mujoco-py and robosuite
+     - ROS -> mujoco-py
+     - mujoco-py <- ROS (spacemouse)
+     - python/mujoco implement impedance controller
+  - ![Simulation](img/week12_3.jpg)
+- What is the reward function?
   - negative L2 loss?
-- [ ] Use ground truth dynamics to evaluate the algorithm first?
-
+- Use ground truth dynamics to evaluate the algorithm first?
 
 ## Week 11
 

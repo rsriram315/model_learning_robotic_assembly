@@ -9,4 +9,5 @@ torch
 scipy
 open3d==0.11.2
 rospkg
-mujoco-py<2.1,>=2.0
+mujoco-py
+robosuite
