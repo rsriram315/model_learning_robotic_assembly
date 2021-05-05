@@ -14,7 +14,7 @@
         "contact_only": true,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
-            "attrs": ["tcp_pose_base", "tcp_wrench_base"]
+            "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
         },
         "action_attrs": {
             "name": "PandaCartesianImpedanceControllercontrollerReference",

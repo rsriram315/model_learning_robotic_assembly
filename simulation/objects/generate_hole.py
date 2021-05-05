@@ -31,7 +31,7 @@ def generate_hole_xml(radius, length, depth, no_blocks):
     t = "  "
 
     # mass of each block
-    mass = 100. / (no_blocks + 1)
+    mass = 1. / (no_blocks + 1)
     alpha = 2 * np.pi / no_blocks
     block_edge = 2 * radius * np.tan(alpha / 2)
     base_height = 0.02
@@ -68,19 +68,6 @@ def generate_hole_xml(radius, length, depth, no_blocks):
     with open(asset_file, "w+") as f:
         print("File Opened")
         f.write("<mujoco model=\"round-hole\">\n")
-
-        # f.write(
-        #     t +
-        #     "<geom type=\"box\" mass=\"{:1.4f}\" size=\"{:1.5f} {:1.5f} {:1.5f}\"/>\n"
-        #     .format(mass, size[0], size[1], size[2]))
-        # f.write("</default>\n\n")
-        # the general parameters
-        # f.write("<default class=\"hole\">\n")
-        # f.write(
-        #     t +
-        #     "<geom type=\"box\" mass=\"{:1.4f}\" size=\"{:1.5f} {:1.5f} {:1.5f}\"/>\n"
-        #     .format(mass, size[0], size[1], size[2]))
-        # f.write("</default>\n\n")
 
         # triangular prism mesh
         f.write(t + "<asset>\n")

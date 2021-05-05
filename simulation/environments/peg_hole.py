@@ -112,10 +112,10 @@ class PegInHole(SingleArmEnv):
         if self.placement_initializer is None:
             self.placement_initializer = SequentialCompositeSampler(
                                             name="ObjectSampler")
-            for nut_name, default_x_range, default_y_range in zip(obj_names, [-0.115, 0.115], [0.11, -0.11]):
+            for obj_name, default_x_range, default_y_range in zip(["peg"],  [0.115], [-0.11]):
                 self.placement_initializer.append_sampler(
                     sampler=UniformRandomSampler(
-                        name=f"{nut_name}Sampler",
+                        name=f"{obj_name}Sampler",
                         x_range=[default_x_range, default_x_range],
                         y_range=[default_y_range, default_y_range],
                         rotation=None,
@@ -123,7 +123,7 @@ class PegInHole(SingleArmEnv):
                         ensure_object_boundary_in_range=False,
                         ensure_valid_placement=True,
                         reference_pos=self.table_offset,
-                        # z_offset=0.02,
+                        # z_offset=0.01,
                     )
                 )
         # Reset sampler before adding any new samplers / objects
@@ -133,15 +133,16 @@ class PegInHole(SingleArmEnv):
             obj = obj_cls(name=obj_name)
             # self.nuts.append(nut)
             # Add this nut to the placement initializer
-            if isinstance(self.placement_initializer,
-                          SequentialCompositeSampler):
-                # assumes we have two samplers so we add nuts to them
-                self.placement_initializer.add_objects_to_sampler(
-                    sampler_name=f"{obj_name}Sampler", mujoco_objects=obj)
-            else:
-                # This is assumed to be a flat sampler,
-                # so we just add all nuts to this sampler
-                self.placement_initializer.add_objects(obj)
+            if obj_name == "peg":
+                if isinstance(self.placement_initializer,
+                            SequentialCompositeSampler):
+                    # assumes we have two samplers so we add nuts to them
+                    self.placement_initializer.add_objects_to_sampler(
+                        sampler_name=f"{obj_name}Sampler", mujoco_objects=obj)
+                else:
+                    # This is assumed to be a flat sampler,
+                    # so we just add all nuts to this sampler
+                    self.placement_initializer.add_objects(obj)
 
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
@@ -162,48 +163,6 @@ class PegInHole(SingleArmEnv):
         self.hole_body_id = self.sim.model.body_name2id(self.hole.root_body)
         self.peg_body_id = self.sim.model.body_name2id(self.peg.root_body)
 
-    def _setup_observables(self):
-        """
-        Sets up observables to be used for this environment. Creates object-based observables if enabled
-
-        Returns:
-            OrderedDict: Dictionary mapping observable names to its corresponding Observable object
-        """
-        observables = super()._setup_observables()
-
-        # low-level object information
-        if self.use_object_obs:
-            # Get robot prefix and define observables modality
-            pf = self.robots[0].robot_model.naming_prefix
-            modality = "object"
-
-            # cube-related observables
-            @sensor(modality=modality)
-            def cube_pos(obs_cache):
-                return np.array(self.sim.data.body_xpos[self.peg_body_id])
-
-            @sensor(modality=modality)
-            def cube_quat(obs_cache):
-                return convert_quat(np.array(self.sim.data.body_xquat[self.peg_body_id]), to="xyzw")
-
-            @sensor(modality=modality)
-            def gripper_to_cube_pos(obs_cache):
-                return obs_cache[f"{pf}eef_pos"] - obs_cache["cube_pos"] if \
-                    f"{pf}eef_pos" in obs_cache and "cube_pos" in obs_cache else np.zeros(3)
-
-            sensors = [cube_pos, cube_quat, gripper_to_cube_pos]
-            names = [s.__name__ for s in sensors]
-
-            # Create observables
-            for name, s in zip(names, sensors):
-                observables[name] = Observable(
-                    name=name,
-                    sensor=s,
-                    sampling_rate=self.control_freq,
-                )
-
-        return observables
-
     def _reset_internal(self):
         """
         Resets simulation internal configurations.
@@ -218,7 +177,8 @@ class PegInHole(SingleArmEnv):
 
             # Loop through all objects and reset their positions
             for obj_pos, obj_quat, obj in object_placements.values():
-                self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
+                if len(obj.joints) > 0:
+                    self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
 
     def visualize(self, vis_settings):
         """
@@ -237,14 +197,4 @@ class PegInHole(SingleArmEnv):
             self._visualize_gripper_to_target(gripper=self.robots[0].gripper, target=self.peg)
 
     def _check_success(self):
-        """
-        Check if cube has been lifted.
-
-        Returns:
-            bool: True if cube has been lifted
-        """
-        cube_height = self.sim.data.body_xpos[self.cube_body_id][2]
-        table_height = self.model.mujoco_arena.table_offset[2]
-
-        # cube is higher than the table top above a margin
-        return cube_height > table_height + 0.04
+        pass

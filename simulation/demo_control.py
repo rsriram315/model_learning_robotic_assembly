@@ -2,10 +2,13 @@ import argparse
 import numpy as np
 import robosuite as suite
 from robosuite import load_controller_config
-from robosuite.utils.input_utils import input2action
-from robosuite.wrappers import VisualizationWrapper, DataCollectionWrapper
+# from robosuite.utils.input_utils import input2action
+from robosuite.wrappers import VisualizationWrapper
+from utils.data_collection import DataCollection
 from environments.peg_hole import PegInHole
+from utils.input import input2action
 
+# flake8: noqa
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -20,23 +23,17 @@ if __name__ == "__main__":
                         help="Switch gripper control on gripper action")
     parser.add_argument("--toggle-camera-on-grasp", action="store_true",
                         help="Switch camera angle on gripper action")
-    parser.add_argument("--controller", type=str, default="osc",
-                        help="Choice of controller. Can be 'ik' or 'osc'")
     parser.add_argument("--device", type=str, default="spacemouse")
-    parser.add_argument("--pos-sensitivity", type=float, default=1.0,
+    parser.add_argument("--pos-sensitivity", type=float, default=.5,
                         help="How much to scale position user inputs")
-    parser.add_argument("--rot-sensitivity", type=float, default=1.0,
+    parser.add_argument("--rot-sensitivity", type=float, default=.5,
                         help="How much to scale rotation user inputs")
     args = parser.parse_args()
 
-    # Import controller config for EE IK or OSC (pos/ori)
-    if args.controller == 'ik':
-        controller_name = 'IK_POSE'
-    elif args.controller == 'osc':
-        controller_name = 'OSC_POSE'
-    else:
-        print("Error: Unsupported controller specified. Must be either 'ik' or 'osc'!")
-        raise ValueError
+    # Gripper moves sequentially and linearly in x, y, z direction,
+    # then sequentially rotates in x-axis, y-axis, z-axis, relative
+    # to the global coordinate frame (i.e., static / camera frame of reference)
+    controller_name = 'OSC_POSE'
 
     # Get controller config
     controller_config = load_controller_config(
@@ -70,9 +67,10 @@ if __name__ == "__main__":
     )
 
     # Wrap this environment in a visualization wrapper
-    data_dir = "simulation/tmp/"
+    data_dir = "simulation/recordings/"
     # env = DataCollectionWrapper(env, data_dir)
     env = VisualizationWrapper(env, indicator_configs=None)
+    data_collector = DataCollection(env, data_dir)
 
     # Setup printing options for numbers
     np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
@@ -87,7 +85,7 @@ if __name__ == "__main__":
         env.viewer.add_keyup_callback("any", device.on_release)
         env.viewer.add_keyrepeat_callback("any", device.on_press)
     elif args.device == "spacemouse":
-        from robosuite.devices import SpaceMouse
+        from devices.spacemouse import SpaceMouse
 
         device = SpaceMouse(pos_sensitivity=args.pos_sensitivity,
                             rot_sensitivity=args.rot_sensitivity)
@@ -110,6 +108,10 @@ if __name__ == "__main__":
 
         # Initialize device control
         device.start_control()
+        data_collector.reset()
+
+        robot_init_pos = env.unwrapped.robots[0]._hand_pos
+        action_pos = np.copy(robot_init_pos)
 
         while True:
             # Set active robot
@@ -117,12 +119,14 @@ if __name__ == "__main__":
                             else env.robots[args.arm == "left"])
 
             # Get the newest action
-            action, grasp = input2action(
+            action, action_orig, grasp = input2action(
                 device=device,
                 robot=active_robot,
+                robot_init_pos=robot_init_pos,
                 active_arm=args.arm,
                 env_configuration=args.config
             )
+            # action: x, y, z, roll, pitch, yaw
 
             # If action is none, then this a reset so we should break
             if action is None:
@@ -163,4 +167,15 @@ if __name__ == "__main__":
 
             # Step through the simulation and render
             obs, reward, done, info = env.step(action)
+
+            # action_pos += action_orig[:3]
+            print(f"set point {env.unwrapped.robots[0]._hand_pos + action_orig[:3]}")
+            print(f"state {env.unwrapped.robots[0]._hand_pos}\n")
+
+            if not device.get_controller_state()["reset"]:
+                data_collector.record(action)
+            else:
+                data_collector.flush()
+                break
+
             env.render()

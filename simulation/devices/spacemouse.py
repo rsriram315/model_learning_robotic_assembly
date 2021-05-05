@@ -239,16 +239,13 @@ class SpaceMouse(Device):
 
                 elif d[0] == 3:  ## readings from the side buttons
 
-                    # press left button
+                    # press left button to change gripper state
                     if d[1] == 1:
                         t_click = time.time()
                         elapsed_time = t_click - t_last_click
                         t_last_click = t_click
-                        self.single_click_and_hold = True
-
-                    # release left button
-                    if d[1] == 0:
-                        self.single_click_and_hold = False
+                        # self.single_click_and_hold = True
+                        self.single_click_and_hold = not self.single_click_and_hold
 
                     # right button is for reset
                     if d[1] == 2:

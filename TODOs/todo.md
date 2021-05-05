@@ -2,8 +2,29 @@
 
 ## Week 13
 
-- start the spacenavd service via this command `sudo systemctl status spacenavd.service`
-- [give the python-pid enough permission to read spacemouse usb without sudo](https://askubuntu.com/a/1150889/1021137)
+- [x] Make spacemouse work with robosuite environment
+- [x] Get the states and actions of robots:
+  - state: "tcp_pose_base" (position and rotation), "tcp_wrench_base" (end-effector force)
+  - action: "pose", "wrench" in base frame
+- [x] Record data to `.h5` files
+- [x] Compute the states in base frame, now is in the world coordinate, where the origin is the world coordinates.
+  - Just use the `_hand_pos` and `_hand_quat` attributes from the robots
+  - What is `eef_rot_offset` at the robot? Quaternion (x,y,z,w) representing rotational offset between the final robot arm link coordinate system and the end effector coordinate system (i.e: the gripper)
+- [ ] Figure out how to compute the action (set point from space mouse are in tcp frame) in base frame
+  - This is quite simple, because the transformation from the world coordinate to the base frame is only translation
+  - The problem is that the spacemouse output `dpos` and `drotation` (delta), if we accumulate these deltas, we can end up with absolute position in the base frame and the base orientation, but because the sampling rate of the spacemouse, this would not match the real state of the robot, in this case, the accumulated position and rotation are not set point anymore.
+  - The other method would be adding the delta on top of the current state, which is really the 'set point'. However, during contact, this action would be end up the same as the state, which is not always the case in real life (imagine you have a barrier in front of you, then the set point is not your state)
+- [ ] Take a look at `amira_ws/src/amira_hardware/amira_remote_control/src/amira_remote_control`, see how to incrementally add movement
+- [ ] Adjust the controller and states recording frequency to match the real robot.
+- [ ] Add friction between the gripper and the peg or just weld it.
+- ![space mouse and recording](img/week13.jpg)
+
+- Tricks used for the spacemouse:
+  - For OSD, we need to use [this driver](http://spacenav.sourceforge.net/)
+  - `lsusb` to find the vendor and product id
+  - Start the spacenavd service via this command `sudo systemctl status spacenavd.service`
+  - [Give the python-pid enough permission to read spacemouse usb without sudo](https://askubuntu.com/a/1150889/1021137)
+  - Since the robosuite only support for the **Spacemouse Wireless**, we need to change the spacemouse readout to [this format](https://github.com/jwick1234/3d-mouse-rpi-python/blob/7ddfc9fb8703c84720eca5815bd993263c935c86/HelloSpaceNavigator.py#L46), in order to adapt to our **Spacemouse Compact**
 
 ## Week 12
 
