@@ -1,9 +1,11 @@
 import argparse
 import numpy as np
 import robosuite as suite
+import robosuite.utils.transform_utils as T
 from robosuite import load_controller_config
 # from robosuite.utils.input_utils import input2action
 from robosuite.wrappers import VisualizationWrapper
+from scipy.spatial import transform
 from utils.data_collection import DataCollection
 from environments.peg_hole import PegInHole
 from utils.input import input2action
@@ -112,6 +114,7 @@ if __name__ == "__main__":
 
         robot_init_pos = env.unwrapped.robots[0]._hand_pos
         action_pos = np.copy(robot_init_pos)
+        action_rot = env.unwrapped.robots[0]._hand_quat
 
         while True:
             # Set active robot
@@ -119,7 +122,7 @@ if __name__ == "__main__":
                             else env.robots[args.arm == "left"])
 
             # Get the newest action
-            action, action_orig, grasp = input2action(
+            action, action_pose, grasp = input2action(
                 device=device,
                 robot=active_robot,
                 robot_init_pos=robot_init_pos,
@@ -168,12 +171,20 @@ if __name__ == "__main__":
             # Step through the simulation and render
             obs, reward, done, info = env.step(action)
 
-            # action_pos += action_orig[:3]
-            print(f"set point {env.unwrapped.robots[0]._hand_pos + action_orig[:3]}")
-            print(f"state {env.unwrapped.robots[0]._hand_pos}\n")
+            T_in_B = env.unwrapped.robots[0]._hand_pose  # The tool center point frame expressed in the base frame
+            T_inc = action_pose
+            G_in_B =  T.pose_in_A_to_pose_in_B(T_inc, T_in_B)
+            action_pos = G_in_B[:3, -1] 
+            action_ori = T.mat2quat(G_in_B[:3, :3])
+
+            # print(f"setpt {G_in_B[:3, -1]}")
+            # print(f"state {env.unwrapped.robots[0]._hand_pos}\n")
+
+            # print(f"setptori {action_ori}")
+            # print(f"stateori {env.unwrapped.robots[0]._hand_quat}\n")
 
             if not device.get_controller_state()["reset"]:
-                data_collector.record(action)
+                data_collector.record(action_pos, action_ori)
             else:
                 data_collector.flush()
                 break

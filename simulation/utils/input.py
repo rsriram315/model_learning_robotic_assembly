@@ -92,12 +92,12 @@ def input2action(device, robot, robot_init_pos, active_arm="right", env_configur
         # Flip z
         drotation[2] = -drotation[2]
 
-        dpos_orig = np.copy(dpos)
-        drotation_orig = np.copy(drotation)
-
         # Scale rotation for teleoperation (tuned for OSC) -- gains tuned for each device
         drotation = drotation * 1.5 if isinstance(device, Keyboard) else drotation * 50
         dpos = dpos * 75 if isinstance(device, Keyboard) else dpos * 125
+
+        pose = T.make_pose(dpos, T.euler2mat(np.copy(drotation)))
+
     else:
         # No other controllers currently supported
         print("Error: Unsupported controller specified -- Robot must have either an IK or OSC-based controller!")
@@ -107,6 +107,5 @@ def input2action(device, robot, robot_init_pos, active_arm="right", env_configur
 
     # Create action based on action space of individual robot
     action = np.concatenate([dpos, drotation, [grasp] * gripper_dof])
-    action_orig = np.concatenate([dpos_orig, drotation_orig])
     # Return the action and grasp
-    return action, action_orig, grasp
+    return action, pose, grasp

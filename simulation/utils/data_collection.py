@@ -6,6 +6,7 @@ This data collection wrapper is useful for collecting demonstrations.
 import os
 import h5py
 import numpy as np
+import robosuite.utils.transform_utils as T
 from datetime import datetime
 
 
@@ -95,7 +96,7 @@ class DataCollection:
                             "time_stamp": [],
                             "q": []}}
 
-    def record(self, action):
+    def record(self, action_pos, action_ori):
         # collect the current simulation state if necessary
         # if self.t % self.collect_freq == 0:
         # gripper state
@@ -114,8 +115,8 @@ class DataCollection:
 
         # transform to base frame and also express the orientation in changes
         self.recording[ACTION]["time_stamp"].append(self.env.unwrapped.cur_time)
-        self.recording[ACTION]["pose"]["position"].append(action[:3])
+        self.recording[ACTION]["pose"]["position"].append(action_pos)
         # orientation still needed to be convert to quaternions
-        self.recording[ACTION]["pose"]["orientation"].append(action[3:6])
+        self.recording[ACTION]["pose"]["orientation"].append(action_ori)
         self.recording[ACTION]["wrench"]["force"].append([0, 0, 0])
         self.recording[ACTION]["wrench"]["torque"].append([0, 0, 0])
