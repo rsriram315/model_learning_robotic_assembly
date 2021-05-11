@@ -3,18 +3,16 @@ import numpy as np
 import robosuite as suite
 import robosuite.utils.transform_utils as T
 from robosuite import load_controller_config
-# from robosuite.utils.input_utils import input2action
 from robosuite.wrappers import VisualizationWrapper
-from scipy.spatial import transform
-from utils.data_collection import DataCollection
-from environments.peg_hole import PegInHole
-from utils.input import input2action
+from simulation.utils.data_collection import DataCollection
+from simulation.environments.peg_hole_env import PegInHoleEnv
+from simulation.utils.input import input2action
 
 # flake8: noqa
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--environment", type=str, default="PegInHole")
+    parser.add_argument("--environment", type=str, default="PegInHoleEnv")
     parser.add_argument("--robots", nargs="+", type=str, default="Panda",
                         help="Which robot(s) to use in the env")
     parser.add_argument("--config", type=str, default="single-arm-opposed",
@@ -60,7 +58,8 @@ if __name__ == "__main__":
         **config,
         has_renderer=True,
         has_offscreen_renderer=False,
-        render_camera="agentview",
+        render_camera=None,
+        # render_camera="agentview",
         ignore_done=True,
         use_camera_obs=False,
         reward_shaping=True,
@@ -70,7 +69,6 @@ if __name__ == "__main__":
 
     # Wrap this environment in a visualization wrapper
     data_dir = "simulation/recordings/"
-    # env = DataCollectionWrapper(env, data_dir)
     env = VisualizationWrapper(env, indicator_configs=None)
     data_collector = DataCollection(env, data_dir)
 
@@ -87,7 +85,7 @@ if __name__ == "__main__":
         env.viewer.add_keyup_callback("any", device.on_release)
         env.viewer.add_keyrepeat_callback("any", device.on_press)
     elif args.device == "spacemouse":
-        from devices.spacemouse import SpaceMouse
+        from simulation.devices.spacemouse import SpaceMouse
 
         device = SpaceMouse(pos_sensitivity=args.pos_sensitivity,
                             rot_sensitivity=args.rot_sensitivity)
@@ -171,6 +169,7 @@ if __name__ == "__main__":
             # Step through the simulation and render
             obs, reward, done, info = env.step(action)
 
+            # transform the action signal from spacemouse in ee frame to base frame
             T_in_B = env.unwrapped.robots[0]._hand_pose  # The tool center point frame expressed in the base frame
             T_inc = action_pose
             G_in_B =  T.pose_in_A_to_pose_in_B(T_inc, T_in_B)
@@ -178,10 +177,10 @@ if __name__ == "__main__":
             action_ori = T.mat2quat(G_in_B[:3, :3])
 
             # print(f"setpt {G_in_B[:3, -1]}")
-            # print(f"state {env.unwrapped.robots[0]._hand_pos}\n")
-
+            # print(f"state {env.unwrapped.robots[0]._hand_pos}")
             # print(f"setptori {action_ori}")
-            # print(f"stateori {env.unwrapped.robots[0]._hand_quat}\n")
+            # print(f"stateori {env.unwrapped.robots[0]._hand_quat}")
+            # print(f"eef force {env.unwrapped.robots[0].ee_force}\n")
 
             if not device.get_controller_state()["reset"]:
                 data_collector.record(action_pos, action_ori)

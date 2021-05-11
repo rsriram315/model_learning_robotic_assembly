@@ -1,50 +1,48 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
+# from pathlib import Path
 from scipy.ndimage import gaussian_filter1d
 from dataloaders import DemoDataset
 from utils import read_json
 
 
-def main():
-    # create dirs
-    vis_dir = Path("visualization/vis_contact_seg")
-    Path(vis_dir).mkdir(parents=True, exist_ok=True)
+# def vis_contact_seg():
+#     # create dirs
+#     vis_dir = Path("visualization/vis_contact_seg")
+#     Path(vis_dir).mkdir(parents=True, exist_ok=True)
 
-    demos_dir = Path("data/")
-    demos_fnames = list(demos_dir.glob("*.h5"))
+#     demos_dir = Path("data/")
+#     demos_fnames = list(demos_dir.glob("*.h5"))
 
-    subsample = 2
+#     subsample = 2
 
-    for fname in demos_fnames:
-        dataset = read_demo([fname.name])
+#     for fname in demos_fnames:
+#         dataset = read_demo([fname.name])
 
-        force_xyz = dataset.all_states_force
-        time = dataset.all_states_time
+#         force_xyz = dataset.all_states_force
+#         time = dataset.all_states_time
 
-        novelty, energy, magnitude = novelty_energy(force_xyz, time)
+#         novelty, energy, magnitude = novelty_energy(force_xyz, time)
 
-        force_half = force_xyz[::subsample]
-        time_half = time[::subsample]
-        novelty_half, energy_half, _ = novelty_energy(force_half, time_half)
-        start, end = contact_time(novelty_half, energy_half, time_half)
+#         force_half = force_xyz[::subsample]
+#         time_half = time[::subsample]
+#         novelty_half, energy_half, _ = novelty_energy(force_half, time_half)
+#         start, end = contact_time(novelty_half, energy_half, time_half)
 
-        vis_fname = vis_dir / fname.stem
+#         vis_fname = vis_dir / fname.stem
 
-        vis_contact_seg(novelty, energy, magnitude,
-                        time, start, end, vis_fname)
-        print(f"Generated visualization for {vis_fname}")
+#         vis_contact_seg(novelty, energy, magnitude,
+#                         time, start, end, vis_fname)
+#         print(f"Generated visualization for {vis_fname}")
 
 
 def read_demo(fname):
     # setup dataloader instances
-    cfg = read_json("config.json")
-    ds_cfg = cfg["dataset"]
-    ds_cfg["params"]["fnames"] = fname
-    ds_cfg["params"]["contact_only"] = False
-    # dataset_cfg["params"]["process"]["normalize"] = false
+    cfg = read_json("configs/mlp.json")
+    cfg["dataset"]["fnames"] = [fname]
+    cfg["dataset"]["contact_only"] = False
 
-    dataset = DemoDataset(**ds_cfg["params"])
+    dataset = DemoDataset(cfg["dataset"])
 
     return dataset
 
@@ -194,7 +192,3 @@ def match_start_end(start, end, subsample):
     match the first found start and the last found end
     """
     return [start[0] * subsample], [end[-1] * subsample]
-
-
-if __name__ == "__main__":
-    main()

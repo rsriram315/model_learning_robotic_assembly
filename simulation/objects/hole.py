@@ -1,10 +1,6 @@
 from robosuite.models.objects import MujocoXMLObject
 
 
-def test():
-    pass
-
-
 class RoundHole(MujocoXMLObject):
     """
     Square nut object (used in NutAssembly)

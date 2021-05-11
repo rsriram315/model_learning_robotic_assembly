@@ -3,10 +3,10 @@
 import os
 import numpy as np
 
-RADIUS = 0.015
+RADIUS = 0.0137
 LENGTH = 0.03
 DEPTH = 0.06
-NO_BLOCKS = 100
+NO_BLOCKS = 150
 
 
 def generate_hole_xml(radius, length, depth, no_blocks):
@@ -81,12 +81,12 @@ def generate_hole_xml(radius, length, depth, no_blocks):
 
         f.write(t + "<worldbody>\n")
         f.write(t + t +"<body>\n")
-        f.write(t + t + t + "<body name=\"object\">\n")
+        f.write(t + t + t + "<body name=\"object\" pos=\"-0.115 0.115 0\">\n")
 
         # hole base
         f.write(
             t + t + t + t +
-            "<geom name=\"base\" type=\"box\" mass=\"{:1.5f}\" pos=\"0 0 {}\" group=\"0\" size=\"{:1.5f} {:1.5f} {}\"/>\n"
+            "<geom name=\"base\" type=\"box\" mass=\"{:1.5f}\" pos=\"0 0 {}\" group=\"1\" size=\"{:1.5f} {:1.5f} {}\"/>\n"
             .format(mass, base_height / 2, radius + block_edge / 2 +
                     0.002, radius + block_edge / 2 + 0.002, base_height / 2))
 
@@ -100,17 +100,17 @@ def generate_hole_xml(radius, length, depth, no_blocks):
 
             f.write(
                 t + t + t + t +
-                "<geom name=\"hole{}\" type=\"box\" mass=\"{:1.4f}\" group=\"0\" size=\"{:1.5f} {:1.5f} {:1.5f}\" pos=\"{:1.5f} {:1.5f} {:1.5f}\" euler=\"0 0 {:1.3f}\"/>\n"
+                "<geom name=\"hole{}\" type=\"box\" mass=\"{:1.4f}\" group=\"1\" size=\"{:1.5f} {:1.5f} {:1.5f}\" pos=\"{:1.5f} {:1.5f} {:1.5f}\" euler=\"0 0 {:1.3f}\"/>\n"
                 .format(i + 1, mass, size[0], size[1], size[2], pos[0], pos[1], pos[2], rotate_angle))
 
             if i == 0:
                 f.write(
                     t + t + t + t +
-                    "<geom name=\"prism1\" type=\"mesh\" mesh=\"prism\" group=\"0\"/>\n")
+                    "<geom name=\"prism1\" type=\"mesh\" mesh=\"prism\" group=\"1\"/>\n")
             elif i > 0:
                 f.write(
                     t + t + t + t +
-                    "<geom name=\"prism{}\" type=\"mesh\" mesh=\"prism\" group=\"0\" euler=\"0 0 {:1.5f}\"/>\n"
+                    "<geom name=\"prism{}\" type=\"mesh\" mesh=\"prism\" group=\"1\" euler=\"0 0 {:1.5f}\"/>\n"
                     .format(i + 1, rotate_angle))
 
         f.write(t + t + t + "</body>\n")

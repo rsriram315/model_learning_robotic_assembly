@@ -42,6 +42,9 @@ class DemoDataset(Dataset):
         self.demo_fnames = ds_cfg["fnames"]
         self.preprocess = ds_cfg["preprocess"]
 
+        self.states_force = []
+        self.actions_force = []
+
         self._read_all_demos()
 
     def __len__(self):
@@ -89,6 +92,10 @@ class DemoDataset(Dataset):
             self.states_actions.extend(states_actions)
             self.targets.extend(targets)
 
+            # for sim
+            self.states_force.extend(np.array(states_actions[:, 0, 3:6]))
+            self.actions_force.extend(np.array(states_actions[:, 1, 3:6]))
+
         self.states_actions = np.array(self.states_actions)
         self.targets = np.array(self.targets)
 
@@ -122,8 +129,11 @@ class DemoDataset(Dataset):
             # determine when the arm grasp and release object
             gripper_t = np.array(f['franka_gripperjoint_states'][time])
             gripper_s = np.array(f['franka_gripperjoint_states']['q'])
-            grasp_start_t, grasp_stop_t = \
-                self._grasp_time(gripper_s, gripper_t)
+            # grasp_start_t, grasp_stop_t = \
+            #     self._grasp_time(gripper_s, gripper_t)
+            # for sim
+            grasp_start_t = 0
+            grasp_stop_t = gripper_t[-1]
 
             data = [{}, {}]  # [states, actions]
 
@@ -168,6 +178,9 @@ class DemoDataset(Dataset):
                         object
             stop_time: the last recorded time when the gripper grasp the object
         """
+        if states.shape[0] == 1:
+            states = states[0]
+
         mask_thres = [s > GRIPPER_CLOSED_THRESHOLD for s in states[:, 0]]
         mask_t = np.convolve(list(map(int, mask_thres)), [1, -1], 'valid')
 
@@ -222,6 +235,7 @@ class DemoDataset(Dataset):
         print(f"dataset start time {start_time}, end time {end_time}")
 
         sample_time = np.arange(start_time, end_time, 1.0/sample_freq)
+        sample_time = sample_time[:-100]  # for sim
         self.sample_time.extend(sample_time)
         print(f"there are {sample_time.shape[0]} samples")
 

@@ -6,7 +6,6 @@ This data collection wrapper is useful for collecting demonstrations.
 import os
 import h5py
 import numpy as np
-import robosuite.utils.transform_utils as T
 from datetime import datetime
 
 
@@ -64,13 +63,13 @@ class DataCollection:
                 for key_1 in data.keys():
                     data_1 = self.recording[key][key_1]
 
-                    if isinstance(data_1, dict):
-                        group_1 = group.create_group(key_1)
-                        for key_2 in data_1.keys():
-                            data_2 = self.recording[key][key_1][key_2]
-                            group_1.create_dataset(key_2, data=[data_2])
-                    else:
-                        group.create_dataset(key_1, data=[data_1])
+                    # if isinstance(data_1, dict):
+                    #     group_1 = group.create_group(key_1)
+                    #     for key_2 in data_1.keys():
+                    #         data_2 = self.recording[key][key_1][key_2]
+                    #         group_1.create_dataset(key_2, data=[data_2])
+                    # else:
+                    group.create_dataset(key_1, data=data_1)
 
         self.num_recording += 1
         self.reset()
@@ -84,13 +83,13 @@ class DataCollection:
         """
         self.recording = {"PandaStatePublisherarm_states": {
                             "time_stamp": [],
-                            "tcp_pose_base": {"position": [], "orientation": []},
-                            "tcp_wrench_ee": {"force": [], "torque": []}},
+                            "tcp_pose_base": [],
+                            "tcp_wrench_ee": []},
 
                           "PandaCartesianImpedanceControllercontrollerReference": {
                             "time_stamp": [],
-                            "pose": {"position": [], "orientation": []},
-                            "wrench": {"force": [], "torque": []}},
+                            "pose": [],
+                            "wrench": []},
 
                           "franka_gripperjoint_states": {
                             "time_stamp": [],
@@ -99,6 +98,7 @@ class DataCollection:
     def record(self, action_pos, action_ori):
         # collect the current simulation state if necessary
         # if self.t % self.collect_freq == 0:
+
         # gripper state
         self.recording[GRIPPER]["time_stamp"].append(self.env.unwrapped.cur_time)
         self.recording[GRIPPER]["q"].append(
@@ -108,15 +108,14 @@ class DataCollection:
         self.recording[STATE]["time_stamp"].append(self.env.unwrapped.cur_time)
         # https://robosuite.ai/docs/simulation/robot.html heres said that the _hand_pos and _hand_quat
         # are the position and orientation of the end-effector in base frame of the robot
-        self.recording[STATE]["tcp_pose_base"]["position"].append(self.env.unwrapped.robots[0]._hand_pos)
-        self.recording[STATE]["tcp_pose_base"]["orientation"].append(self.env.unwrapped.robots[0]._hand_quat)
-        self.recording[STATE]["tcp_wrench_ee"]["force"].append(self.env.unwrapped.robots[0].ee_force)
-        self.recording[STATE]["tcp_wrench_ee"]["torque"].append(self.env.unwrapped.robots[0].ee_torque)
+        self.recording[STATE]["tcp_pose_base"].append(
+            np.hstack((self.env.unwrapped.robots[0]._hand_pos, self.env.unwrapped.robots[0]._hand_quat)))
+        self.recording[STATE]["tcp_wrench_ee"].append(
+            np.hstack((self.env.unwrapped.robots[0].ee_force, self.env.unwrapped.robots[0].ee_torque)))
 
         # transform to base frame and also express the orientation in changes
         self.recording[ACTION]["time_stamp"].append(self.env.unwrapped.cur_time)
-        self.recording[ACTION]["pose"]["position"].append(action_pos)
+        self.recording[ACTION]["pose"].append(
+            np.hstack((action_pos, action_ori)))
         # orientation still needed to be convert to quaternions
-        self.recording[ACTION]["pose"]["orientation"].append(action_ori)
-        self.recording[ACTION]["wrench"]["force"].append([0, 0, 0])
-        self.recording[ACTION]["wrench"]["torque"].append([0, 0, 0])
+        self.recording[ACTION]["wrench"].append([0, 0, 0, 0, 0, 0])
