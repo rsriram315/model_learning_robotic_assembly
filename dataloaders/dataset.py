@@ -2,9 +2,9 @@ import numpy as np
 import h5py
 from pathlib import Path
 from torch.utils.data import Dataset
-from .data_processor import Normalization, SegmentContact,\
-                            Interpolation, add_noise, rotation_diff,\
-                            homogeneous_transform
+from dataloaders.data_processor import Normalization, SegmentContact,\
+                                       Interpolation, add_noise,\
+                                       rotation_diff, homogeneous_transform
 
 GRIPPER_CLOSED_THRESHOLD = 0.013
 
@@ -128,12 +128,13 @@ class DemoDataset(Dataset):
         with h5py.File(data_path, 'r') as f:
             # determine when the arm grasp and release object
             gripper_t = np.array(f['franka_gripperjoint_states'][time])
-            gripper_s = np.array(f['franka_gripperjoint_states']['q'])
-            # grasp_start_t, grasp_stop_t = \
-            #     self._grasp_time(gripper_s, gripper_t)
+
             # for sim
             grasp_start_t = 0
             grasp_stop_t = gripper_t[-1]
+            # gripper_s = np.array(f['franka_gripperjoint_states']['q'])
+            # grasp_start_t, grasp_stop_t = \
+            #     self._grasp_time(gripper_s, gripper_t)
 
             data = [{}, {}]  # [states, actions]
 
@@ -141,6 +142,8 @@ class DemoDataset(Dataset):
                 # clip time to avoid negative value
                 t = np.clip(np.asarray(f[i["name"]][time]), 0, None)
 
+                # start and stop time idx are the time idx
+                # closest to grasp_start and grasp_stop
                 start_idx = np.argmin(abs(t - grasp_start_t))
                 stop_idx = np.argmin(abs(t - grasp_stop_t))
 
@@ -206,7 +209,8 @@ class DemoDataset(Dataset):
             # force position
             force = data[:, 7:10].copy()
             contact_start, contact_end = \
-                seg_contact.contact_time(force, time)
+                seg_contact.contact_time(force, time,
+                                         energy_thres=0.3)  # for sim
 
             self.state_start_times = [time[s] for s in contact_start]
             self.state_end_times = [time[e] for e in contact_end]
@@ -235,7 +239,7 @@ class DemoDataset(Dataset):
         print(f"dataset start time {start_time}, end time {end_time}")
 
         sample_time = np.arange(start_time, end_time, 1.0/sample_freq)
-        sample_time = sample_time[:-100]  # for sim
+        sample_time = sample_time[:-200]  # for sim
         self.sample_time.extend(sample_time)
         print(f"there are {sample_time.shape[0]} samples")
 

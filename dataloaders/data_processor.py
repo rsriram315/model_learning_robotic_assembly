@@ -183,7 +183,9 @@ class SegmentContact:
     def __init__(self):
         pass
 
-    def contact_time(self, force_xyz, time,
+    def contact_time(self,
+                     force_xyz,
+                     time,
                      subsample=2,
                      novelty_thres=0.15,
                      energy_thres=0.15):
@@ -201,10 +203,12 @@ class SegmentContact:
 
         novelty, energy = self._novelty_energy(force_xyz, time)
 
+        # Assumption 1:
         # start point should be small, and have large positive novelty
         start_mask = (novelty >= novelty_thres) & (energy <= energy_thres)
         start_candidate = np.where(start_mask)[0]
 
+        # Assumption 2:
         # end point should also be small, and have large negative novelty
         end_mask = (novelty <= -novelty_thres) & (energy <= energy_thres)
         end_candidate = np.where(end_mask)[0]

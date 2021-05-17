@@ -1,4 +1,4 @@
-from .vis_contact_seg import *
+from .vis_contact_force import *
 from .vis_mlp import *
 from .vis_ensemble import *
 from .vis_mcdropout import *

@@ -4,12 +4,16 @@ from train import train
 from evaluate import evaluate
 from visualize import visualize
 from utils import read_json
-from rollout import rollout  # noqa
+from rollout import rollout
+from utils.visualization import vis_contact_force
 
 
 def main(cfg_path):
     # setup dataloader instances
     cfg = read_json(cfg_path)
+
+    # visualize the segmentated contact force
+    vis_contact_force()
 
     if cfg["train"]:
         train(cfg)

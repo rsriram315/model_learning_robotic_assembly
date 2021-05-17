@@ -36,8 +36,7 @@ if __name__ == "__main__":
     controller_name = 'OSC_POSE'
 
     # Get controller config
-    controller_config = load_controller_config(
-                            default_controller=controller_name)
+    controller_config = load_controller_config(default_controller=controller_name)
 
     # Create argument configuration
     config = {
@@ -58,17 +57,17 @@ if __name__ == "__main__":
         **config,
         has_renderer=True,
         has_offscreen_renderer=False,
-        render_camera=None,
         # render_camera="agentview",
+        render_camera=None,
         ignore_done=True,
         use_camera_obs=False,
         reward_shaping=True,
-        control_freq=20,
+        control_freq=100,
         hard_reset=False,
     )
 
     # Wrap this environment in a visualization wrapper
-    data_dir = "simulation/recordings/"
+    data_dir = "data"
     env = VisualizationWrapper(env, indicator_configs=None)
     data_collector = DataCollection(env, data_dir)
 
@@ -111,8 +110,6 @@ if __name__ == "__main__":
         data_collector.reset()
 
         robot_init_pos = env.unwrapped.robots[0]._hand_pos
-        action_pos = np.copy(robot_init_pos)
-        action_rot = env.unwrapped.robots[0]._hand_quat
 
         while True:
             # Set active robot
@@ -180,7 +177,9 @@ if __name__ == "__main__":
             # print(f"state {env.unwrapped.robots[0]._hand_pos}")
             # print(f"setptori {action_ori}")
             # print(f"stateori {env.unwrapped.robots[0]._hand_quat}")
-            # print(f"eef force {env.unwrapped.robots[0].ee_force}\n")
+            # print(f"eef force {env.unwrapped.robots[0].ee_force}")
+            # print(f"{env.unwrapped.robots[0]._joint_positions}")
+            # print(f"eef force {np.linalg.norm(env.unwrapped.robots[0].ee_force)}\n")
 
             if not device.get_controller_state()["reset"]:
                 data_collector.record(action_pos, action_ori)

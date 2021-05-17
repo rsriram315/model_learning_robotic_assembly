@@ -16,7 +16,8 @@ class PegInHoleEnv(SingleArmEnv):
         env_configuration="default",
         controller_configs=None,
         gripper_types="default",
-        initialization_noise="default",
+        # initialization_noise="default",
+        initialization_noise=None,
         table_full_size=(0.8, 0.8, 0.05),
         table_friction=(1., 5e-3, 1e-4),
         use_camera_obs=True,
@@ -106,12 +107,12 @@ class PegInHoleEnv(SingleArmEnv):
         mujoco_arena.merge(hole_obj, merge_body="table")
 
         peg_obj = PegObj(name="peg")
-        arm_name = self.robots[0].robot_model.eef_name
+        arm_name = "gripper0_eef"  # weld peg to eef
         self.robots[0].robot_model.merge(peg_obj, merge_body=arm_name)
 
         # weld peg to the arm
         elem = ET.Element('weld')
-        elem.set('body1', 'robot0_right_hand')
+        elem.set('body1', 'gripper0_eef')
         elem.set('body2', 'peg_object')
         elem.set('solref', '0.02 1')
         self.robots[0].robot_model.equality.append(elem)
@@ -123,3 +124,11 @@ class PegInHoleEnv(SingleArmEnv):
             mujoco_arena=mujoco_arena,
             mujoco_robots=[robot.robot_model for robot in self.robots],
         )
+
+    def _reset_internal(self):
+        """
+        Resets simulation internal configurations.
+        """
+        # Run superclass reset functionality
+        super()._reset_internal()
+        self.robots[0].init_qpos = np.array([-0.011, 0.670, 0.011, -2.120, 0.002, 2.796, 0.762])

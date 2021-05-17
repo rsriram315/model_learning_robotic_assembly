@@ -19,4 +19,5 @@ def evaluate(cfg):
     elif trainer_name == "ensemble":
         eval = EnsembleEvaluate(cfg)
 
+    print("... Evaluating trained model\n")
     eval.evaluate()

@@ -1,8 +1,8 @@
 {
     "name": "mlp",
-    "train": true,
-    "evaluate": true,
-    "visualize": true,
+    "train": false,
+    "evaluate": false,
+    "visualize": false,
     "rollout": true,
     "dataset": {
         "name": "DemoDataset",
@@ -10,7 +10,7 @@
         "root": "data",
         "fnames": [],
         "sample_freq": 1000,
-        "sl_factor": 100,
+        "sl_factor": 10,
         "contact_only": true,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",

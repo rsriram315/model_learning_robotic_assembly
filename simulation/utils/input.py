@@ -49,7 +49,7 @@ def input2action(device, robot, robot_init_pos, active_arm="right", env_configur
 
     # If we're resetting, immediately return None
     if reset:
-        return None, None
+        return None, None, None
 
     # Get controller reference
     controller = robot.controller if not isinstance(robot, Bimanual) else robot.controller[active_arm]

@@ -1,8 +1,10 @@
 # TODOs
 
-homogeneous transformation matrix P of end-effector in base frame is $^{B}_{E}P_{k}$
+## Week 14
 
-What I do is, in order to calculate the $$^{B}_{E}P_{k+1} = ^{B}_{E}P_{k}  *  _{\delta M}^{E}P_{k}$$, 
+- [x] Collect simulation data
+- [x] Train model on the simulation data
+- [ ] Write simple MPC to see results
 
 
 ## Week 13
@@ -15,15 +17,14 @@ What I do is, in order to calculate the $$^{B}_{E}P_{k+1} = ^{B}_{E}P_{k}  *  _{
 - [x] Compute the states in base frame, now is in the world coordinate, where the origin is the world coordinates.
   - Just use the `_hand_pos` and `_hand_quat` attributes from the robots
   - What is `eef_rot_offset` at the robot? Quaternion (x,y,z,w) representing rotational offset between the final robot arm link coordinate system and the end effector coordinate system (i.e: the gripper)
-- [ ] Figure out how to compute the action (set point from space mouse are in tcp frame) in base frame
+- [x] Figure out how to compute the action (set point from space mouse are in tcp frame) in base frame
   - [x] Take a look at `amira_ws/src/amira_hardware/amira_remote_control/src/amira_remote_control`, see how to incrementally add movement
   - This is quite simple, because the transformation from the world coordinate to the base frame is only translation
   - The problem is that the spacemouse output `dpos` and `drotation` (delta), if we accumulate these deltas, we can end up with absolute position in the base frame and the base orientation, but because the sampling rate of the spacemouse, this would not match the real state of the robot, in this case, the accumulated position and rotation are not set point anymore.
   - The other method would be adding the delta on top of the current state, which is really the 'set point'. However, during contact, this action would be end up the same as the state, which is not always the case in real life (imagine you have a barrier in front of you, then the set point is not your state)
-Take a look at `amira_ws/src/amira_hardware/amira_remote_control/src/amira_remote_control`, see how to incrementally add movement
+  - Homogeneous transformation matrix P of end-effector in base frame is $^{B}_{E}P_{k}$. What I do is, in order to calculate the $$^{B}_{E}P_{k+1} = ^{B}_{E}P_{k}  *  _{\delta M}^{E}P_{k}$$
 
-- [ ] Adjust the controller and states recording frequency to match the real robot.
-- [ ] Add friction between the gripper and the peg or just weld it.
+- [x] Add friction between the gripper and the peg or just weld it.
 - ![space mouse and recording](img/week13_1.jpg)
 - ![space mouse and recording](img/week13_2.jpg)
 

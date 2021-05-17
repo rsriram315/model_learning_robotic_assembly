@@ -1,4 +1,4 @@
-from .base_dataloader import BaseDataLoader
+from dataloaders.base_dataloader import BaseDataLoader
 
 
 class DemoDataLoader(BaseDataLoader):

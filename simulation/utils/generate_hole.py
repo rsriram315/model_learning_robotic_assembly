@@ -3,9 +3,9 @@
 import os
 import numpy as np
 
-RADIUS = 0.0137
+RADIUS = 0.0102
 LENGTH = 0.03
-DEPTH = 0.06
+DEPTH = 0.05
 NO_BLOCKS = 150
 
 
@@ -81,7 +81,7 @@ def generate_hole_xml(radius, length, depth, no_blocks):
 
         f.write(t + "<worldbody>\n")
         f.write(t + t +"<body>\n")
-        f.write(t + t + t + "<body name=\"object\" pos=\"-0.115 0.115 0\">\n")
+        f.write(t + t + t + "<body name=\"object\" pos=\"0 0 0\">\n")
 
         # hole base
         f.write(
@@ -118,15 +118,15 @@ def generate_hole_xml(radius, length, depth, no_blocks):
         # site information
         f.write(
             t + t + t +
-            "<site rgba=\"0 0 0 0\" size=\"0.005\" pos=\"0 0 -0.06\" name=\"bottom_site\"/>\n"
+            "<site rgba=\"0 0 0 0\" size=\"0.005\" pos=\"0 0 -0.05\" name=\"bottom_site\"/>\n"
         )
         f.write(
             t + t + t +
-            "<site rgba=\"0 0 0 0\" size=\"0.005\" pos=\"0 0 0.04\" name=\"top_site\"/>\n"
+            "<site rgba=\"0 0 0 0\" size=\"0.005\" pos=\"0 0 0.05\" name=\"top_site\"/>\n"
         )
         f.write(
             t + t + t +
-            "<site rgba=\"0 0 0 0\" size=\"0.005\" pos=\"0.025 0.025 0\" name=\"horizontal_radius_site\"/>\n"
+            "<site rgba=\"0 0 0 0\" size=\"0.005\" pos=\"0.0204 0.0204 0\" name=\"horizontal_radius_site\"/>\n"
         )
 
         f.write(t + t + "</body>\n")
