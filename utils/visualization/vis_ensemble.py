@@ -37,14 +37,17 @@ class EnsembleVisualize(BaseVisualize):
 
             if self.vis_cfg["axis"]:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
-                self._vis_axis(pred_stats["mean"],
-                               pred_stats["std"],
-                               targets, time, axis_fname)
+                self._vis_axis(pred_stats["mean"][:-1, :],
+                               pred_stats["std"][:-1, :],
+                               targets[1:, :],
+                               time[1:],
+                               axis_fname)
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / suffix_fname
-                self._vis_trajectory(pred_stats["mean"][:, :3],
-                                     targets[:, :3], traj_fname)
+                self._vis_trajectory(pred_stats["mean"][:-1, :3],
+                                     targets[1:, :3],
+                                     traj_fname)
 
             print(f"... Generated visualization for {suffix_fname.name}")
 
@@ -67,17 +70,27 @@ class EnsembleVisualize(BaseVisualize):
         plt.savefig(fname, dpi=200)
         plt.close(fig)
 
-    def _vis_axis(self, pred_mean, pred_std, target, time, fname):
+    def _vis_axis(self, pred_mean, pred_std, target,
+                  time, fname, plot_mat=False):
         size = 1
-        features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
-                    'matrix R row 3', 'euler angles']
+        if plot_mat:
+            features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
+                        'matrix R row 3', 'euler angles']
+            figsize = (25, 20)
+        else:
+            features = ['pos', 'force', 'euler angles']
+            figsize = (20, 10)
         axis = ['x', 'y', 'z']
 
         rows = len(features)
         cols = len(axis)
-        fig, axs = plt.subplots(rows, cols, figsize=(30, 30), sharex='all')
+        fig, axs = plt.subplots(rows, cols, figsize=figsize, sharex='all')
 
         for r, feature in enumerate(features):
+            # not plotting matrix, skip the matrix
+            if not plot_mat:
+                r = 5 if r > 2 else r
+                feature = features[r]
             for c, ax in enumerate(axis):
                 idx = c + 3 * r
 
@@ -121,11 +134,9 @@ class EnsembleVisualize(BaseVisualize):
                                                    str(n+1)+"/")
             model, _ = self._build_model(cfg)
 
-            loss, pred, state, target = \
-                self._evaluate(model, dataset)
+            loss, pred, state = self._evaluate(model, dataset)
 
-            recover_pred, recover_target = \
-                self._recover_data(pred, state, target)
+            recover_pred, recover_target = self._recover_data(pred, state)
 
             losses_per_demo.append(loss)
             preds_per_demo.append(recover_pred)

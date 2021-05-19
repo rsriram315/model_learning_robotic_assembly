@@ -1,8 +1,7 @@
 # flake8: noqa
-
 import numpy as np
-from simulation.objects.hole import RoundHole
-from simulation.objects.peg import PegObj
+from simulation.models.objects.hole import RoundHole
+from simulation.models.objects.peg import PegObj
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models.arenas import TableArena
 from robosuite.models.tasks import ManipulationTask
@@ -117,6 +116,7 @@ class PegInHoleEnv(SingleArmEnv):
         elem.set('solref', '0.02 1')
         self.robots[0].robot_model.equality.append(elem)
 
+        # generate the final xml file
         # self.robots[0].robot_model.save_model('tmp.xml')
 
         # task includes arena, robot, and objects of interest

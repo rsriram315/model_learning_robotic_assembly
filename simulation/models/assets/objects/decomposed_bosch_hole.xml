@@ -1,0 +1,82 @@
+<MJCF_part>
+    <asset>
+        <mesh file="./decomposed_STLs/Hole for simulation.stl" name="Hole for simulation" />
+        <mesh file="./decomposed_STLs/Hole for simulation.001.stl" name="Hole for simulation.001" />
+        <mesh file="./decomposed_STLs/Hole for simulation.002.stl" name="Hole for simulation.002" />
+        <mesh file="./decomposed_STLs/Hole for simulation.003.stl" name="Hole for simulation.003" />
+        <mesh file="./decomposed_STLs/Hole for simulation.004.stl" name="Hole for simulation.004" />
+        <mesh file="./decomposed_STLs/Hole for simulation.005.stl" name="Hole for simulation.005" />
+        <mesh file="./decomposed_STLs/Hole for simulation.006.stl" name="Hole for simulation.006" />
+        <mesh file="./decomposed_STLs/Hole for simulation.007.stl" name="Hole for simulation.007" />
+        <mesh file="./decomposed_STLs/Hole for simulation.008.stl" name="Hole for simulation.008" />
+        <mesh file="./decomposed_STLs/Hole for simulation.009.stl" name="Hole for simulation.009" />
+        <mesh file="./decomposed_STLs/Hole for simulation.010.stl" name="Hole for simulation.010" />
+        <mesh file="./decomposed_STLs/Hole for simulation.011.stl" name="Hole for simulation.011" />
+        <mesh file="./decomposed_STLs/Hole for simulation.012.stl" name="Hole for simulation.012" />
+        <mesh file="./decomposed_STLs/Hole for simulation.013.stl" name="Hole for simulation.013" />
+        <mesh file="./decomposed_STLs/Hole for simulation.014.stl" name="Hole for simulation.014" />
+        <mesh file="./decomposed_STLs/Hole for simulation.015.stl" name="Hole for simulation.015" />
+        <mesh file="./decomposed_STLs/Hole for simulation.016.stl" name="Hole for simulation.016" />
+        <mesh file="./decomposed_STLs/Hole for simulation.017.stl" name="Hole for simulation.017" />
+        <mesh file="./decomposed_STLs/Hole for simulation.018.stl" name="Hole for simulation.018" />
+        <mesh file="./decomposed_STLs/Hole for simulation.019.stl" name="Hole for simulation.019" />
+        <mesh file="./decomposed_STLs/Hole for simulation.020.stl" name="Hole for simulation.020" />
+        <mesh file="./decomposed_STLs/Hole for simulation.021.stl" name="Hole for simulation.021" />
+        <mesh file="./decomposed_STLs/Hole for simulation.022.stl" name="Hole for simulation.022" />
+        <mesh file="./decomposed_STLs/Hole for simulation.023.stl" name="Hole for simulation.023" />
+        <mesh file="./decomposed_STLs/Hole for simulation.024.stl" name="Hole for simulation.024" />
+        <mesh file="./decomposed_STLs/Hole for simulation.025.stl" name="Hole for simulation.025" />
+        <mesh file="./decomposed_STLs/Hole for simulation.026.stl" name="Hole for simulation.026" />
+        <mesh file="./decomposed_STLs/Hole for simulation.027.stl" name="Hole for simulation.027" />
+        <mesh file="./decomposed_STLs/Hole for simulation.028.stl" name="Hole for simulation.028" />
+        <mesh file="./decomposed_STLs/Hole for simulation.029.stl" name="Hole for simulation.029" />
+        <mesh file="./decomposed_STLs/Hole for simulation.030.stl" name="Hole for simulation.030" />
+        <mesh file="./decomposed_STLs/Hole for simulation.031.stl" name="Hole for simulation.031" />
+        <mesh file="./decomposed_STLs/Hole for simulation.032.stl" name="Hole for simulation.032" />
+    </asset>
+
+    <worldbody>
+        <body>
+        <body euler="0 0 0" name="object" pos="0.5 0 0.45" quat="0 1 1 0">
+            <site name="origin" size="0.002" pos="0 0 0" rgba="255 255 255 1"/>
+            <site name="x" size="0.002" pos="0.05 0 0" rgba="255 0 0 1"/>
+            <site name="y" size="0.002" pos="0 0.05 0" rgba="0 255 0 1"/>
+            <site name="z" size="0.002" pos="0 0 0.05" rgba="0 0 255 1"/>
+            <site name="hole_bottom_site" size="0.001" pos="0 0 -0.075" rgba="255 0 255 1"/>
+            <geom mesh="Hole for simulation" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.001" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.002" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.003" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.004" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.005" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.006" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.007" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.008" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.009" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.010" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.011" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.012" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.013" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.014" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.015" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.016" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.017" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.018" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.019" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.020" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.021" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.022" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.023" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.024" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.025" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.026" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.027" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.028" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.029" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.030" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.031" type="mesh" group="1"/>
+            <geom mesh="Hole for simulation.032" type="mesh" group="1"/>
+        </body>
+        </body>
+    </worldbody>
+</MJCF_part>

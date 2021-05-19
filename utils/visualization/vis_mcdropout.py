@@ -33,14 +33,17 @@ class MCDropoutVisualize(EnsembleVisualize):
 
             if self.vis_cfg["axis"]:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
-                self._vis_axis(pred_stats["mean"],
-                               pred_stats["std"],
-                               targets, time, axis_fname)
+                self._vis_axis(pred_stats["mean"][:-1, :],
+                               pred_stats["std"][:-1, :],
+                               targets[1:, :],
+                               time[1:],
+                               axis_fname)
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / suffix_fname
-                self._vis_trajectory(pred_stats["mean"][:, :3],
-                                     targets[:, :3], traj_fname)
+                self._vis_trajectory(pred_stats["mean"][:-1, :3],
+                                     targets[1:, :3],
+                                     traj_fname)
 
             print(f"... Generated visualization for {suffix_fname.name}")
 
@@ -55,11 +58,9 @@ class MCDropoutVisualize(EnsembleVisualize):
                                          [fname.name])
 
         for _ in range(cfg["eval"]["num_mc"]):
-            loss, pred, state, target = \
-                self._evaluate(model, dataset)
+            loss, pred, state = self._evaluate(model, dataset)
 
-            recover_pred, recover_target = \
-                self._recover_data(pred, state, target)
+            recover_pred, recover_target = self._recover_data(pred, state)
 
             losses_per_demo.append(loss)
             preds_per_demo.append(recover_pred)
@@ -87,8 +88,7 @@ class MCDropoutVisualize(EnsembleVisualize):
         cfg["dataset"]["stats"] = ckpt["dataset_stats"]
 
         # build model architecture, then print to console
-        model = MCDropout(model_cfg["input_dims"], model_cfg["output_dims"],
-                          ckpt["dataset_stats"])
+        model = MCDropout(model_cfg["input_dims"], model_cfg["output_dims"])
         model.load_state_dict(ckpt["state_dict"])
 
         model = model.to(self.device)

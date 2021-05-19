@@ -10,7 +10,7 @@
         "root": "data",
         "fnames": [],
         "sample_freq": 1000,
-        "sl_factor": 100,
+        "sl_factor": 10,
         "contact_only": true,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
@@ -71,8 +71,9 @@
         "log_file": "saved/evaluation.log"
     },
     "visualization": {
-        "loss": false,
-        "axis": false,
-        "trajectory": false
+        "loss": true,
+        "axis": true,
+        "trajectory": false,
+        "contact": false
     }
 }

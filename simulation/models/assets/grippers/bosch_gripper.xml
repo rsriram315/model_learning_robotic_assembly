@@ -1,0 +1,20 @@
+<mujoco model="panda_hand">
+    <asset>
+        <mesh file="meshes/bosch_gripper/handv.stl" name="handv"/>
+        <mesh file="meshes/bosch_gripper/fingerv.stl" name="fingerv"/>
+    </asset>
+
+    <worldbody>
+        <body name="tcp" pos="0 0 0">
+            <site name="tcp" rgba="'0 0 1 0'" size='0.005'/>
+        </body>
+
+        <body name="shaft_main" pos="0 0 0" quat="0.923879549239 0.0 -0.0 -0.382683391981">
+            <inertial pos="2.42335e-05 -0.0119585 0.0237816" quat="0.996177 -0.0868631 2.79377e-05 -0.00926642" mass="0.0001" diaginertia="5.69661e-06 5.56035e-06 1.55183e-06" />
+            <geom euler="3.14159 0 0" type="mesh" mesh="shaft_main" friction="1.5 1.5 10"/>
+            <geom euler="3.14 0 0" type="mesh" mesh="shaft_tip" friction=" 0.5, 0.001, 0.0001"/>
+            <site name="tip_sensor" rgba="1 2 5 0" pos="0 0 0.108" size="0.01 0.01 0.01" />
+        </body>
+    </worldbody>
+
+</mujoco>

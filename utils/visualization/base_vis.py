@@ -5,9 +5,9 @@ from pathlib import Path
 from copy import deepcopy
 from torch.utils.data import DataLoader
 from model import MLP
-from dataloaders import Normalization
 from utils import prepare_device
-from dataloaders import DemoDataset, recover_rotation, add_euler_angle
+from dataloaders import DemoDataset, Normalization,\
+                        recover_rotation, add_euler_angle
 
 
 class BaseVisualize:
@@ -43,11 +43,10 @@ class BaseVisualize:
             # read dataset
             dataset = self._read_single_demo(cfg["dataset"], [fname])
             time = dataset.sample_time
-            losses_per_demo, preds_per_demo, state_per_demo, target_per_demo =\
+            losses_per_demo, preds_per_demo, state_per_demo =\
                 self._evaluate(model, dataset)
             preds_per_demo, target_per_demo = \
-                self._recover_data(preds_per_demo, state_per_demo,
-                                   target_per_demo)
+                self._recover_data(preds_per_demo, state_per_demo)
 
             if self.vis_cfg["loss"]:
                 loss_fname = self.vis_dir / "loss" / suffix_fname
@@ -55,16 +54,18 @@ class BaseVisualize:
 
             if self.vis_cfg["axis"]:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
-                self._vis_axis(preds_per_demo, target_per_demo, time,
+                self._vis_axis(preds_per_demo[:-1, :],
+                               target_per_demo[1:, :],
+                               time[1:],
                                axis_fname)
 
             if self.vis_cfg["trajectory"]:
                 traj_fname = self.vis_dir / "trajectory" / suffix_fname
-                self._vis_trajectory(preds_per_demo[:, :3],
-                                     target_per_demo[:, :3],
+                self._vis_trajectory(preds_per_demo[:-1, :3],
+                                     target_per_demo[1:, :3],
                                      traj_fname)
 
-            print(f"... Generated visualization for {fname}")
+            print(f"... Generated visualization for {fname}\n")
 
     def _vis_loss(self, loss, time, fname):
         fig = plt.figure(figsize=(8, 4))
@@ -78,17 +79,26 @@ class BaseVisualize:
         plt.savefig(fname, dpi=200)
         plt.close(fig)
 
-    def _vis_axis(self, pred, target, time, fname):
+    def _vis_axis(self, pred, target, time, fname, plot_mat=False):
         size = 1
-        features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
-                    'matrix R row 3', 'euler angles']
+        if plot_mat:
+            features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
+                        'matrix R row 3', 'euler angles']
+            figsize = (25, 20)
+        else:
+            features = ['pos', 'force', 'euler angles']
+            figsize = (20, 10)
         axis = ['x', 'y', 'z']
 
         rows = len(features)
         cols = len(axis)
-        fig, axs = plt.subplots(rows, cols, figsize=(25, 20), sharex='all')
+        fig, axs = plt.subplots(rows, cols, figsize=figsize, sharex='all')
 
         for r, feature in enumerate(features):
+            # not plotting matrix, skip the matrix
+            if not plot_mat:
+                r = 5 if r > 2 else r
+                feature = features[r]
             for c, ax in enumerate(axis):
                 idx = c + 3 * r
                 axs[r, c].scatter(time,
@@ -96,7 +106,8 @@ class BaseVisualize:
                                   s=size,
                                   c='tab:blue',
                                   label="ground truth")
-                axs[r, c].scatter(time,
+
+                axs[r, c].scatter(time[:],
                                   pred[:, idx],
                                   s=size,
                                   c='tab:orange',
@@ -117,15 +128,15 @@ class BaseVisualize:
         max_size = 10
         size_ls = np.arange(0, max_size, max_size / len(state[1:, 1]))
 
-        ax.scatter3D(state[1:, 1],
-                     state[1:, 0],
-                     state[1:, 2],
+        ax.scatter3D(state[:, 1],
+                     state[:, 0],
+                     state[:, 2],
                      label='state trajectory',
                      s=size_ls,
                      c='tab:blue')
-        ax.scatter3D(pred[:-1, 1],
-                     pred[:-1, 0],
-                     pred[:-1, 2],
+        ax.scatter3D(pred[:, 1],
+                     pred[:, 0],
+                     pred[:, 2],
                      label='predicted trajectory',
                      s=size_ls,
                      c='tab:orange')
@@ -139,16 +150,14 @@ class BaseVisualize:
         plt.savefig(fname, dpi=200)
         plt.close(fig)
 
-    def _recover_data(self, pred, state, target):
+    def _recover_data(self, pred, state):
         curr_state = self.norm.inv_normalize(state)
-        recover_target = self.norm.inv_normalize(target, is_res=True)
         recover_output = self.norm.inv_normalize(pred, is_res=True)
         # recover pos and forces
-        recover_target[:, :6] += curr_state[:, :6]
         recover_output[:, :6] += curr_state[:, :6]
 
         # recover rotation matrix and add euler angles
-        recover_target = recover_rotation(recover_target, curr_state)
+        recover_target = np.copy(curr_state)  # target is just the next state
         recover_target = add_euler_angle(recover_target)
         recover_output = recover_rotation(recover_output, curr_state)
         recover_output = add_euler_angle(recover_output)
@@ -163,12 +172,11 @@ class BaseVisualize:
         losses = []
         preds = []
         states = []
-        targets = []
 
         with torch.no_grad():
             for _, (state_action, target) in enumerate(dataloader):
                 states.extend(state_action[:, None, :15].numpy())
-                targets.extend(target[:, None, :].numpy())
+                # targets.extend(target[:, None, :].numpy())
 
                 state_action, target = (state_action.to('cuda'),
                                         target.to('cuda'))
@@ -179,8 +187,7 @@ class BaseVisualize:
                 losses.extend(loss.cpu().numpy())
                 preds.extend(output.cpu().numpy()[:, None, :])
 
-        return (np.array(losses), np.array(preds),
-                np.array(states), np.array(targets))
+        return (np.array(losses), np.array(preds), np.array(states))
 
     def _read_single_demo(self, ds_cfg, fname):
         ds_cfg = deepcopy(ds_cfg)

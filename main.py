@@ -13,7 +13,8 @@ def main(cfg_path):
     cfg = read_json(cfg_path)
 
     # visualize the segmentated contact force
-    vis_contact_force()
+    if cfg["visualization"]["contact"]:
+        vis_contact_force()
 
     if cfg["train"]:
         train(cfg)

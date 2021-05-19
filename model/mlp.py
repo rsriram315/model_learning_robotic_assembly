@@ -23,7 +23,7 @@ class MLP(BaseModel):
 
 
 class MCDropout(BaseModel):
-    def __init__(self, input_dims, output_dims, ds_stats, dropout_prob=0.2):
+    def __init__(self, input_dims, output_dims, dropout_prob=0.2):
         super().__init__()
         self.fc1 = nn.Linear(input_dims, 500)
         self.fc2 = nn.Linear(500, 500)

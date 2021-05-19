@@ -86,8 +86,7 @@ class Evaluate:
                         model_cfg["output_dims"])
         elif model_cfg["name"] == "MCDropout":
             model = MCDropout(model_cfg["input_dims"],
-                              model_cfg["output_dims"],
-                              model_cfg["dataset"]["stats"])
+                              model_cfg["output_dims"])
         print(model)
 
         # load model checkpoint

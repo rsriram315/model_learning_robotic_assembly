@@ -20,7 +20,7 @@ def generate_hole_xml(radius, length, depth, no_blocks):
     Output: the xml file
     '''
     # Create the file
-    asset_file = os.path.join("simulation", "assets", "round-hole.xml")
+    asset_file = os.path.join("simulation", "models", "assets", "objects", "round-hole.xml")
 
     if not os.path.exists(asset_file):
         os.mknod(asset_file)

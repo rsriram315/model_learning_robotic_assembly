@@ -4,8 +4,21 @@
 
 - [x] Collect simulation data
 - [x] Train model on the simulation data
-- [ ] Write simple MPC to see results
-
+- [ ] Think about MPC
+  - Evaluation metrics, what should be the cost / reward function $J$ / $R$
+    - $J = \sum_{k=1}^{H} w_{pos} \cdot ||P^{success}_{pos} - P^{k}_{pos}||_2 + \sum_{k=1}^{H} w_{rot} \cdot distance(P^{success}_{rot} - P^{k}_{rot}) + \sum_{k=1}^{H} w_{force} \cdot ||P^{success}_{force} - P^{k}_{force}||_2$
+    - For the insertion task, the reward function should be related to the inserted depth, right?
+    - Use the negative loss to the ground truth of the demo?
+    - Do I need to add a constraint to reforce the $\Delta A$ should be small (actions won't be large)
+  - Randomly generate actions, what distribution should I sample these actions?
+    - Uniform?
+    - Gaussian and use the last action as the mean?
+    - Visen-Halt distribution?
+    - Trajectories following using the ground truth trajectories from the demos?
+  - Have a look at the `rotation_distance` in the file `amira_ws/src/amira_tools/amira_utils/src/amira_utils/transformation_utils.py`
+- [ ] Write an simple summary of the method of **MPPI**
+- [ ] Make the intial position of the TCP random
+- ![MPC prelimilary ideas](img/week14.jpg)
 
 ## Week 13
 
