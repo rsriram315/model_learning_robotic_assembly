@@ -2,9 +2,9 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+
 from utils import read_json
-from dataloaders import DemoDataset
-from dataloaders import SegmentContact
+from dataloaders import DemoDataset, SegmentContact
 
 
 def read_demo(fname):

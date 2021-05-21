@@ -2,8 +2,9 @@ import torch
 import numpy as np
 from copy import deepcopy
 from pathlib import Path
-from dataloaders import Normalization, recover_rotation, add_euler_angle
+
 from utils.visualization import MLPVisualize
+from dataloaders import Normalization, recover_rotation, add_euler_angle
 
 
 class MLPRollout(MLPVisualize):

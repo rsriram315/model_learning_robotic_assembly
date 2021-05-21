@@ -4,10 +4,11 @@ import robosuite as suite
 import robosuite.utils.transform_utils as T
 from robosuite import load_controller_config
 from robosuite.wrappers import VisualizationWrapper
+
+from simulation.utils.input import input2action
 from simulation.utils.data_collection import DataCollection
 from simulation.environments.peg_hole_env import PegInHoleEnv
-from simulation.models.robots.manipulators import bosch_robot
-from simulation.utils.input import input2action
+# from simulation.models.robots.manipulators import bosch_robot
 
 # flake8: noqa
 

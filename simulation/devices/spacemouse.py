@@ -6,8 +6,8 @@ This class provides a driver support to SpaceMouse Compact on Linux.
 # flake8: noqa
 import time
 import threading
-from collections import namedtuple
 import numpy as np
+from collections import namedtuple
 try:
     import hid
 except ModuleNotFoundError as exc:

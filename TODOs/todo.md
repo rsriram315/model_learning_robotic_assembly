@@ -1,10 +1,17 @@
 # TODOs
 
+## Week 15
+
+- Have a look at the code of [pddm](https://github.com/google-research/pddm), try to see how to implement a MPC or MPPI (model predictive path integral)
+- How to give action into the simulation (MuJoCo), and get observation and reward out of it.
+- We don't have force input in the action, does the robot automatically transform the set point coordinate also in force?
+- What should I use for action? Can I just use velocity.
+
 ## Week 14
 
 - [x] Collect simulation data
 - [x] Train model on the simulation data
-- [ ] Think about MPC
+- [x] Think about MPC
   - Evaluation metrics, what should be the cost / reward function $J$ / $R$
     - $J = \sum_{k=1}^{H} w_{pos} \cdot ||P^{success}_{pos} - P^{k}_{pos}||_2 + \sum_{k=1}^{H} w_{rot} \cdot distance(P^{success}_{rot} - P^{k}_{rot}) + \sum_{k=1}^{H} w_{force} \cdot ||P^{success}_{force} - P^{k}_{force}||_2$
     - For the insertion task, the reward function should be related to the inserted depth, right?
@@ -16,7 +23,7 @@
     - Visen-Halt distribution?
     - Trajectories following using the ground truth trajectories from the demos?
   - Have a look at the `rotation_distance` in the file `amira_ws/src/amira_tools/amira_utils/src/amira_utils/transformation_utils.py`
-- [ ] Write an simple summary of the method of **MPPI**
+- [x] Write an simple summary of the method of **MPPI**
 - [ ] Make the intial position of the TCP random
 - ![MPC prelimilary ideas](img/week14.jpg)
 
@@ -57,7 +64,7 @@
   - Results are much better than before!
 - [x] Fix the Homogeneous transformation for data augmentation.
   - The disturbances should be bounded
-- [ ] Two options to build the simulator
+- [x] Two options to build the simulator
   1. MuJoCo via Ros -> add PegInHole simulation
   2. MuJoCo via mujoco-py and robosuite
      - ROS -> mujoco-py

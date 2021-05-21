@@ -3,7 +3,8 @@ import torch
 import numpy as np
 from copy import deepcopy
 from scipy.spatial.transform import Rotation as R
-from .mlp_rollout import MLPRollout
+
+from utils.rollout import MLPRollout
 
 
 torch.backends.cudnn.deterministic = True

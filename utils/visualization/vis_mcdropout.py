@@ -2,9 +2,10 @@ import numpy as np
 import torch
 from copy import deepcopy
 from pathlib import Path
-from .vis_ensemble import EnsembleVisualize
-from dataloaders import Normalization
+
 from model import MCDropout
+from dataloaders import Normalization
+from utils.visualization import EnsembleVisualize
 
 
 class MCDropoutVisualize(EnsembleVisualize):

@@ -1,11 +1,12 @@
 # flake8: noqa
 import numpy as np
-from simulation.models.objects.hole import RoundHole
-from simulation.models.objects.peg import PegObj
+import xml.etree.ElementTree as ET
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models.arenas import TableArena
 from robosuite.models.tasks import ManipulationTask
-import xml.etree.ElementTree as ET
+
+from simulation.models.objects.hole import RoundHole
+from simulation.models.objects.peg import PegObj
 
 
 class PegInHoleEnv(SingleArmEnv):

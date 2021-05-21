@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from pathlib import Path
-from .base_vis import BaseVisualize
+
+from utils.visualization import BaseVisualize
 from dataloaders import Normalization
 
 

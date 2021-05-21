@@ -1,5 +1,5 @@
-from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
+from torch.utils.tensorboard import SummaryWriter
 
 
 def write_log(log_file, msg):

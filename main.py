@@ -1,5 +1,6 @@
 import setup  # noqa
 import argparse
+
 from train import train
 from evaluate import evaluate
 from visualize import visualize

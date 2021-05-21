@@ -2,9 +2,9 @@ import torch
 import numpy as np
 from pathlib import Path
 from copy import deepcopy
+
 from visualize import MCDropoutVisualize
-from dataloaders import Normalization
-from dataloaders import recover_rotation, add_euler_angle
+from dataloaders import Normalization, recover_rotation, add_euler_angle
 
 
 torch.backends.cudnn.deterministic = True

@@ -1,9 +1,10 @@
 import torch
-import matplotlib.pyplot as plt
-import numpy as np
-from pathlib import Path
 from copy import deepcopy
+from pathlib import Path
+import numpy as np
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
+
 from model import MLP
 from utils import prepare_device
 from dataloaders import DemoDataset, Normalization,\
