@@ -3,7 +3,7 @@ import numpy as np
 from copy import deepcopy
 from pathlib import Path
 
-from utils.visualization import MLPVisualize
+from visualization import MLPVisualize
 from dataloaders import Normalization, recover_rotation, add_euler_angle
 
 

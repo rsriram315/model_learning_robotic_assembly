@@ -33,7 +33,7 @@ def train(cfg):
     dataset = DemoDataset(cfg["dataset"], is_train=True)
     dataloader = DemoDataLoader(dataset, cfg["dataloader"])
     valid_dataloader = dataloader.split_validation()
-    print(f"... {dataloader.n_samples} training samples")
+    # print(f"... {dataloader.n_samples} training samples")
 
     trainer_name = cfg["trainer"]["name"]
     if trainer_name == "mlp":

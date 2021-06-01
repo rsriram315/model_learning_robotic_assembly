@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 from pathlib import Path
 
-from utils.visualization import BaseVisualize
+from visualization.base_vis import BaseVisualize
 from dataloaders import Normalization
 
 

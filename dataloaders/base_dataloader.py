@@ -14,7 +14,7 @@ class BaseDataLoader(DataLoader):
 
         self.batch_idx = 0
         self.n_samples = len(dataset)
-        print(f"total samples {self.n_samples}")
+        # print(f"total samples {self.n_samples}")
 
         self.sampler, self.valid_sampler = \
             self._split_sampler(self.validation_split)

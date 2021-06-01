@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 from copy import deepcopy
 
-from visualize import MCDropoutVisualize
+from visualization import MCDropoutVisualize
 from dataloaders import Normalization, recover_rotation, add_euler_angle
 
 
@@ -50,7 +50,7 @@ class MCRollout(MCDropoutVisualize):
                                      targets[1:, :3],
                                      traj_fname)
 
-            print(f"... Generated visualization for {suffix_fname.name}")
+            print(f"... Generated visualization for {suffix_fname.name}\n")
 
     def pred_stats(self, cfg, fname):
         model, cfg = self._build_model(cfg)

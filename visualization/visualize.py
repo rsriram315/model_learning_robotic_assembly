@@ -1,4 +1,4 @@
-from utils.visualization import MLPVisualize, EnsembleVisualize,\
+from visualization import MLPVisualize, EnsembleVisualize,\
                                 MCDropoutVisualize
 
 

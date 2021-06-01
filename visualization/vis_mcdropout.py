@@ -5,7 +5,7 @@ from pathlib import Path
 
 from model import MCDropout
 from dataloaders import Normalization
-from utils.visualization import EnsembleVisualize
+from visualization import EnsembleVisualize
 
 
 class MCDropoutVisualize(EnsembleVisualize):
@@ -46,7 +46,7 @@ class MCDropoutVisualize(EnsembleVisualize):
                                      targets[1:, :3],
                                      traj_fname)
 
-            print(f"... Generated visualization for {suffix_fname.name}")
+            print(f"... Generated visualization for {suffix_fname.name}\n")
 
     def pred_stats(self, cfg, fname):
         losses_per_demo = []

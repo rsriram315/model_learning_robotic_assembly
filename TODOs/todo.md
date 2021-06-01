@@ -2,10 +2,10 @@
 
 ## Week 15
 
-- Have a look at the code of [pddm](https://github.com/google-research/pddm), try to see how to implement a MPC or MPPI (model predictive path integral)
-- How to give action into the simulation (MuJoCo), and get observation and reward out of it.
-- We don't have force input in the action, does the robot automatically transform the set point coordinate also in force?
-- What should I use for action? Can I just use velocity.
+- [ ] Have a look at the code of [pddm](https://github.com/google-research/pddm), try to see how to implement a MPC or MPPI (model predictive path integral)
+- [ ] How to give action into the simulation (MuJoCo), and get observation and reward out of it.
+- [ ] We don't have force input in the action, does the robot automatically transform the set point coordinate also in force?
+- [ ] What should I use for action? Can I just use velocity.
 
 ## Week 14
 

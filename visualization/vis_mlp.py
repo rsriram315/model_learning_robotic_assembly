@@ -1,4 +1,4 @@
-from utils.visualization import BaseVisualize
+from visualization.base_vis import BaseVisualize
 
 
 class MLPVisualize(BaseVisualize):

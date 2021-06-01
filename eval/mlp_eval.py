@@ -25,11 +25,10 @@ class Evaluate:
         if self.cfg["eval"]["ckpt_pth"] is None:
             ckpt_pth = self._find_ckpt(self.cfg["eval"]["ckpt_dir"])
         else:
-            ckpt_pth = self.cfg["test"]["ckpt_pth"]
+            ckpt_pth = self.cfg["eval"]["ckpt_pth"]
 
         self.model, self.cfg = self._build_model(self.cfg,
                                                  ckpt_pth)
-        self.eval_log(f'... Load checkpoint: {ckpt_pth}')
 
         self.dataloader, self.demo_fnames =\
             self._load_demos(self.cfg["dataset"], self.cfg["dataloader"])
@@ -78,6 +77,7 @@ class Evaluate:
 
     def _build_model(self, cfg, ckpt_pth):
         ckpt = torch.load(ckpt_pth)
+
         cfg["dataset"]["stats"] = ckpt["dataset_stats"]
         model_cfg = cfg["model"]
 

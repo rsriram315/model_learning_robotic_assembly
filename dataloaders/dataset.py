@@ -69,7 +69,7 @@ class DemoDataset(Dataset):
 
     def _read_all_demos(self):
         for data_path in self.data_paths:
-            print(f"Reading demo {data_path.name}")
+            print(f"Reading demo {data_path.name}\n")
             states, actions = self._read_one_demo(data_path,
                                                   self.state_attrs,
                                                   self.action_attrs,
@@ -241,8 +241,8 @@ class DemoDataset(Dataset):
         sample_time = np.arange(start_time, end_time, 1.0/sample_freq)
         sample_time = sample_time[:-20]  # for sim
         self.sample_time.extend(sample_time)
-        print(f"start at {start_time}, end at {end_time}, "
-              f"{sample_time.shape[0]} samples\n")
+        # print(f"start at {start_time}, end at {end_time}, "
+        #       f"{sample_time.shape[0]} samples\n")
 
         # position interpolation
         states_pos_interp = Interpolation(states["pos"], states["time"],
