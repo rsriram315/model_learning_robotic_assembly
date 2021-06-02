@@ -4,8 +4,8 @@ from copy import deepcopy
 from pathlib import Path
 
 from model import MCDropout
-from dataloaders import Normalization
-from visualization import EnsembleVisualize
+from dataloaders.data_processor import Normalization
+from visualization.vis_ensemble import EnsembleVisualize
 
 
 class MCDropoutVisualize(EnsembleVisualize):

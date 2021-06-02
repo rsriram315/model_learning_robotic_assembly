@@ -5,7 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from visualization.base_vis import BaseVisualize
-from dataloaders import Normalization
+from dataloaders.data_processor import Normalization
 
 
 class EnsembleVisualize(BaseVisualize):

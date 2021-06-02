@@ -1,6 +1,7 @@
 import torch
 
-from eval import Evaluate, EnsembleEvaluate
+from eval.mlp_eval import Evaluate
+from eval.ensemble_eval import EnsembleEvaluate
 
 
 # fix random seeds for reproducibility

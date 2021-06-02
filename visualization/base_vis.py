@@ -7,8 +7,9 @@ from torch.utils.data import DataLoader
 
 from model import MLP
 from utils import prepare_device
-from dataloaders import DemoDataset, Normalization,\
-                        recover_rotation, add_euler_angle
+from dataloaders.dataset import DemoDataset
+from dataloaders.data_processor import Normalization, recover_rotation,\
+                                       add_euler_angle
 
 
 class BaseVisualize:

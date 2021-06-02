@@ -4,8 +4,9 @@ import numpy as np
 from pathlib import Path
 from copy import deepcopy
 
-from visualization import EnsembleVisualize
-from dataloaders import Normalization, recover_rotation, add_euler_angle
+from visualization.vis_ensemble import EnsembleVisualize
+from dataloaders.data_processor import Normalization, recover_rotation,\
+                                       add_euler_angle
 
 
 torch.backends.cudnn.deterministic = True

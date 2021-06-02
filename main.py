@@ -1,12 +1,13 @@
 import setup  # noqa
 import argparse
 
-from train import train
-from evaluate import evaluate
-from visualize import visualize
 from utils import read_json
+from trainer import train
+from eval import evaluate
+from mpc import mpc_controller
+from visualization import visualize
+from visualization.vis_contact_force import vis_contact_force
 from rollout import rollout
-from utils.visualization import vis_contact_force
 
 
 def main(cfg_path):
@@ -25,6 +26,8 @@ def main(cfg_path):
         visualize(cfg)
     if cfg["rollout"]:
         rollout(cfg)
+    if cfg["mpc"]:
+        mpc_controller(cfg)
 
 
 if __name__ == '__main__':

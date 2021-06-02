@@ -4,7 +4,8 @@ import numpy as np
 from pathlib import Path
 
 from utils import read_json
-from dataloaders import DemoDataset, SegmentContact
+from dataloaders.dataset import DemoDataset
+from dataloaders.data_processor import SegmentContact
 
 
 def read_demo(fname):

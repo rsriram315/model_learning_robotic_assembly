@@ -6,9 +6,10 @@ from tqdm import tqdm
 from functools import partial
 
 from model import MLP, MCDropout
-from dataloaders import DemoDataset, DemoDataLoader
-from utils.logger import write_log
+from dataloaders import DemoDataLoader
+from dataloaders.dataset import DemoDataset
 from utils import prepare_device
+from utils.logger import write_log
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.enabled = True

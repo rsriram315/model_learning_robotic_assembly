@@ -1,5 +1,6 @@
-from visualization import MLPVisualize, EnsembleVisualize,\
-                                MCDropoutVisualize
+from visualization.vis_mlp import MLPVisualize
+from visualization.vis_ensemble import EnsembleVisualize
+from visualization.vis_mcdropout import MCDropoutVisualize
 
 
 def visualize(cfg):

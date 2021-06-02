@@ -3,8 +3,9 @@ import numpy as np
 from copy import deepcopy
 from pathlib import Path
 
-from visualization import MLPVisualize
-from dataloaders import Normalization, recover_rotation, add_euler_angle
+from visualization.vis_mlp import MLPVisualize
+from dataloaders.data_processor import Normalization, recover_rotation,\
+                                       add_euler_angle
 
 
 class MLPRollout(MLPVisualize):

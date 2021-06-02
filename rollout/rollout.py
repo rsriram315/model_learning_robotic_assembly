@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from rollout import MLPRollout, MCRollout, EnsembleRollout
+from rollout.mlp_rollout import MLPRollout
+from rollout.mc_rollout import MCRollout
+from rollout.ensemble_rollout import EnsembleRollout
 # EnsembleRandomRollout
 
 

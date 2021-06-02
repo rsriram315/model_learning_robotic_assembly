@@ -8,7 +8,6 @@ import h5py
 import numpy as np
 from datetime import datetime
 
-
 STATE = "PandaStatePublisherarm_states"
 ACTION = "PandaCartesianImpedanceControllercontrollerReference"
 GRIPPER = "franka_gripperjoint_states"
@@ -62,13 +61,6 @@ class DataCollection:
 
                 for key_1 in data.keys():
                     data_1 = self.recording[key][key_1]
-
-                    # if isinstance(data_1, dict):
-                    #     group_1 = group.create_group(key_1)
-                    #     for key_2 in data_1.keys():
-                    #         data_2 = self.recording[key][key_1][key_2]
-                    #         group_1.create_dataset(key_2, data=[data_2])
-                    # else:
                     group.create_dataset(key_1, data=data_1)
 
         self.num_recording += 1

@@ -3,8 +3,10 @@ import numpy as np
 from copy import deepcopy
 from pathlib import Path
 
-from trainer import Trainer, EnsembleTrainer
-from dataloaders import DemoDataset, DemoDataLoader
+from trainer import Trainer
+from trainer.ensemble_trainer import EnsembleTrainer
+from dataloaders import DemoDataLoader
+from dataloaders.dataset import DemoDataset
 
 
 # # fix random seeds for reproducibility
