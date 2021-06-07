@@ -6,6 +6,7 @@
 - [ ] How to give action into the simulation (MuJoCo), and get observation and reward out of it.
 - [ ] We don't have force input in the action, does the robot automatically transform the set point coordinate also in force?
 - [ ] What should I use for action? Can I just use velocity.
+- [ ] Fix [offscreen rendering](https://github.com/ARISE-Initiative/robosuite/issues/114#issuecomment-811295554).
 
 ## Week 14
 
