@@ -1,27 +1,34 @@
 # flake8: noqa
-import numpy as np
 import time
+import scipy
+import numpy as np
+import robosuite.utils.transform_utils as T
 
-from mpc import RandomShooting
+from mpc.random_shooting import RandomShooting
 
 
 class MPCRollout:
-    def __init__(self, env, dyn_model, rand_policy, params):
+    def __init__(self, env, dyn_model, random_policy, params):
         self.env = env
         self.dyn_model = dyn_model
-        self.rand_policy = rand_policy
+        self.random_policy = random_policy
         self.rollout_length = params.rollout_length
         self.K = params.K
 
-        self.reward_fn = env.unwrapped_env.get_reward
+        # self.reward_fn = env.reward
+        self.cost_fn = self.cost
 
         # init controller
-        self.controller_randshooting = RandomShooting(self.env, self.dyn_model, self.reward_fn, rand_policy, params)
+        self.controller_randshooting = RandomShooting(self.env, self.dyn_model, self.cost_fn, random_policy, params)
 
-    def perform_rollout(self, starting_fullenvstate, starting_observation, controller_type):
+    def cost(self, curr_state, goal):
+        # position only
+        return scipy.linalg.norm(curr_state[:3] - goal)
+
+    def perform_rollout(self, starting_envstate, starting_observation, controller_type):
         """
         Args:
-            starting_fullenvstate: full state of the mujoco env (enough to allow resetting it)
+            starting_envstate: state of the mujoco env (enough to allow resetting it)
             starting_observation: obs returned by env.reset when the state itself was starting_fullenvstate
             controller_type: 'rand' or 'mppi'
 
@@ -33,77 +40,104 @@ class MPCRollout:
         Returns:
             rollout_info: saving all info relevant to this rollout
         """
-
         rollout_start = time.time()
-
+        ########################
         # select controller type
-        if controller_type == 'rand':
-            get_action = self.controller_randshooting.get_action
+        ########################
+        # if controller_type == 'rand':
+        #     get_action = self.controller_randshooting.get_action
 
-        # list of saving
+        ##################
+        # lists for saving
+        ##################
         traj_taken = []
-        traj_taken_K = []
         actions_taken = []
-        actions_taken_K = []
         rewards = []
-        scores = []
         env_infos = []
-        list_mpe_1step = []
 
+        #######################
         # init vars for rollout
+        #######################
         total_reward_for_episode = 0
         step = 0
-        self.starting_fullenvstate = starting_fullenvstate
+        self.starting_envstate = starting_envstate
 
+        ###################################
         # initialize first K states/actions
-        zero_action = np.zeros((self.env.action_dim, ))
-        curr_state = np.copy(starting_observation)
-        curr_state_K = [curr_state]  # not K yet, but will be
+        ###################################
+        curr_state = np.copy(starting_envstate)
 
-        # take (K - 1) steps of action 0
-        for _ in range(self.K - 1):
-            # take step of action 0
-            curr_state, reward, _, env_info = self.env.step(zero_action)
-            step += 1
-
-            actions_taken.append(zero_action)
-            curr_state_K.append(curr_state)
-
-            # save info
-            rewards.append(reward)
-            scores.append(env_info["score"])
-            env_infos.appen(env_info)
-            total_reward_for_episode += reward
-
-            # rewards/actions/etc. are populated during these first K steps
-            # but traj_taken_K / traj_taken are not because curr_state_K is not of size K yet
-
-        traj_taken.append(curr_state)
-        traj_taken_K.append(curr_state_K)
-
+        #######################################
         # loop over steps in rollout
+        #######################################
         done = False
         while not(done or step >= self.rollout_length):
             # get optimal action
-            # curr_state_K: past K states
-            # actions_taken: past all actions (taken so far in this rollout)
-            best_action, predicted_states_ls = get_action(curr_state_K, actions_taken)
+            best_action = self.controller_randshooting.get_action(curr_state)
+            # print(f"best action: {best_action}")
 
-            action_to_take = np.copy(best_action)
-            clean_action = np.copy(action_to_take)
-            action_to_document = np.copy(clean_action)
+            # orientation matrix to quaternions
+            # action_to_take = np.hstack((np.copy(best_action)[:3], [1, 0, 0, 0]))
+            # action_to_take = np.copy(best_action)
+            # clean_action = np.copy(action_to_take)
+            # action_to_document = np.copy(clean_action)
 
-        # execute the action
-        next_state, reward, done, env_info = self.env.step(action_to_take)
+            ################################################
+            # transform the action in base frame to ee frame
+            ################################################
+            # make T_in_B as homogeneous matrix, and minus the curr_state pose
+            translation = best_action[:3] - self.env.unwrapped.robots[0]._hand_pos
+            pose = T.make_pose(translation, best_action[6:15].reshape((3,3)))
+            T_in_B = pose  # The tool center point frame expressed in the base frame
+            T_inc = T.pose_inv(self.env.unwrapped.robots[0]._hand_pose)
+            G_in_B =  T.pose_in_A_to_pose_in_B(T_in_B, T_inc)
+            action_pos = G_in_B[:3, -1] 
+            action_orn = T.mat2euler(G_in_B[:3, :3])
+            action_gripper = [-1]
+            action_to_take = np.hstack((action_pos,
+                                        action_orn,
+                                        action_gripper))
+            # print(action_to_take)
 
-        # get predicted next_state, use it to calculate model prediction error (mpe)
-        # get updated mean/std from the dynamics model
-        # TODO change the way of normalization
-        curr_mean_x = self.dyn_models.normalization_data.mean_x
-        curr_std_x = self.dyn_models.normalization_data.std_x
-        next_state_preprocessed = (next_state - curr_mean_x) / curr_std_x
+            ########################
+            # execute the action
+            ########################
+            next_obs, reward, done, env_info = self.env.step(action_to_take)
+            done
 
-        # the most recent (K-1) actions
-        actions_Kmin1 = np.array(actions_taken[-(self.K - 1):])  # [K-1, action_dim]
+            self.env.render()
 
-        # create
+            rewards.append(reward)
+            # scores.append(env_info['score'])
+            env_infos.append(env_info)
+            actions_taken.append(action_to_take)
+            total_reward_for_episode += reward
+
+            curr_state = np.hstack(
+                (self.env.unwrapped.robots[0]._hand_pos,
+                 self.env.unwrapped.robots[0].ee_force,
+                 self.env.unwrapped.robots[0]._hand_orn.flatten()))
+
+            traj_taken.append(curr_state)
+
+            # if (step % 100 == 0):
+            print("done step ", step, ", reward: ", reward)
+
+            step += 1
+
+            rollout_info = dict(
+                starting_state=starting_envstate,
+                observations=np.array(traj_taken),
+                actions=np.array(actions_taken),
+
+                rollout_rewardsPerStep=np.array(rewards),
+                rollout_rewardTotal=total_reward_for_episode,
+
+                # rollout_scoresPerStep=np.array(scores),
+                # rollout_meanScore=np.mean(scores),
+                # rollout_meanFinalScore=np.mean(scores[-5:]),
+
+                env_infos=env_infos,
+            )
+        print("Time for 1 rollout: {:0.2f} s\n\n".format(time.time() - rollout_start))
+        return rollout_info

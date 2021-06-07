@@ -3,49 +3,48 @@ import numpy as np
 
 
 class Policy_Random(object):
+    """
+    Generate one single random action
+    """
+
     def __init__(self, env):
         self.env = env
-        self.low_val = -1 * np.ones(self.env.action_space.low.shape)
-        self.high_val = np.ones(self.env.action_space.high.shape)
-        self.shape = self.env.action_space.shape
+
+        # Action space is represented by a tuple of (low, high),
+        # which are two numpy vectors that specify the min/max action limits per dimension.
+        self.low_val, self.high_val = self.env.action_spec
+        self.shape = self.env.action_dim
         self.counter = 0
 
         self.rand_action = np.random.uniform(self.low_val, self.high_val,
                                              self.shape)
 
-    def get_action(self, observation, prev_action, random_sampling_params, hold_action_overrideToOne=False):
+    def get_action(self, curr_state, random_sampling_params, hold_action_overrideToOne=False):
 
         # params for random sampling
-        sample_pos = random_sampling_params["sample_pos"]
-        pos_min = random_sampling_params["pos_min"]
-        pos_max = random_sampling_params["pos_max"]
+        sample_rot = random_sampling_params["sample_rot"]
+        angle_min = random_sampling_params["angle_min"]
+        angle_max = random_sampling_params["angle_max"]
         hold_action = random_sampling_params["hold_action"]
 
         if hold_action_overrideToOne:
             hold_action = 1
 
-        if sample_pos:
-            if prev_action is None:
-                # generate action for right now
-                self.rand_action = np.random.uniform(self.low_val, self.high_val,
-                                                    self.shape)
-                action = self.rand_action
-
-                # generate set point position, to be used if next steps might hold_action
-                self.pos_sample = np.random.uniform(pos_min, pos_max, self.action_space.low.shape)
-                self.direction_num = np.random.randint(0, 2, self.env.action_space.low.space)
-                self.pos_sample[self.direction_num == 0] = -self.pos_sample[self.direction_num == 0]
-            else:
-                if (self.counter % hold_action) == 0:
-                    self.pos_sample = np.random.uniform(pos_min, pos_max, self.env.action_space.low.shape)
-                    self.direction_num = np.random.randint(0, 2, self.env.action_space.low.space)
-                    self.pos_sample[self.direction_num == 0] = -self.pos_sample[self.direction_num == 0]
-
-                    # go opposite direction if you hit limit
-                    self.pos_sample[prev_action<=self.low_val] = np.abs(self.pos_sample)[prev_action<=self.low_val]
-                    self.pos_sample[prev_action>=self.high_val] = -np.abs(self.pos_sample)[prev_action>=self.high_val]
-                # new action
-                action = prev_action + self.pos_sample
+        ############################
+        # sample set point position
+        ############################
+        if not sample_rot:
+            if (self.counter % hold_action)==0:
+                # only sample set point position
+                z = np.random.uniform(self.low_val[2], self.high_val[2], 1)
+                self.rand_set_point = np.hstack((curr_state[:2], z))
+                self.rand_force = np.zeros(3)
+                self.rand_rot = np.copy(curr_state[6:15])
+                self.rand_action = np.hstack((self.rand_set_point,
+                                              self.rand_force,
+                                              self.rand_rot))
+            action = self.rand_action
 
         self.counter += 1
-        return action, 0
+
+        return action
