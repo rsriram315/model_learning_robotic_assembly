@@ -60,9 +60,7 @@ if __name__ == "__main__":
     env = suite.make(
         **config,
         has_renderer=True,
-        # has_renderer=False,
         has_offscreen_renderer=False,
-        # render_camera="agentview",
         render_camera=None,
         ignore_done=True,
         use_camera_obs=False,
@@ -114,6 +112,7 @@ if __name__ == "__main__":
         device.start_control()
         data_collector.reset()
 
+        # Get the initial position of eef
         robot_init_pos = env.unwrapped.robots[0]._hand_pos
 
         while True:
@@ -170,13 +169,14 @@ if __name__ == "__main__":
 
             # Step through the simulation and render
             obs, reward, done, info = env.step(action)
+            # print(f"reward is {reward}\n")
 
             # transform the action signal from spacemouse in ee frame to base frame
             T_in_B = env.unwrapped.robots[0]._hand_pose  # The tool center point frame expressed in the base frame
             T_inc = action_pose
             G_in_B =  T.pose_in_A_to_pose_in_B(T_inc, T_in_B)
             action_pos = G_in_B[:3, -1] 
-            action_ori = T.mat2quat(G_in_B[:3, :3])
+            action_orn = T.mat2quat(G_in_B[:3, :3])
 
             # print(f"setpt {G_in_B[:3, -1]}")
             # print(f"state {env.unwrapped.robots[0]._hand_pos}")
@@ -185,9 +185,10 @@ if __name__ == "__main__":
             # print(f"eef force {env.unwrapped.robots[0].ee_force}")
             # print(f"{env.unwrapped.robots[0]._joint_positions}")
             # print(f"eef force {np.linalg.norm(env.unwrapped.robots[0].ee_force)}\n")
+            # print(env.unwrapped.robots[0]._joint_positions)
 
             if not device.get_controller_state()["reset"]:
-                data_collector.record(action_pos, action_ori)
+                data_collector.record(action_pos, action_orn)
             else:
                 data_collector.flush()
                 break

@@ -87,7 +87,7 @@ class DataCollection:
                             "time_stamp": [],
                             "q": []}}
 
-    def record(self, action_pos, action_ori):
+    def record(self, action_pos, action_orn):
         # collect the current simulation state if necessary
         # if self.t % self.collect_freq == 0:
 
@@ -108,6 +108,6 @@ class DataCollection:
         # transform to base frame and also express the orientation in changes
         self.recording[ACTION]["time_stamp"].append(self.env.unwrapped.cur_time)
         self.recording[ACTION]["pose"].append(
-            np.hstack((action_pos, action_ori)))
+            np.hstack((action_pos, action_orn)))
         # orientation still needed to be convert to quaternions
         self.recording[ACTION]["wrench"].append([0, 0, 0, 0, 0, 0])

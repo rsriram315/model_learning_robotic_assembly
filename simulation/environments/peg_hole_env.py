@@ -9,6 +9,7 @@ from simulation.models.objects.hole import RoundHole
 from simulation.models.objects.peg import PegObj
 
 INIT_QPOS = np.array([-0.011, 0.670, 0.011, -2.120, 0.002, 2.796, 0.762])
+# INIT_QPOS = np.array([-0.002, 0.728, 0.003, -2.043, -0.015, 2.708, 0.812])
 HOLE_OFFSET = [0, 0, 0.79]
 
 class PegInHoleEnv(SingleArmEnv):
@@ -169,34 +170,47 @@ class PegInHoleEnv(SingleArmEnv):
         reward = 0
 
         # Right location and angle
-        if self._check_success():
-            reward = 1.0
+        # if self._check_success():
+        #     reward = 1.0
+        #     self.done = True
 
         # use a shaping reward
         if self.reward_shaping:
-            # Grab relevant values
-            t, d, cos = self._compute_orientation()
-            # reaching reward, with coord w.r.t. table as origin
-            # added offset to make successful insertion reward = 1
-            hole_pos = self.sim.data.body_xpos[self.hole_body_id] + HOLE_OFFSET
-            peg_pos = self.sim.data.body_xpos[self.peg_body_id]
-            dist = np.linalg.norm(peg_pos - hole_pos)
-            reaching_reward = 1 - np.tanh(1.0 * dist)
-            reward += reaching_reward
+            # # Grab relevant values
+            # t, d, cos = self._compute_orientation()
+            # # reaching reward, with coord w.r.t. table as origin
+            # # added offset to make successful insertion reward = 1
+            # hole_pos = self.sim.data.body_xpos[self.hole_body_id] + HOLE_OFFSET
+            # peg_pos = self.sim.data.body_xpos[self.peg_body_id]
+            # dist = np.linalg.norm(peg_pos - hole_pos)
+            # reaching_reward = 1 - np.tanh(1.0 * dist)
+            # reward += reaching_reward
 
-            # Orientation reward
-            reward += 1 - np.tanh(d)
-            reward += 1 - np.tanh(np.abs(t))
-            reward += cos
+            # # Orientation reward
+            # reward += 1 - np.tanh(d)
+            # reward += 1 - np.tanh(np.abs(t))
+            # reward += cos
+            z_dist = self._compute_z_dist()
+            reaching_reward = 1 - np.tanh(z_dist)
+            reward = reaching_reward
 
         # if we're not reward shaping, scale sparse reward so that the max reward is identical to its dense version
         else:
-            reward *= 4.0
+            reward *= 1.0
 
         if self.reward_scale is not None:
-            reward *= self.reward_scale / 4.0
+            reward *= self.reward_scale / 1.0
 
         return reward
+
+    def _post_action(self, action):
+        reward, self.done, _ = super()._post_action(action)
+
+        # Right location and angle
+        if self._check_success():
+            self.done = True
+
+        return reward, self.done, {}
 
     def _check_success(self):
         """
@@ -205,9 +219,15 @@ class PegInHoleEnv(SingleArmEnv):
         Returns:
             bool: True if peg is placed in hole correctly
         """
-        t, d, cos = self._compute_orientation()
+        # t, d, cos = self._compute_orientation()
+        # return d < 0.08 and -0.00055 <= t <= 0.00055 and cos > 0.999
+        return self._compute_z_dist() < 0.08
 
-        return d < 0.08 and -0.00055 <= t <= 0.00055 and cos > 0.999
+    def _compute_z_dist(self):
+        peg_pos = self.sim.data.body_xpos[self.peg_body_id]
+        hole_pos = self.sim.data.body_xpos[self.hole_body_id]
+
+        return (peg_pos - hole_pos)[2]
 
     def _compute_orientation(self):
         """
