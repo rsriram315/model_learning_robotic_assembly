@@ -2,7 +2,7 @@ import setup  # noqa
 import argparse
 
 from utils import read_json
-from trainer import train
+from trainer.train import train
 from eval import evaluate
 from mpc import mpc_controller
 from visualization import visualize
