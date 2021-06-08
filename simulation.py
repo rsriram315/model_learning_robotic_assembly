@@ -172,11 +172,11 @@ if __name__ == "__main__":
             # print(f"reward is {reward}\n")
 
             # transform the action signal from spacemouse in ee frame to base frame
-            T_in_B = env.unwrapped.robots[0]._hand_pose  # The tool center point frame expressed in the base frame
-            T_inc = action_pose
-            G_in_B =  T.pose_in_A_to_pose_in_B(T_inc, T_in_B)
-            action_pos = G_in_B[:3, -1] 
-            action_orn = T.mat2quat(G_in_B[:3, :3])
+            T_from_EE_to_B = env.unwrapped.robots[0]._hand_pose  # The tool center point frame expressed in the base frame
+            target_pose_in_EE = action_pose
+            target_pose_in_B =  T.pose_in_A_to_pose_in_B(target_pose_in_EE, T_from_EE_to_B)
+            action_pos = target_pose_in_B[:3, -1] 
+            action_orn = T.mat2quat(target_pose_in_B[:3, :3])
 
             # print(f"setpt {G_in_B[:3, -1]}")
             # print(f"state {env.unwrapped.robots[0]._hand_pos}")
