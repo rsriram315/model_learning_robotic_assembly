@@ -239,7 +239,13 @@ class DemoDataset(Dataset):
         end_time = min(max(states["time"]), max(actions["time"]))
 
         sample_time = np.arange(start_time, end_time, 1.0/sample_freq)
-        sample_time = sample_time[:-20]  # for sim
+
+        # TODO you have to manually change the sample time range
+        # because the slerp algorithm do not extrapolate
+        # therefore if you change the sl_factor, it could raise error
+        sample_time = sample_time[:-1]  # for sim, due to bug of slerp
+        # sample_time = sample_time[:-200]  # for sim, due to bug of slerp
+
         self.sample_time.extend(sample_time)
         # print(f"start at {start_time}, end at {end_time}, "
         #       f"{sample_time.shape[0]} samples\n")

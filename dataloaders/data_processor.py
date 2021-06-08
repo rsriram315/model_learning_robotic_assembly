@@ -171,6 +171,7 @@ class Interpolation:
 
     def _slerp(self, time_stamp):
         # output rotation matrix
+        # TODO slerp cannot extrapolate, you need to adjust the timestamp range
         return self.slerp_fn(time_stamp).as_matrix().reshape((-1, 9))
 
     def _get_slerp_fn(self):
