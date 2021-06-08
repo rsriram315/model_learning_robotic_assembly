@@ -1,6 +1,6 @@
 # flake8: noqa
 import numpy as np
-from mpc.helper import get_goal_pos
+from mpc.helper import get_goal
 
 
 class RandomShooting(object):
@@ -19,8 +19,7 @@ class RandomShooting(object):
         # self.env = deepcopy(env)
 
         # TODO position range or even also rotation range
-        self.random_sampling_params = {'sample_rot': params.sample_rot,
-                                       'angle_min': params.rand_policy_angle_min,
+        self.random_sampling_params = {'angle_min': params.rand_policy_angle_min,
                                        'angle_max': params.rand_policy_angle_max,
                                        'hold_action': params.rand_policy_hold_action}
 
@@ -78,8 +77,8 @@ class RandomShooting(object):
         #####################################
 
         # average all the ending states in the recording as goal position
-        goal_pos = get_goal_pos()
-        costs = calculate_costs(resulting_states_ls, goal_pos, self.cost_fn)
+        goal_pos, goal_orn = get_goal()
+        costs = calculate_costs(resulting_states_ls, (goal_pos, goal_orn), self.cost_fn)
 
         # pick best action sequence
         best_score = np.min(costs)
@@ -116,7 +115,6 @@ def calculate_costs(resulting_states_ls, goal, cost_fn):
 
     #init vars for calculating costs
     horizon, num_sample_seq, _ = resulting_states_ls.shape
-    costs = np.zeros((num_sample_seq * len(resulting_states_ls),))
 
     # accumulate cost over each timestep
     costs = []

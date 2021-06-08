@@ -1,10 +1,11 @@
 # flake8: noqa
 import time
-import scipy
 import numpy as np
 import robosuite.utils.transform_utils as T
 
 from mpc.random_shooting import RandomShooting
+
+FORCE_SCALING_FACTOR = 0.000001
 
 
 class MPCRollout:
@@ -19,11 +20,16 @@ class MPCRollout:
         self.cost_fn = self.cost
 
         # init controller
-        self.controller_randshooting = RandomShooting(self.env, self.dyn_model, self.cost_fn, random_policy, params)
+        self.controller_randshooting = RandomShooting(self.env,
+                                                      self.dyn_model,
+                                                      self.cost_fn,
+                                                      random_policy, params)
+        self.controller_mppi = None
 
-    def cost(self, curr_state, goal):
-        # position only
-        return scipy.linalg.norm(curr_state[:3] - goal)
+    def cost(self, curr_state, goal_state):
+        # reward is normalized
+        mpc_cost = 1 - self.env.reward(curr_state=curr_state, goal_state=goal_state)
+        return mpc_cost
 
     def perform_rollout(self, starting_envstate, starting_observation, controller_type):
         """
@@ -44,8 +50,10 @@ class MPCRollout:
         ########################
         # select controller type
         ########################
-        # if controller_type == 'rand':
-        #     get_action = self.controller_randshooting.get_action
+        if controller_type == 'rand':
+            get_action = self.controller_randshooting.get_action
+        elif controller_type == 'mppi':
+            get_action = self.controller_mppi.get_action
 
         ##################
         # lists for saving
@@ -74,41 +82,35 @@ class MPCRollout:
         while not(done or step >= self.rollout_length):
             # get optimal action
             best_action = self.controller_randshooting.get_action(curr_state)
-            # print(f"best action: {best_action}")
-
-            # orientation matrix to quaternions
-            # action_to_take = np.hstack((np.copy(best_action)[:3], [1, 0, 0, 0]))
-            # action_to_take = np.copy(best_action)
-            # clean_action = np.copy(action_to_take)
-            # action_to_document = np.copy(clean_action)
 
             ################################################
             # transform the action in base frame to ee frame
             ################################################
             # make T_in_B as homogeneous matrix, and minus the curr_state pose
-            translation = best_action[:3] - self.env.unwrapped.robots[0]._hand_pos
-            pose = T.make_pose(translation, best_action[6:15].reshape((3,3)))
-            T_in_B = pose  # The tool center point frame expressed in the base frame
-            T_inc = T.pose_inv(self.env.unwrapped.robots[0]._hand_pose)
-            G_in_B =  T.pose_in_A_to_pose_in_B(T_in_B, T_inc)
-            action_pos = G_in_B[:3, -1] 
-            action_orn = T.mat2euler(G_in_B[:3, :3])
+            target_in_B = T.make_pose(best_action[:3], best_action[6:15].reshape((3, 3)))
+            # The tool center point frame expressed in the base frame
+            curr_pose_in_B = self.env.unwrapped.robots[0]._hand_pose
+
+            T_from_B_to_EE = T.pose_inv(curr_pose_in_B)
+            target_in_EE =  T.pose_in_A_to_pose_in_B(target_in_B, T_from_B_to_EE)
+
+            action_pos = target_in_EE[:3, -1]
+
+            action_orn = T.mat2euler(target_in_EE[:3, :3])
+
             action_gripper = [-1]
             action_to_take = np.hstack((action_pos,
                                         action_orn,
                                         action_gripper))
-            # print(action_to_take)
 
             ########################
             # execute the action
             ########################
-            next_obs, reward, done, env_info = self.env.step(action_to_take)
-            done
+            _, reward, done, env_info = self.env.step(action_to_take)
 
             self.env.render()
 
             rewards.append(reward)
-            # scores.append(env_info['score'])
             env_infos.append(env_info)
             actions_taken.append(action_to_take)
             total_reward_for_episode += reward
@@ -120,7 +122,6 @@ class MPCRollout:
 
             traj_taken.append(curr_state)
 
-            # if (step % 100 == 0):
             print("done step ", step, ", reward: ", reward)
 
             step += 1
@@ -132,10 +133,6 @@ class MPCRollout:
 
                 rollout_rewardsPerStep=np.array(rewards),
                 rollout_rewardTotal=total_reward_for_episode,
-
-                # rollout_scoresPerStep=np.array(scores),
-                # rollout_meanScore=np.mean(scores),
-                # rollout_meanFinalScore=np.mean(scores[-5:]),
 
                 env_infos=env_infos,
             )

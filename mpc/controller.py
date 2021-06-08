@@ -12,13 +12,12 @@ from mpc.policy_random import Policy_Random
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
         dict(K=1,
-             rollout_length=200,
-             horizon=20,
              controller_type='rand',
+             horizon=10,
+             rollout_length=200,
              num_sample_seq=200,
-             sample_rot=False,
-             rand_policy_angle_min=0,
-             rand_policy_angle_max=0,
+             rand_policy_angle_min=-0.001,
+             rand_policy_angle_max=0.001,
              rand_policy_hold_action=1))
 
     dyn_model = Dyn_Model(cfg)
@@ -48,6 +47,7 @@ def mpc_controller(cfg):
 
         env.render()
 
+        # unnormalized starting state
         starting_state = np.hstack(
             (env.unwrapped.robots[0]._hand_pos,
              env.unwrapped.robots[0].ee_force,
@@ -86,6 +86,7 @@ def _build_env(controller_name='OSC_POSE',
         has_renderer=True,
         has_offscreen_renderer=False,
         render_camera="agentview",
+        # render_camera=None,
         ignore_done=False,
         use_camera_obs=False,
         reward_shaping=True,
