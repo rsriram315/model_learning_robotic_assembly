@@ -73,10 +73,10 @@ class Dyn_Model:
             [curr_state for _ in range(num_sample_seq)])
         curr_state_per_seq = self.norm.normalize(curr_state_per_seq[:, None, :])
 
-        with torch.no_grad():
-            for h in range(horizon):
+        for h in range(horizon):
+            with torch.no_grad():
                 # change only the z direction only for prototyping
-                curr_action_per_seq = np.copy(curr_state_per_seq)
+                # curr_action_per_seq = np.copy(curr_state_per_seq)
                 curr_action_per_seq = actions_to_perform[:, h]
 
                 curr_state_action = np.hstack((curr_state_per_seq,

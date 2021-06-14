@@ -46,6 +46,9 @@ class DemoDataset(Dataset):
         self.states_force = []
         self.actions_force = []
 
+        # self.sample_time_end = -200
+        self.sample_time_end = -1
+
         self._read_all_demos()
 
     def __len__(self):
@@ -243,8 +246,9 @@ class DemoDataset(Dataset):
         # TODO you have to manually change the sample time range
         # because the slerp algorithm do not extrapolate
         # therefore if you change the sl_factor, it could raise error
-        sample_time = sample_time[:-1]  # for sim, due to bug of slerp
+        # sample_time = sample_time[:-1]  # for sim, due to bug of slerp
         # sample_time = sample_time[:-200]  # for sim, due to bug of slerp
+        sample_time = sample_time[:self.sample_time_end]
 
         self.sample_time.extend(sample_time)
         # print(f"start at {start_time}, end at {end_time}, "

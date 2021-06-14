@@ -6,6 +6,7 @@ This data collection wrapper is useful for collecting demonstrations.
 import os
 import h5py
 import numpy as np
+import robosuite.utils.transform_utils as T
 from datetime import datetime
 
 STATE = "PandaStatePublisherarm_states"
@@ -87,27 +88,30 @@ class DataCollection:
                             "time_stamp": [],
                             "q": []}}
 
-    def record(self, action_pos, action_orn):
+    def record(self, curr_pose, action_pose, curr_wrench, curr_time):
         # collect the current simulation state if necessary
         # if self.t % self.collect_freq == 0:
 
+        curr_pos = curr_pose[:3, 3]
+        curr_orn = T.mat2quat(np.copy(curr_pose[:3, :3]))
+
+        action_pos = action_pose[:3, 3]
+        action_orn = T.mat2quat(np.copy(action_pose[:3, :3]))
+
         # gripper state
-        self.recording[GRIPPER]["time_stamp"].append(self.env.unwrapped.cur_time)
-        self.recording[GRIPPER]["q"].append(
-            np.hstack((self.env.unwrapped.robots[0].ee_force, self.env.unwrapped.robots[0].ee_torque)))
+        self.recording[GRIPPER]["time_stamp"].append(curr_time)
+        self.recording[GRIPPER]["q"].append(curr_time)
 
         # transform to base frame is still needed
-        self.recording[STATE]["time_stamp"].append(self.env.unwrapped.cur_time)
+        self.recording[STATE]["time_stamp"].append(curr_time)
         # https://robosuite.ai/docs/simulation/robot.html heres said that the _hand_pos and _hand_quat
         # are the position and orientation of the end-effector in base frame of the robot
-        self.recording[STATE]["tcp_pose_base"].append(
-            np.hstack((self.env.unwrapped.robots[0]._hand_pos, self.env.unwrapped.robots[0]._hand_quat)))
-        self.recording[STATE]["tcp_wrench_ee"].append(
-            np.hstack((self.env.unwrapped.robots[0].ee_force, self.env.unwrapped.robots[0].ee_torque)))
+        self.recording[STATE]["tcp_pose_base"].append(np.hstack((curr_pos, curr_orn)))
+        # np.hstack((self.env.unwrapped.robots[0]._hand_pos, self.env.unwrapped.robots[0]._hand_quat)))
+        self.recording[STATE]["tcp_wrench_ee"].append(curr_wrench)
 
         # transform to base frame and also express the orientation in changes
-        self.recording[ACTION]["time_stamp"].append(self.env.unwrapped.cur_time)
-        self.recording[ACTION]["pose"].append(
-            np.hstack((action_pos, action_orn)))
+        self.recording[ACTION]["time_stamp"].append(curr_time)
+        self.recording[ACTION]["pose"].append(np.hstack((action_pos, action_orn)))
         # orientation still needed to be convert to quaternions
         self.recording[ACTION]["wrench"].append([0, 0, 0, 0, 0, 0])

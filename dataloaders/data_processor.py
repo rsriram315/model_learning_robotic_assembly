@@ -82,7 +82,7 @@ class Normalization:
                  "stat_4": self.stat_4}
         return stats
 
-    def normalize(self, data, is_res=False):
+    def normalize(self, data, is_res=False, is_action=False):
         """
         standard normalization for data
         """
@@ -99,21 +99,37 @@ class Normalization:
             else:
                 stat_1, stat_2 = self.stat_1, self.stat_2
 
-        dim = data.shape[1]  # check if state action or not
-        normalized_data = (data - stat_1[:dim]) / stat_2[:dim]
+        if is_action:
+            dim = 1
+            std = stat_2[1]
+            mean = stat_1[1]
+        else:
+            dim = data.shape[1]  # check if state action or not
+            std = stat_2[:dim]
+            mean = stat_1[:dim]
+
+        normalized_data = (data - mean) / std
         if dim == 1:
             normalized_data = np.squeeze(normalized_data, axis=1)
         return 2 * (normalized_data - 0.5)
 
-    def inv_normalize(self, data, is_res=False):
+    def inv_normalize(self, data, is_res=False, is_action=False):
         if is_res:
             stat_1, stat_2 = self.stat_3, self.stat_4
         else:
             stat_1, stat_2 = self.stat_1, self.stat_2
 
-        dim = data.shape[1]  # check if state action or not
-        scaled_data = (data / 2 + 0.5) * (stat_2[:dim] - _FLOAT_EPS)
-        inversed_data = scaled_data + stat_1[:dim]
+        if is_action:
+            dim = 1
+            std = stat_2[1]
+            mean = stat_1[1]
+        else:
+            dim = data.shape[1]  # check if state action or not
+            std = stat_2[:dim]
+            mean = stat_1[:dim]
+
+        scaled_data = (data / 2 + 0.5) * (std - _FLOAT_EPS)
+        inversed_data = scaled_data + mean
         if dim == 1:
             inversed_data = np.squeeze(inversed_data, axis=1)
         return inversed_data

@@ -1,12 +1,23 @@
 # TODOs
 
+## Week 16
+
+- In the simulation experiment, all the actions and states are expressed in global frame (in real panda robot setup, base frame is used)
+- The action in simulation including the setpoint position (not delta!!!), and the orientation is delta orientation.
+
 ## Week 15
 
-- [ ] Have a look at the code of [pddm](https://github.com/google-research/pddm), try to see how to implement a MPC or MPPI (model predictive path integral)
-- [ ] How to give action into the simulation (MuJoCo), and get observation and reward out of it.
-- [ ] We don't have force input in the action, does the robot automatically transform the set point coordinate also in force?
-- [ ] What should I use for action? Can I just use velocity.
-- [ ] Fix [offscreen rendering](https://github.com/ARISE-Initiative/robosuite/issues/114#issuecomment-811295554).
+- [x] Have a look at the code of [pddm](https://github.com/google-research/pddm), try to see how to implement a MPC or MPPI (model predictive path integral)
+- [x] Fix (not working) [offscreen rendering](https://github.com/ARISE-Initiative/robosuite/issues/114#issuecomment-811295554).
+- [x] Implemented random shooting algorithm, by just using the distance in z axis as cost.
+- [x] Figure out why the action is not just in z direction
+  - Reason: your eef z axis is not well aligned with the world z axis!!! and it would be flunctuate after it's moving!!!
+- [x] Should we add constraint of force strength, to make it gentle?
+- [x] For the cost, I use exponential average (discounting factor 0.9)
+- [x] Train a mlp model match the 20Hz control frequency
+- [x] Normalized distance difference, then calculate the cost
+- [ ] Plot the force
+- [ ] I don't think the MPPI is implemented 100% according to the formular, especially the filtering part!!!
 
 ## Week 14
 

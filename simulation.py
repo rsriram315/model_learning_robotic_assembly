@@ -1,9 +1,11 @@
 import argparse
 import numpy as np
+from numpy.lib.function_base import select
 import robosuite as suite
 import robosuite.utils.transform_utils as T
 from robosuite import load_controller_config
 from robosuite.wrappers import VisualizationWrapper
+from robosuite.environments.base import register_env
 
 from simulation.utils.input import input2action
 from simulation.utils.data_collection import DataCollection
@@ -55,6 +57,8 @@ if __name__ == "__main__":
         config["env_configuration"] = args.config
     else:
         args.config = None
+
+    register_env(PegInHoleEnv)
 
     # Create environment
     env = suite.make(
@@ -120,8 +124,12 @@ if __name__ == "__main__":
             active_robot = (env.robots[0] if args.config == "bimanual"
                             else env.robots[args.arm == "left"])
 
+            ##############################################################
+            # The spacemouse/keyboard generates delta movement in ee_frame
+            ##############################################################
+
             # Get the newest action
-            action, action_pose, grasp = input2action(
+            action, action_G_pose, grasp = input2action(
                 device=device,
                 robot=active_robot,
                 robot_init_pos=robot_init_pos,
@@ -167,17 +175,36 @@ if __name__ == "__main__":
                 # so trim the action space to be the action dim
                 action = action[:env.action_dim]
 
+            ##########################################################################
+            # transform the action signal from spacemouse in global frame to base frame
+            ##########################################################################
+
+            curr_G_pos = np.copy(env.unwrapped.sim.data.body_xpos[env.peg_body_id])
+            curr_G_orn = np.copy(env.unwrapped.sim.data.body_xmat[env.peg_body_id]).reshape((3, 3))
+            curr_G_pose = T.make_pose(curr_G_pos, curr_G_orn)
+
+            # the position is set point in global frame, while the rotation is the delta rotation
+            action_G_pose = action_G_pose.dot(curr_G_pose)
+
+            curr_wrench = np.hstack((env.unwrapped.robots[0].ee_force,
+                                     env.unwrapped.robots[0].ee_torque))
+
+            curr_time = env.unwrapped.cur_time
+
+            ########################################################
+            # However, the env takes the action as in world frame
+            # TODO: which we need to do transformation to account to that!
+            ########################################################
+
             # Step through the simulation and render
             obs, reward, done, info = env.step(action)
-            # print(f"reward is {reward}\n")
 
-            # transform the action signal from spacemouse in ee frame to base frame
-            T_from_EE_to_B = env.unwrapped.robots[0]._hand_pose  # The tool center point frame expressed in the base frame
-            target_pose_in_EE = action_pose
-            target_pose_in_B =  T.pose_in_A_to_pose_in_B(target_pose_in_EE, T_from_EE_to_B)
-            action_pos = target_pose_in_B[:3, -1] 
-            action_orn = T.mat2quat(target_pose_in_B[:3, :3])
-
+            ###################
+            # Debug information
+            ###################
+            # print(f'current pose: {curr_G_pos}')
+            # print(f'action: {action[:3]}')
+            # print(f'target pos: {action_pos}'
             # print(f"setpt {G_in_B[:3, -1]}")
             # print(f"state {env.unwrapped.robots[0]._hand_pos}")
             # print(f"setptori {action_ori}")
@@ -186,9 +213,12 @@ if __name__ == "__main__":
             # print(f"{env.unwrapped.robots[0]._joint_positions}")
             # print(f"eef force {np.linalg.norm(env.unwrapped.robots[0].ee_force)}\n")
             # print(env.unwrapped.robots[0]._joint_positions)
+            # print(f'ground truth pos {env.unwrapped.sim.data.body_xpos[env.peg_body_id]}\n')
+            # print(f"reward is {reward}\n")
 
+            # Record state and action
             if not device.get_controller_state()["reset"]:
-                data_collector.record(action_pos, action_orn)
+                data_collector.record(curr_G_pose, action_G_pose, curr_wrench, curr_time)
             else:
                 data_collector.flush()
                 break

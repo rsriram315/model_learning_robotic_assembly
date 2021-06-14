@@ -1,74 +1,76 @@
-import robosuite as suite
+# flake8: noqa
 import numpy as np
+import robosuite as suite
 from types import SimpleNamespace
 from robosuite.wrappers import VisualizationWrapper
+from robosuite.environments.base import register_env
 
-from simulation.environments.peg_hole_env import PegInHoleEnv  # noqa
 from mpc.dyn_model import Dyn_Model
 from mpc.mpc_rollout import MPCRollout
 from mpc.policy_random import Policy_Random
+from mpc.helper import get_goal
+from simulation.environments.peg_hole_env import PegInHoleEnv
 
 
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
-        dict(K=1,
-             controller_type='rand',
-             horizon=10,
-             rollout_length=200,
-             num_sample_seq=200,
-             rand_policy_angle_min=-0.001,
-             rand_policy_angle_max=0.001,
-             rand_policy_hold_action=1))
+                dict(controller_type='rand_shooting',
+                     horizon=10,
+                     max_step=200,
+                     num_sample_seq=100,
+                     rand_policy_angle_min=-0.01,
+                     rand_policy_angle_max=0.01,
+                     rand_policy_hold_action=1))
 
     dyn_model = Dyn_Model(cfg)
 
-    env = _build_env()
-    rand_policy = Policy_Random(env.unwrapped)
+    env = build_env()
+    rand_policy = Policy_Random(env)
 
+    goal_state = get_goal()
     mpc_rollout = MPCRollout(env,
                              dyn_model,
                              rand_policy,
+                             goal_state,
                              params)
 
     ################################
     # RUN ROLLOUTS
     ################################
 
-    list_rewards = []
-    # list_scores = []
-    rollouts = []
     num_eval_rollouts = 1
 
     for rollout_num in range(num_eval_rollouts):
         # Note: if you want to evaluate a particular goal, call env.reset with
         # a reset_state where that reset_state dict has reset_pose, reset_vel,
         # and reset_goal
-        starting_observation = env.reset()
+        env.reset()
 
         env.render()
 
+        # Get the initial global frame state of eef
+        robot_init_pos = np.copy(env.unwrapped.sim.data.body_xpos[env.peg_body_id])
+        robot_init_force = np.copy(env.unwrapped.robots[0].ee_force)
+        robot_init_orn = np.copy(env.unwrapped.sim.data.body_xmat[env.peg_body_id].flatten())
+
+        # # base frame states
+        # robot_init_pos = np.copy(env.unwrapped.robots[0]._hand_pos)
+        # robot_init_force = np.copy(env.unwrapped.robots[0].ee_force)
+        # robot_init_orn = np.copy(env.unwrapped.robots[0]._hand_orn.flatten())
+
         # unnormalized starting state
-        starting_state = np.hstack(
-            (env.unwrapped.robots[0]._hand_pos,
-             env.unwrapped.robots[0].ee_force,
-             env.unwrapped.robots[0]._hand_orn.flatten()))
+        starting_state = np.hstack((robot_init_pos,
+                                    robot_init_force,
+                                    robot_init_orn))
 
         print(f"\n... Performing MPC rollout #{rollout_num}")
 
-        rollout_info = mpc_rollout.perform_rollout(
-            starting_state,
-            starting_observation,
-            controller_type=params.controller_type)
-
-        # save info from MPC rollout
-        list_rewards.append(rollout_info['rollout_rewardTotal'])
-        # list_scores.append(rollout_info['rollout_meanFinalScore'])
-        rollouts.append(rollout_info)
+        mpc_rollout.perform_rollout(starting_state)
 
 
-def _build_env(controller_name='OSC_POSE',
-               env_name='PegInHoleEnv',
-               robots='Panda'):
+def build_env(controller_name='OSC_POSE',
+              env_name='PegInHoleEnv',
+              robots='Panda'):
     # Get controller config
     controller_config = suite.load_controller_config(
         default_controller=controller_name)
@@ -79,6 +81,8 @@ def _build_env(controller_name='OSC_POSE',
         "robots": robots,
         "controller_configs": controller_config,
     }
+
+    register_env(PegInHoleEnv)
 
     # Create environment
     env = suite.make(

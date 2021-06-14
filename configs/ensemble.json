@@ -4,6 +4,7 @@
     "evaluate": false,
     "visualize": false,
     "rollout": true,
+    "mpc": false,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
