@@ -5,6 +5,8 @@ from pathlib import Path
 from tqdm import tqdm
 from functools import partial
 
+from zmq.backend import device
+
 from model import MLP, MCDropout
 from dataloaders import DemoDataLoader
 from dataloaders.dataset import DemoDataset
@@ -29,7 +31,7 @@ class Evaluate:
             ckpt_pth = self.cfg["eval"]["ckpt_pth"]
 
         self.model, self.cfg = self._build_model(self.cfg,
-                                                 ckpt_pth)
+                                                 ckpt_pth,)
 
         self.dataloader, self.demo_fnames =\
             self._load_demos(self.cfg["dataset"], self.cfg["dataloader"])
@@ -85,10 +87,12 @@ class Evaluate:
         # build model architecture, then print to console
         if model_cfg["name"] == "MLP":
             model = MLP(model_cfg["input_dims"],
-                        model_cfg["output_dims"])
+                        model_cfg["output_dims"],
+                        self.device)
         elif model_cfg["name"] == "MCDropout":
             model = MCDropout(model_cfg["input_dims"],
-                              model_cfg["output_dims"])
+                              model_cfg["output_dims"],
+                              self.device)
         print(model)
 
         # load model checkpoint

@@ -4,17 +4,18 @@ import xml.etree.ElementTree as ET
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 from robosuite.models.arenas import TableArena
 from robosuite.models.tasks import ManipulationTask
-
+from robosuite.utils.mjcf_utils import array_to_string, find_elements, new_site
 from simulation.models.objects.hole import RoundHole
 from simulation.models.objects.peg import PegObj
 
 # INIT_QPOS = np.array([-0.005, 0.487, 0.005, -2.180, -0.008, 2.676, 0.830])  # high pos
 # INIT_QPOS = np.array([-0.012, 0.716, 0.010, -2.098, 0.025, 2.816, 0.857])  # low pos
-INIT_QPOS = np.array([-0.011, 0.715, 0.009, -2.095, -0.004, 2.808, 0.791])
+# INIT_QPOS = np.array([-0.011, 0.715, 0.009, -2.095, -0.004, 2.808, 0.791])
 # INIT_QPOS = np.array([0.106, 0.731, -0.058, -1.999, -0.359, 2.593, 1.188])  # tilt pos
 # INIT_QPOS = np.array([-0.100, 0.753, 0.038, -1.956, 0.422, 2.524, 0.427])  # tilt pos
 
 # INIT_QPOS = np.array([-0.011, 0.670, 0.011, -2.120, 0.002, 2.796, 0.762])  # insert pos
+INIT_QPOS = np.array([-0.012, 0.248, 0.013, -2.187, 0.002, 2.433, 0.791])  # reaching task
 HOLE_OFFSET = [0, 0, 0.079]
 FORCE_SCALING_FACTOR = 0.00001
 
@@ -120,12 +121,14 @@ class PegInHoleEnv(SingleArmEnv):
         mujoco_arena.merge(self.hole, merge_body="table")
 
         self.peg = PegObj(name="peg")
-        arm_name = "gripper0_eef"  # weld peg to eef
+        # arm_name = "gripper0_eef"  # weld peg to eef
+        arm_name = self.robots[0].robot_model.eef_name
         self.robots[0].robot_model.merge(self.peg, merge_body=arm_name)
 
         # weld peg to the arm
         elem = ET.Element('weld')
-        elem.set('body1', 'gripper0_eef')
+        # elem.set('body1', 'gripper0_eef')
+        elem.set('body1', arm_name)
         elem.set('body2', 'peg_object')
         elem.set('solref', '0.02 1')
         self.robots[0].robot_model.equality.append(elem)

@@ -65,7 +65,7 @@ if __name__ == "__main__":
         **config,
         has_renderer=True,
         has_offscreen_renderer=False,
-        render_camera=None,
+        render_camera="frontview",
         ignore_done=True,
         use_camera_obs=False,
         reward_shaping=True,
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     )
 
     # Wrap this environment in a visualization wrapper
-    data_dir = "data"
+    data_dir = "data/data_reach"
     env = VisualizationWrapper(env, indicator_configs=None)
     data_collector = DataCollection(env, data_dir)
 

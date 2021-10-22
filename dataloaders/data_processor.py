@@ -106,7 +106,7 @@ class Normalization:
         else:
             dim = data.shape[1]  # check if state action or not
             std = stat_2[:dim]
-            mean = stat_1[:dim]
+            mean = stat_1[:dim] #stat 1 calculates the minimum of the data!
 
         normalized_data = (data - mean) / std
         if dim == 1:

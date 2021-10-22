@@ -52,10 +52,12 @@ class Trainer(BaseTrainer):
         # build model architecture, then print to console
         if model_cfg["name"] == "MLP":
             model = MLP(model_cfg["input_dims"],
-                        model_cfg["output_dims"])
+                        model_cfg["output_dims"],
+                        self.device)
         elif model_cfg["name"] == "MCDropout":
             model = MCDropout(model_cfg["input_dims"],
                               model_cfg["output_dims"],
+                              self.device,
                               ds_stats)
 
         print(model)

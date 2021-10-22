@@ -16,7 +16,7 @@ def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
                 dict(controller_type='rand_shooting',
                      horizon=10,
-                     max_step=200,
+                     max_step=100,
                      num_sample_seq=100,
                      rand_policy_angle_min=-0.01,
                      rand_policy_angle_max=0.01,
@@ -38,7 +38,7 @@ def mpc_controller(cfg):
     # RUN ROLLOUTS
     ################################
 
-    num_eval_rollouts = 1
+    num_eval_rollouts = 5
 
     for rollout_num in range(num_eval_rollouts):
         # Note: if you want to evaluate a particular goal, call env.reset with
@@ -52,6 +52,7 @@ def mpc_controller(cfg):
         robot_init_pos = np.copy(env.unwrapped.sim.data.body_xpos[env.peg_body_id])
         robot_init_force = np.copy(env.unwrapped.robots[0].ee_force)
         robot_init_orn = np.copy(env.unwrapped.sim.data.body_xmat[env.peg_body_id].flatten())
+
 
         # # base frame states
         # robot_init_pos = np.copy(env.unwrapped.robots[0]._hand_pos)
@@ -89,7 +90,7 @@ def build_env(controller_name='OSC_POSE',
         **config,
         has_renderer=True,
         has_offscreen_renderer=False,
-        render_camera="agentview",
+        render_camera="frontview",
         # render_camera=None,
         ignore_done=False,
         use_camera_obs=False,
@@ -97,5 +98,6 @@ def build_env(controller_name='OSC_POSE',
         control_freq=20,
         hard_reset=False,
     )
+
     env = VisualizationWrapper(env, indicator_configs=None)
     return env

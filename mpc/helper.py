@@ -4,7 +4,7 @@ from pathlib import Path
 from scipy.spatial.transform import Rotation as R
 
 
-def get_goal(data_dir_name="/home/paj7rng/amira_ML/data"):
+def get_goal(data_dir_name="/home/rsr7rng/thesis/model_learning/data"):
     data_dir = Path(data_dir_name)
     recording_ls = list(data_dir.glob("*.h5"))
 

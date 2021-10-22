@@ -180,8 +180,8 @@ class BaseVisualize:
                 states.extend(state_action[:, None, :15].numpy())
                 # targets.extend(target[:, None, :].numpy())
 
-                state_action, target = (state_action.to('cuda'),
-                                        target.to('cuda'))
+                state_action, target = (state_action.to(self.device),
+                                        target.to(self.device))
                 output = model(state_action)
                 loss = criterion(output, target)
                 loss = torch.mean(loss, axis=1)
@@ -215,7 +215,8 @@ class BaseVisualize:
 
         # build model architecture, then print to console
         model = MLP(model_cfg["input_dims"],
-                    model_cfg["output_dims"])
+                    model_cfg["output_dims"],
+                    self.device)
         model.load_state_dict(ckpt["state_dict"])
 
         model = model.to(self.device)

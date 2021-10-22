@@ -31,13 +31,14 @@ class Dyn_Model:
         else:
             ckpt_pth = self.cfg["eval"]["ckpt_pth"]
 
-        ckpt = torch.load(ckpt_pth)
+        ckpt = torch.load(ckpt_pth, map_location=self.device)
         cfg["dataset"]["stats"] = ckpt["dataset_stats"]
         model_cfg = cfg["model"]
 
         # build model architecture, then print to console
         model = MLP(model_cfg["input_dims"],
-                    model_cfg["output_dims"])
+                    model_cfg["output_dims"],
+                    self.device)
         print(model)
 
         # load model checkpoint
@@ -82,7 +83,7 @@ class Dyn_Model:
                 curr_state_action = np.hstack((curr_state_per_seq,
                                                curr_action_per_seq))
                 curr_state_action = torch.tensor(curr_state_action,
-                                                 dtype=torch.float32).to('cuda')
+                                                 dtype=torch.float32).to(self.device)
 
                 # run through NN to get predictions (diff)
                 pred_state_diff_K = self.model(curr_state_action)

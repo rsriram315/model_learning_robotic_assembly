@@ -2,10 +2,9 @@
 import time
 import numpy as np
 import robosuite.utils.transform_utils as T
-
-from mpc.random_shooting import RandomShooting
+from scipy.spatial.transform import Rotation as R
+from mpc.random_shooting_panda import RandomShooting
 from mpc.mppi import MPPI
-
 
 
 class MPCRollout:
@@ -31,12 +30,15 @@ class MPCRollout:
                                    self.dyn_model,
                                    self.cost,
                                    rand_policy, params)
-
+    
     def cost(self, curr_state, goal_state):
+        """
+        TODO fix reward function
+        """
         # reward is normalized
-        mpc_cost = 1 - self.env.reward(curr_state=curr_state, goal_state=goal_state)
+        mpc_cost = self.env._cost(curr_state=curr_state, goal_state=goal_state)
         return mpc_cost
-
+    
     def perform_rollout(self, starting_envstate):
         """
         Args:
@@ -64,7 +66,6 @@ class MPCRollout:
         # initialize first K states/actions
         ###################################
         curr_state = np.copy(starting_envstate)
-        print("starting_state", curr_state)
 
         #######################################
         # loop over steps in rollout
@@ -79,40 +80,29 @@ class MPCRollout:
                 self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
                 self.controller.mppi_mean[:, 6:15] = np.eye(3).flatten()  # action rotation is delta
             best_action = self.controller.get_action(curr_state, self.goal_state)
-            # print("best_action", best_action)
-            ####################################################
-            # transform the action in base frame to global frame
-            ####################################################
-            curr_G_pos = np.copy(self.env.unwrapped.sim.data.body_xpos[self.env.peg_body_id])
-            # print("curr_pos eef", curr_G_pos)
-            # curr_G_orn = np.copy(self.env.unwrapped.sim.data.body_xmat[self.env.peg_body_id])
-            # curr_G_pose = T.make_pose(curr_G_pos, curr_G_orn)
-
-            # target_in_G = T.make_pose(best_action[:3], best_action[6:15].reshape((3, 3)))
-
-            # diff_in_G = curr_G_pose.dot(T.pose_inv(target_in_G))
-
-            action_pos = best_action[:3] - curr_G_pos
-            action_orn = T.mat2euler(best_action[6:15].reshape((3, 3)))
-            action_gripper = [-1]
-            action_to_take = np.hstack((action_pos,
-                                        action_orn,
-                                        action_gripper))
+            # print("curr pos", self.env._get_obs()[:3])
+            best_action_pos = best_action[:3] - np.copy(self.env._get_obs()[:3])
+            best_action_rot = best_action[6:]
+            # best_action_rot = best_action_rot_matrix.as_rotvec()
+            # print(best_action_rot)
+            action_to_take = np.hstack((best_action_pos,
+                                       best_action_rot))
             print("action to take:",action_to_take)
-
-            ########################
+            ########################    
             # execute the action
             ########################
             _, reward, done, _ = self.env.step(action_to_take)
-            print(f"force magnitude {np.linalg.norm(self.env.robots[0].ee_force)}\n")
-            self.env.render()
 
-            curr_state = np.hstack(
-                (self.env.unwrapped.sim.data.body_xpos[self.env.peg_body_id],
-                 self.env.unwrapped.robots[0].ee_force,
-                 self.env.unwrapped.sim.data.body_xmat[self.env.peg_body_id].flatten()))
+            curr_robot_pos = np.copy(self.env._get_obs()[:3])
+            curr_r = R.from_rotvec(np.copy(self.env._get_obs()[3:6]))
+            curr_robot_orn = curr_r.as_matrix().flatten()
+            curr_robot_force = np.copy(self.env._get_obs()[6:9])
 
+            curr_state = np.hstack((curr_robot_pos,
+                                   curr_robot_force,
+                                   curr_robot_orn))
+            
             print("finished step ", step, ", reward: ", reward)
             step += 1
-
+        
         print("Time for 1 rollout: {:0.2f} s\n\n".format(time.time() - rollout_start))

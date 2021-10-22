@@ -46,8 +46,8 @@ class DemoDataset(Dataset):
         self.states_force = []
         self.actions_force = []
 
-        # self.sample_time_end = -200
-        self.sample_time_end = -1
+        self.sample_time_end = -200
+        # self.sample_time_end = -1
 
         self._read_all_demos()
 
@@ -77,13 +77,11 @@ class DemoDataset(Dataset):
                                                   self.state_attrs,
                                                   self.action_attrs,
                                                   self.contact_only)
-
             # sliding window factor, data_sampling_freq / pred_freq
             states_actions, states_padding = \
                 self._pair_state_action(self.sample_freq,
                                         states, actions,
                                         self.sl_factor)
-
             # learning the residual
             tmp_targets = np.vstack((states_actions[:, 0],
                                     states_padding))
@@ -109,6 +107,7 @@ class DemoDataset(Dataset):
         self.targets = norm.normalize(self.targets[:, None, :],
                                       is_res=True)
         self.stats = norm.get_stats()
+        print(self.stats)
 
     def _read_one_demo(self,
                        data_path,
@@ -237,7 +236,6 @@ class DemoDataset(Dataset):
         """
         form state action pair from one demo
         """
-
         start_time = max(min(states["time"]), min(actions["time"]))
         end_time = min(max(states["time"]), max(actions["time"]))
 
@@ -254,6 +252,8 @@ class DemoDataset(Dataset):
         # print(f"start at {start_time}, end at {end_time}, "
         #       f"{sample_time.shape[0]} samples\n")
 
+        # print(actions["time"])
+        # print(states["time"])
         # position interpolation
         states_pos_interp = Interpolation(states["pos"], states["time"],
                                           self.preprocess["interp"]["pos"])

@@ -1,11 +1,11 @@
 import torch
 
 
-def normalize_vector(v):
+def normalize_vector(v, device):
     batch = v.shape[0]
     v_mag = torch.sqrt(v.pow(2).sum(1))
     v_mag = torch.max(v_mag, torch.tensor([1e-8], requires_grad=True,
-                                          dtype=torch.float32).cuda())
+                                          dtype=torch.float32).to(device))
     v_mag = v_mag.view(batch, 1).expand(batch, v.shape[1])
     v = v / v_mag
     return v
@@ -21,7 +21,7 @@ def cross_product(u, v):
     return out
 
 
-def compute_rotation_matrix_from_ortho6d(raw_output):
+def compute_rotation_matrix_from_ortho6d(raw_output, device):
     """
     This orthogonalization is different from the paper. see this issue:
         https://github.com/papagina/RotationContinuity/issues/2
@@ -35,9 +35,9 @@ def compute_rotation_matrix_from_ortho6d(raw_output):
     x_raw = raw_output[:, 6:9]
     y_raw = raw_output[:, 9:12]
 
-    x = normalize_vector(x_raw)
+    x = normalize_vector(x_raw, device)
     z = cross_product(x, y_raw)
-    z = normalize_vector(z)
+    z = normalize_vector(z, device)
     y = cross_product(z, x)
 
     x = x.view(-1, 3)
