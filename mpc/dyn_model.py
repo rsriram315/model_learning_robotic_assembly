@@ -66,6 +66,7 @@ class Dyn_Model:
         #    need to calculate the loss.
         # 3. the action should also be recovered.
         state_list = []
+        norm_state_list = []
         num_sample_seq, horizon, _ = actions_to_perform.shape
 
         # populate the state to dim of [num_traj, action_dim],
@@ -73,6 +74,7 @@ class Dyn_Model:
         curr_state_per_seq = np.vstack(
             [curr_state for _ in range(num_sample_seq)])
         curr_state_per_seq = self.norm.normalize(curr_state_per_seq[:, None, :])
+
 
         for h in range(horizon):
             with torch.no_grad():
@@ -82,11 +84,13 @@ class Dyn_Model:
 
                 curr_state_action = np.hstack((curr_state_per_seq,
                                                curr_action_per_seq))
+
                 curr_state_action = torch.tensor(curr_state_action,
                                                  dtype=torch.float32).to(self.device)
-
+                # print("curr state action", curr_state_action[:5])
                 # run through NN to get predictions (diff)
                 pred_state_diff_K = self.model(curr_state_action)
+                # print("model prediction", pred_state_diff_K[:5])
 
                 # predictions are the diff, we need to recover it
                 pred_state_K, recover_pred_state_K = \
@@ -97,8 +101,14 @@ class Dyn_Model:
                 curr_state_per_seq = np.copy(pred_state_K)
                 # save current state
                 state_list.append(np.copy(recover_pred_state_K))
+                norm_state_list.append(np.copy(pred_state_K))
 
-        return np.array(state_list)
+                # next_state = self.norm.inv_normalize(actions_to_perform[:, None, h], is_action=True)
+                # state_list.append(next_state)
+                # next_state_norm  =actions_to_perform[:, h]
+                # norm_state_list.append(np.copy(next_state_norm))
+
+        return np.array(state_list), np.array(norm_state_list)
 
     def _recover_data(self, ro_pred, ro_state):
         curr_ro_state = self.norm.inv_normalize(ro_state[:, None, :])
@@ -107,6 +117,6 @@ class Dyn_Model:
         recover_ro_output[:, :6] += curr_ro_state[:, :6]
         recover_ro_output = recover_rotation(np.copy(recover_ro_output),
                                              np.copy(curr_ro_state))
-
         new_ro_state = self.norm.normalize(recover_ro_output[:, None ,:])
+
         return new_ro_state, recover_ro_output

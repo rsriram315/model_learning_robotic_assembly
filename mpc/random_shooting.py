@@ -66,7 +66,7 @@ class RandomShooting:
 
         # average all the ending states in the recording as goal position
         costs = calculate_costs(resulting_states_ls, goal_state, self.cost_fn)
-
+        print("costs", costs)
         # pick best action sequence
         best_score = np.min(costs)
         best_sim_number = np.argmin(costs)

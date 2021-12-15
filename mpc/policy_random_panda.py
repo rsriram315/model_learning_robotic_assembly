@@ -1,5 +1,6 @@
 # flake8: noqa
 import numpy as np
+from numpy.core.fromnumeric import size
 from scipy.spatial.transform import Rotation as R
 
 class Policy_Random(object):
@@ -12,12 +13,10 @@ class Policy_Random(object):
 
         # Action space is represented by a tuple of (low, high),
         # which are two numpy vectors that specify the min/max action limits per dimension.
-        self.low_value = self.env._action_space.low
-        self.high_value = self.env._action_space.high
         self.counter = 0
         self.rand_action = None
 
-    def get_action(self, curr_state, random_sampling_params, hold_action_overrideToOne=False):
+    def get_action(self, curr_state, random_sampling_params, hold_action_overrideToOne=False, traj_count=0):
         # params for random sampling
         angle_min = random_sampling_params["angle_min"]
         angle_max = random_sampling_params["angle_max"]
@@ -30,23 +29,24 @@ class Policy_Random(object):
         # sample set point position
         ############################
         if (self.counter % hold_action)==0:
-            # self.rand_set_point = np.random.uniform(self.low_value[:3], self.high_value[:3], 3)
-            self.rand_set_point = np.random.normal(0, 2/3, 3)
-            # print("random pos:", self.rand_set_point)
-
+            # toy actions for checking the model
+            z_set_point_ls = np.arange(0.45, -0., -0.002)
+            # # self.rand_set_point = np.array([0.307, 0., z_set_point_ls[traj_count]])
+            
+            # sample actions in [-1,1]
+            self.rand_set_point = np.random.uniform(np.array([-1, -1, -1]), np.array([1, 1, 1]), 3)
+            # self.rand_set_point = np.array([0.69785281, -0.01056377, np.random.uniform(-1, 1)])
             self.rand_force = np.zeros(3)
-
+            # self.rand_rot = np.array([1, 0, 0, 0, 1, 0, 0, 0, 1])
             self.rand_euler = R.from_euler('zyx', np.random.uniform(angle_min, angle_max, size=3) * np.pi)
             self.rand_rot = self.rand_euler.as_matrix().flatten()
-            # self.rand_rot  = np.random.uniform(-1, 1, 9)
 
             self.rand_action = np.hstack((self.rand_set_point,
                                           self.rand_force,
                                           self.rand_rot))
 
-        # TODO check if action has to turned in to array with numpy
         action = self.rand_action
-        # print("random action", action)
+
         self.counter += 1
 
         return action

@@ -73,7 +73,7 @@
     "visualization": {
         "loss": true,
         "axis": true,
-        "trajectory": false,
+        "trajectory": true,
         "contact": false
     }
 }

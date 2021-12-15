@@ -47,7 +47,9 @@ def mpc_controller(cfg):
         env.reset()
 
         env.render()
-
+        print("action dimension", env.action_dim)
+        print("action spec", env.action_spec)
+        print(env.controller.action_limits)
         # Get the initial global frame state of eef
         robot_init_pos = np.copy(env.unwrapped.sim.data.body_xpos[env.peg_body_id])
         robot_init_force = np.copy(env.unwrapped.robots[0].ee_force)
@@ -63,7 +65,7 @@ def mpc_controller(cfg):
         starting_state = np.hstack((robot_init_pos,
                                     robot_init_force,
                                     robot_init_orn))
-
+        print("obs", starting_state[:3])
         print(f"\n... Performing MPC rollout #{rollout_num}")
 
         mpc_rollout.perform_rollout(starting_state)
@@ -75,7 +77,7 @@ def build_env(controller_name='OSC_POSE',
     # Get controller config
     controller_config = suite.load_controller_config(
         default_controller=controller_name)
-
+    print("controller_config", controller_config)
     # Create argument configuration
     config = {
         "env_name": env_name,

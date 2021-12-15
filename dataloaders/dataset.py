@@ -59,10 +59,15 @@ class DemoDataset(Dataset):
         target = self.targets[idx, :]
         if self.is_train:
             if np.random.uniform() < 0.2:  # 0.2 probility to add noise
+                # print("state before", state)
+                # print("action", action)
                 state = add_noise(state)
-                state = homogeneous_transform(state)
+                state = homogeneous_transform(state, t_noise=0.001)
+                # print("state after", state)
+                # print("target before", target)
                 target = add_noise(target)
-                target = homogeneous_transform(target, r_noise=0.00001)
+                target = homogeneous_transform(target, r_noise=0.00001, t_noise=0.001)
+                # print("target after", target)
 
         sample = np.hstack((state, action))
         return np.float32(sample), np.float32(target)
@@ -101,13 +106,16 @@ class DemoDataset(Dataset):
 
         self.states_actions = np.array(self.states_actions)
         self.targets = np.array(self.targets)
-
+        print("self.states_actions", self.states_actions.shape)
         norm = Normalization(self.stats)
         self.states_actions = norm.normalize(self.states_actions)
         self.targets = norm.normalize(self.targets[:, None, :],
                                       is_res=True)
         self.stats = norm.get_stats()
         print(self.stats)
+
+        # plotting actions before and after normalisation
+        
 
     def _read_one_demo(self,
                        data_path,

@@ -24,11 +24,19 @@ def homogeneous_transform(data, r_noise=0.001, t_noise=0.1):
     homogeneous_matrix = np.zeros((4, 4))
     homogeneous_matrix[:3, :3] = rotation_matrix
     homogeneous_matrix[:, -1] = np.hstack((translation, 1))
-
+    # print("np.hstack((data[:3], 1))", np.hstack((data[:3], 1)).shape)
+    # print("homogenous matrix", homogeneous_matrix)
     data[:3] = np.copy(homogeneous_matrix @
                        np.hstack((data[:3], 1)))[:3]
+
+    # print("(homogeneous_matrix @ np.hstack((data[:3], 1)))", (homogeneous_matrix @
+    #                    np.hstack((data[:3], 1))))
+
     data[6:] = (np.copy(data[6:].reshape(3, 3) @
                         homogeneous_matrix[:3, :3]).flatten())
+    
+    # print(" data[6:].reshape(3, 3) @ homogeneous_matrix[:3, :3]", data[6:].reshape(3, 3) @
+    #                     homogeneous_matrix[:3, :3])
     return data
 
 
@@ -62,24 +70,24 @@ class Normalization:
     Normalization of data, (x - min(x)) / (max(x) - min(x)).
     """
     def __init__(self, stats):
-        self.stat_1 = stats["stat_1"]
-        self.stat_2 = stats["stat_2"]
-        self.stat_3 = stats["stat_3"]
-        self.stat_4 = stats["stat_4"]
+        self.stat_1 = stats["state_action_minimum"]
+        self.stat_2 = stats["state_action_range"]
+        self.stat_3 = stats["delta_state_min"]
+        self.stat_4 = stats["delta_state_range"]
 
     def _stats(self, data):
-        stat_1 = np.amin(data, axis=0)
-        stat_2 = np.amax(data, axis=0) - stat_1 + _FLOAT_EPS
+        array_min = np.amin(data, axis=0)
+        array_range = np.amax(data, axis=0) - array_min + _FLOAT_EPS
 
-        stat_1[:, 6:] = np.zeros(9) - 1
-        stat_2[:, 6:] = np.ones(9) + 1
-        return stat_1, stat_2
+        array_min[:, 6:] = np.zeros(9) - 1
+        array_range[:, 6:] = np.ones(9) + 1
+        return array_min, array_range
 
     def get_stats(self):
-        stats = {"stat_1": self.stat_1,
-                 "stat_2": self.stat_2,
-                 "stat_3": self.stat_3,
-                 "stat_4": self.stat_4}
+        stats = {"state_action_minimum": self.stat_1,
+                 "state_action_range": self.stat_2,
+                 "delta_state_min": self.stat_3,
+                 "delta_state_range": self.stat_4}
         return stats
 
     def normalize(self, data, is_res=False, is_action=False):
@@ -88,48 +96,50 @@ class Normalization:
         """
         if is_res:
             if self.stat_3 is None or self.stat_4 is None:
-                stat_1, stat_2 = self._stats(data)
-                self.stat_3, self.stat_4 = stat_1, stat_2
+                array_min, array_range = self._stats(data)
+                self.stat_3, self.stat_4 = array_min, array_range
             else:
-                stat_1, stat_2 = self.stat_3, self.stat_4
+                array_min, array_range = self.stat_3, self.stat_4
         else:
             if self.stat_1 is None or self.stat_2 is None:
-                stat_1, stat_2 = self._stats(data)
-                self.stat_1, self.stat_2 = stat_1, stat_2
+                array_min, array_range = self._stats(data)
+                self.stat_1, self.stat_2 = array_min, array_range
             else:
-                stat_1, stat_2 = self.stat_1, self.stat_2
+                array_min, array_range = self.stat_1, self.stat_2
 
         if is_action:
             dim = 1
-            std = stat_2[1]
-            mean = stat_1[1]
+            range = array_range[1]
+            min = array_min[1]
         else:
+            # state_actions has dim [N_samples, 2, 15]
+            # best action has dim [1, 1, 15]
             dim = data.shape[1]  # check if state action or not
-            std = stat_2[:dim]
-            mean = stat_1[:dim] #stat 1 calculates the minimum of the data!
+            range = array_range[:dim]
+            min = array_min[:dim]  
 
-        normalized_data = (data - mean) / std
+        normalized_data = (data - min) / range
         if dim == 1:
             normalized_data = np.squeeze(normalized_data, axis=1)
         return 2 * (normalized_data - 0.5)
 
     def inv_normalize(self, data, is_res=False, is_action=False):
         if is_res:
-            stat_1, stat_2 = self.stat_3, self.stat_4
+            array_min, array_range = self.stat_3, self.stat_4
         else:
-            stat_1, stat_2 = self.stat_1, self.stat_2
+            array_min, array_range = self.stat_1, self.stat_2
 
         if is_action:
             dim = 1
-            std = stat_2[1]
-            mean = stat_1[1]
+            range = array_range[1]
+            min = array_min[1]
         else:
             dim = data.shape[1]  # check if state action or not
-            std = stat_2[:dim]
-            mean = stat_1[:dim]
+            range = array_range[:dim]
+            min = array_min[:dim]
 
-        scaled_data = (data / 2 + 0.5) * (std - _FLOAT_EPS)
-        inversed_data = scaled_data + mean
+        scaled_data = (data / 2 + 0.5) * (range - _FLOAT_EPS)
+        inversed_data = scaled_data + min
         if dim == 1:
             inversed_data = np.squeeze(inversed_data, axis=1)
         return inversed_data

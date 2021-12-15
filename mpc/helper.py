@@ -14,13 +14,14 @@ def get_goal(data_dir_name="/home/rsr7rng/thesis/model_learning/data"):
     for recording in recording_ls:
         with h5py.File(recording, 'r') as f:
             goal_pos_ls.append(np.array(
-                f['PandaStatePublisherarm_states']['tcp_pose_base'])[-1, :3])
+                f['PandaStatePublisherarm_states']['tcp_pose_base'])[-200, :3])
             goal_orn_quat_ls.append(np.array(
-                f['PandaStatePublisherarm_states']['tcp_pose_base'])[-1, 3:])
+                f['PandaStatePublisherarm_states']['tcp_pose_base'])[-200, 3:])
 
     goal_pos = np.mean(goal_pos_ls, axis=0)
-    goal_orn = R.from_quat(goal_orn_quat_ls).mean().as_matrix()
-
+    # goal_orn = R.from_quat(goal_orn_quat_ls).mean().as_matrix()
+    # considering upright quaternion as the goal orientation
+    goal_orn = R.from_quat([1, 0, 0, 0]).as_matrix()
     return goal_pos, goal_orn
 
 
@@ -46,16 +47,15 @@ def calculate_costs(resulting_states_ls, goal, cost_fn):
     ###########################################################
     # calculate costs associated with each predicted trajectory
     ###########################################################
-
     #init vars for calculating costs
     horizon, num_sample_seq, _ = resulting_states_ls.shape
-
+ 
     # accumulate cost over each timestep
     costs = []
     for traj in range(num_sample_seq):
         cost = 0
-        for h in range(horizon-1, 0, -1):
-            cost = cost_fn(resulting_states_ls[h, traj, :], goal) + 0.9 * cost
+        for h in range(horizon-1, -1, -1):
+            cost = cost_fn(resulting_states_ls[h, traj, :], goal) + (0.9 * cost)
         costs.append(cost)
 
     return np.array(costs)
