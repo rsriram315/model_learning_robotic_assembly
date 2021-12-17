@@ -13,7 +13,7 @@ class Policy_Random(object):
 
         # Action space is represented by a tuple of (low, high),
         # which are two numpy vectors that specify the min/max action limits per dimension.
-        self.counter = 0
+        self.counter = 1
         self.rand_action = None
 
     def get_action(self, curr_state, random_sampling_params, hold_action_overrideToOne=False, traj_count=0):
@@ -24,6 +24,11 @@ class Policy_Random(object):
 
         if hold_action_overrideToOne:
             hold_action = 1
+        
+        if self.counter == 1:
+            self.init_rot = R.from_matrix(curr_state[6:15].reshape(3,3))
+            self.init_euler_angle = self.init_rot.as_euler('zyx')
+            print("self.init_euler_angle", self.init_euler_angle)
 
         ############################
         # sample set point position
@@ -38,7 +43,7 @@ class Policy_Random(object):
             # self.rand_set_point = np.array([0.69785281, -0.01056377, np.random.uniform(-1, 1)])
             self.rand_force = np.zeros(3)
             # self.rand_rot = np.array([1, 0, 0, 0, 1, 0, 0, 0, 1])
-            self.rand_euler = R.from_euler('zyx', np.random.uniform(angle_min, angle_max, size=3) * np.pi)
+            self.rand_euler = R.from_euler('zyx', self.init_euler_angle + np.random.uniform(angle_min, angle_max, size=3) * np.pi)
             self.rand_rot = self.rand_euler.as_matrix().flatten()
 
             self.rand_action = np.hstack((self.rand_set_point,

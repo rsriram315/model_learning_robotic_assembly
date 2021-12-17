@@ -12,9 +12,9 @@ _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
                 dict(controller_type='rand_shooting',
-                     horizon=10,
-                     max_step=100,
-                     num_sample_seq=3000,
+                     horizon=1,
+                     max_step=150,
+                     num_sample_seq=1000,
                      rand_policy_angle_min=-0.01,
                      rand_policy_angle_max=0.01,
                      rand_policy_hold_action=1))
@@ -27,15 +27,13 @@ def mpc_controller(cfg):
     goal_pos, goal_orn = get_goal()
     print("goal_state ", goal_pos)
     print("goal orn", goal_orn)
-    goal_pos_norm = (goal_pos - np.array([0.29454313, -0.02973482,  0.02580059])) / np.array([1.07804996e-01, 4.36442115e-02, 4.49540457e-01])
-    goal_pos_norm = 2 * (goal_pos_norm - 0.5)
     
-    print("goal_state norm", goal_pos_norm) #[ 0.69785281 -0.01056377 -0.56079903]
-
-    goal_pos_inv_norm  = (goal_pos / 2 + 0.5) * (np.array([1.07804996e-01, 4.36442115e-02, 4.49540457e-01]) + _FLOAT_EPS)
-    goal_pos_inv_norm = goal_pos_inv_norm + np.array([0.29454313, -0.02973482,  0.02580059])
-    
-    print("goal_state inv_norm", goal_pos_inv_norm) #[ 0.36925531 -0.00809042  0.27855918]
+    # goal_pos_norm = (goal_pos - np.array([0.29454313, -0.02973482,  0.02580059])) / np.array([1.07804996e-01, 4.36442115e-02, 4.49540457e-01])
+    # goal_pos_norm = 2 * (goal_pos_norm - 0.5)
+    # print("goal_state norm", goal_pos_norm) #[ 0.69785281 -0.01056377 -0.56079903]
+    # goal_pos_inv_norm  = (goal_pos / 2 + 0.5) * (np.array([1.07804996e-01, 4.36442115e-02, 4.49540457e-01]) + _FLOAT_EPS)
+    # goal_pos_inv_norm = goal_pos_inv_norm + np.array([0.29454313, -0.02973482,  0.02580059])
+    # print("goal_state inv_norm", goal_pos_inv_norm) #[ 0.36925531 -0.00809042  0.27855918]
 
     goal_state = goal_pos, goal_orn
 
@@ -80,9 +78,10 @@ def build_env():
     random.seed(seed)
     np.random.seed(seed)
     # specify the env name
-    env = PandaReachModelLearning(initial_position=[0.307, -0.000, 0.45],
-                                  target_position=[0.386, -0.008,  0.125],  #panda reach new  0.386, -0.008,  0.124
-                                  max_position_offset=np.inf,   # goal panda sideways 0.39650042, 0.35287725, 0.2123521
-                                  pause_for_train=True,)
+    env = PandaReachModelLearning(initial_position=[0.395, 0.373, 0.40],  # reach [0.307, -0.000, 0.45]
+                                  target_position=[0.403, 0.384, 0.285 ],  # reach [0.386, -0.008,  0.125]
+                                  max_position_offset=np.inf,
+                                  nullspace_q_ref = [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117])   
+                                #   pause_for_train=True,) [0.3980723  0.38012593 0.31273318]
     env.seed(seed)
     return env

@@ -54,6 +54,7 @@ class RandomShooting:
         # all_actions: [num_sample_seq, num_rollout, num_action_dim]
         all_actions = np.array(all_samples)
 
+
         # z_set_point_ls = np.arange(0.45, 0.125, -0.002)
         # z_set_point_ls = np.arange(curr_state[2]+0.1, curr_state[2]-0.1, -0.002)
         # print("z set points", z_set_point_ls)

@@ -1,7 +1,7 @@
 # flake8: noqa
 import time
 import numpy as np
-import robosuite.utils.transform_utils as T
+# import robosuite.utils.transform_utils as T
 from scipy.spatial.transform import Rotation as R
 from mpc.random_shooting_panda import RandomShooting
 from mpc.mppi_panda import MPPI
@@ -34,7 +34,7 @@ class MPCRollout:
                                    self.cost,
                                    rand_policy, params)
     
-    def cost(self, curr_state, goal_state):
+    def cost(self, curr_state, goal_state ):
         """
         TODO fix reward function
         """
@@ -136,9 +136,9 @@ class MPCRollout:
         # norm_pred_states = np.asarray(norm_predicted_state)
         actual_state = np.asarray(true_state)
         x_axis = [index for index in range (len(actual_state))]
-        goal_x = np.full((len(actual_state),), 0.386)
-        goal_y = np.full((len(actual_state),), -0.008)
-        goal_z = np.full((len(actual_state),), 0.125)
+        goal_x = np.full((len(actual_state),), 0.403)
+        goal_y = np.full((len(actual_state),), 0.384)
+        goal_z = np.full((len(actual_state),), 0.285)
         y1_z_axis = actual_state[:,2]
         y2_z_axis = pred_states[:,2]
         y3_x_axis = actual_state[:,0]
