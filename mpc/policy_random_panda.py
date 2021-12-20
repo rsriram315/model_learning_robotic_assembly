@@ -43,7 +43,7 @@ class Policy_Random(object):
             # self.rand_set_point = np.array([0.69785281, -0.01056377, np.random.uniform(-1, 1)])
             self.rand_force = np.zeros(3)
             # self.rand_rot = np.array([1, 0, 0, 0, 1, 0, 0, 0, 1])
-            self.rand_euler = R.from_euler('zyx', self.init_euler_angle + np.random.uniform(angle_min, angle_max, size=3) * np.pi)
+            self.rand_euler = R.from_euler('zyx', np.random.uniform(angle_min, angle_max, size=3) * np.pi)
             self.rand_rot = self.rand_euler.as_matrix().flatten()
 
             self.rand_action = np.hstack((self.rand_set_point,

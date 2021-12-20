@@ -138,7 +138,7 @@ class MPCRollout:
         x_axis = [index for index in range (len(actual_state))]
         goal_x = np.full((len(actual_state),), 0.403)
         goal_y = np.full((len(actual_state),), 0.384)
-        goal_z = np.full((len(actual_state),), 0.285)
+        goal_z = np.full((len(actual_state),), 0.2857)
         y1_z_axis = actual_state[:,2]
         y2_z_axis = pred_states[:,2]
         y3_x_axis = actual_state[:,0]

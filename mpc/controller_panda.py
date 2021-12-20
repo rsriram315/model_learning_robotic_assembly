@@ -7,16 +7,17 @@ from mpc.dyn_model import Dyn_Model
 from mpc.mpc_rollout_panda import MPCRollout
 from mpc.policy_random_panda import Policy_Random
 from mpc.helper import get_goal
+from scipy.spatial.transform import Rotation as R
 
 _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
                 dict(controller_type='rand_shooting',
                      horizon=1,
-                     max_step=150,
-                     num_sample_seq=1000,
-                     rand_policy_angle_min=-0.01,
-                     rand_policy_angle_max=0.01,
+                     max_step=75,
+                     num_sample_seq=3000,
+                     rand_policy_angle_min=-0.001,
+                     rand_policy_angle_max=0.001,
                      rand_policy_hold_action=1))
 
     dyn_model = Dyn_Model(cfg)
@@ -26,7 +27,8 @@ def mpc_controller(cfg):
 
     goal_pos, goal_orn = get_goal()
     print("goal_state ", goal_pos)
-    print("goal orn", goal_orn)
+    print("goal orn mat", goal_orn)
+    print("goal orn quat", (R.from_matrix(goal_orn)).as_quat())
     
     # goal_pos_norm = (goal_pos - np.array([0.29454313, -0.02973482,  0.02580059])) / np.array([1.07804996e-01, 4.36442115e-02, 4.49540457e-01])
     # goal_pos_norm = 2 * (goal_pos_norm - 0.5)
@@ -79,9 +81,10 @@ def build_env():
     np.random.seed(seed)
     # specify the env name
     env = PandaReachModelLearning(initial_position=[0.395, 0.373, 0.40],  # reach [0.307, -0.000, 0.45]
-                                  target_position=[0.403, 0.384, 0.285 ],  # reach [0.386, -0.008,  0.125]
+                                  target_position=[0.403, 0.384, 0.2857 ],  # reach [0.386, -0.008,  0.125]
                                   max_position_offset=np.inf,
-                                  nullspace_q_ref = [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117])   
+                                  nullspace_q_ref = [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117],
+                                  target_quaternion = [0.968,  0.244, -0.038,  0.025])
                                 #   pause_for_train=True,) [0.3980723  0.38012593 0.31273318]
     env.seed(seed)
     return env
