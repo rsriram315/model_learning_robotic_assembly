@@ -26,9 +26,9 @@ class MPCRollout:
                                              self.cost,
                                              rand_policy, params)
         elif params.controller_type == 'mppi':
-            params.mppi_gamma = 70
+            params.mppi_gamma = 17
             params.mppi_mag_noise = 0.9
-            params.mppi_beta = 0.8
+            params.mppi_beta = 0.1
             self.controller = MPPI(self.env,
                                    self.dyn_model,
                                    self.cost,
@@ -83,11 +83,11 @@ class MPCRollout:
         while not(done or step >= self.max_step):
             count += 1
             # get optimal action
-            # if self.controller_type == 'mppi' and count == 1:
-            #     self.controller.mppi_mean = np.tile(curr_state, (self.controller.horizon, 1))
-            #     # self.controller.mppi_mean[:, :3] = [0, 0, 0]
-            #     self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
-            #     self.controller.mppi_mean[:, 6:15] = np.eye(3,3).flatten()  # action rotation is delta
+            if self.controller_type == 'mppi' and count == 1:
+                self.controller.mppi_mean = np.tile(curr_state, (self.controller.horizon, 1))
+                # self.controller.mppi_mean[:, :3] = [0, 0, 0]
+                self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
+                # self.controller.mppi_mean[:, 6:15] = np.eye(3,3).flatten()  # action rotation is delta
             print("currr state before executing mpc", self.env._get_obs()[:3])
             
             best_action, pred_next_state = self.controller.get_action(curr_state, self.goal_state, step)

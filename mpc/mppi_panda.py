@@ -25,8 +25,8 @@ class MPPI:
         self.action_dim = 15  # pos, force, rot_mat
         self.sigma = params.mppi_mag_noise * np.ones(self.action_dim)
         self.beta = params.mppi_beta
-        # self.mppi_mean = None
-        self.mppi_mean = np.zeros((self.horizon, self.action_dim))
+        self.mppi_mean = None
+        # self.mppi_mean = np.zeros((self.horizon, self.action_dim))
 
         self.counter = 1
     ##########################################################
@@ -61,7 +61,6 @@ class MPPI:
             rot_certain_horizon = R.from_matrix(certain_horizon)
             w = np.squeeze(weights/sum_weights)
             self.mppi_mean[h, 6:15] = rot_certain_horizon.mean(weights=w).as_matrix().flatten()
-
         # the generated mppi_mean is a weighted average trajectories of the sampled trajectories
         # return 1st element of the mean, which corresponds to curr timestep
         return self.mppi_mean[0]
@@ -79,7 +78,7 @@ class MPPI:
         if self.counter == 1:
             self.init_rot = R.from_matrix(curr_state[6:15].reshape(3,3))
             self.init_euler_angle = self.init_rot.as_euler('zyx')
-            print("self.init_euler_angle", self.init_euler_angle)
+            print("self.init_euler_angle", (self.init_euler_angle) * 180 / np.pi)
         # past action is the first step of the prev averaged trajectory
         past_action = np.copy(self.mppi_mean[0])  # mu_{t-1}
 
@@ -98,18 +97,18 @@ class MPPI:
             rand_force = np.zeros((self.N, self.horizon, 3))
 
             # noisy rotation matrix
-            
-            rand_euler_delta = np.random.normal(loc=0, scale=0.02/3, size=(self.N, self.horizon, 3)) * np.pi
+
+            rand_euler_delta = np.random.normal(loc=0, scale=0.001/3, size=(self.N, self.horizon, 3)) * np.pi
             euler_init = np.tile(self.init_euler_angle, (self.N, self.horizon, 1))
-            rand_euler_raw  = euler_init + rand_euler_delta
+            # rand_euler_raw  = euler_init + rand_euler_delta
             rand_rot = np.stack([R.from_euler('zyx', euler).as_matrix().reshape((-1, 9))
-                                    for euler in rand_euler_raw], axis=0)
+                                    for euler in rand_euler_delta], axis=0)
             print("init euler", self.init_rot.as_euler('zyx', degrees=True))
             print("rand euler delta", rand_euler_delta[0,0]*180/ np.pi)
-            print("rand euler", rand_euler_raw[0,0]*180/ np.pi)
+            # print("rand euler", rand_euler_raw[0,0]*180/ np.pi)
             eps = np.concatenate((rand_set_point, rand_force, rand_rot), axis=2)
             all_samples = copy.deepcopy(eps)
-            print("all samples", all_samples[0,:3,:])
+            # print("all samples before", all_samples[0,:3,:])
 
             # actions = mean + noise, then smooth the actions temporally
             # TODO: where is the beta * (action_mean + noise) from?
@@ -124,7 +123,9 @@ class MPPI:
                         (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
                         (1 - self.beta) * past_action[:3])
 
-                    new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
+                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
+                    # print("initial mean", self.mppi_mean[h, 6:15].reshape(3,3))
+                    # print("new_rot", new_rot)
                     past_rot = past_action[6:15].reshape((3, 3))
 
                     for n in range(self.N):
@@ -132,16 +133,17 @@ class MPPI:
                         all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
                 else:
                     all_samples[:, h, :3] = \
-                        (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
+                        (self.beta * (self.mppi_mean[h-1, :3] + eps[:, h, :3]) +
                         (1 - self.beta) * all_samples[:, h-1, :3])
 
-                    new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
+                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h-1, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
                     past_rot = all_samples[:, h-1, 6:15].reshape((-1, 3, 3))
 
                     for n in range(self.N):
                         interp_R = R.from_matrix([new_rot[n], past_rot[n]])
                         all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
 
+            # print("all samples after: ", all_samples[0,:3,:])
 
             """
                 # first step, the past action and mppi_mean are just zero ,so the
@@ -172,8 +174,8 @@ class MPPI:
 
             # resulting candidate action sequences, all_samples: [N, horizon, action_dim]
             all_samples = np.clip(all_samples, -1, 1)
-            
-            
+
+
             # plot to check sampled actions
             # x_axis = [index for index in range (all_samples.shape[0])]
             # y1_axis = all_samples[:,0,0]
@@ -213,7 +215,7 @@ class MPPI:
             # norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
             # y1_axis = norm_resulting_states_ls[0,:,0]
             # y2_axis = norm_resulting_states_ls[0,:,1]
-            # y3_axis = norm_resulting_states_ls[0,:,2]        
+            # y3_axis = norm_resulting_states_ls[0,:,2]
             # plt.subplot(1,3,1)
             # plt.scatter(x_axis, y1_axis, marker="o", color="green")
             # plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
@@ -238,7 +240,7 @@ class MPPI:
             # curr_state = np.asarray(curr_state)
             # y1_axis = resulting_states_ls[0,:,0]
             # y2_axis = resulting_states_ls[0,:,1]
-            # y3_axis = resulting_states_ls[0,:,2]        
+            # y3_axis = resulting_states_ls[0,:,2]
             # plt.subplot(1,3,1)
             # plt.scatter(x_axis, y1_axis, marker="o", color="green")
             # plt.plot(x_axis, curr_state[:,0], marker="o", color="yellow")
@@ -261,11 +263,11 @@ class MPPI:
             costs = calculate_costs(resulting_states_ls, goal_state, self.cost_fn)
             # use all paths to update action mean (for horizon steps)
             selected_action = self.mppi_update(costs, all_samples)
-        
+
         self.counter += 1
         # print("selected action before inv normalizing", selected_action)
         selected_action = self.dyn_model.norm.inv_normalize(selected_action[None, None, :], is_action=True)[0]
         # print("selected action after inv normalizing", selected_action)
-        selected_action[6:15] = np.eye(3).flatten()
+        # selected_action[6:15] = np.eye(3).flatten()
         pred_state = np.squeeze(self.dyn_model.do_forward_sim(curr_state, np.copy(selected_action[None, None, : ]))[0])
         return selected_action, pred_state

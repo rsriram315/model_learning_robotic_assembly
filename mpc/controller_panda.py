@@ -12,9 +12,9 @@ from scipy.spatial.transform import Rotation as R
 _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='rand_shooting',
+                dict(controller_type='mppi',
                      horizon=5,
-                     max_step=10,
+                     max_step=150,
                      num_sample_seq=300,
                      rand_policy_angle_min=-0.01,
                      rand_policy_angle_max=0.01,
@@ -80,7 +80,7 @@ def build_env():
     random.seed(seed)
     np.random.seed(seed)
     # specify the env name
-    env = PandaReachModelLearning(initial_position=[0.400, 0.376, 0.35], # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
+    env = PandaReachModelLearning(initial_position=[0.400, 0.376, 0.400], # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
                                   target_position=[0.400, 0.376, 0.285 ],  # reach [0.386, -0.008,  0.125]
                                   max_position_offset=np.inf,
                                   nullspace_q_ref = [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117],
