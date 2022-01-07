@@ -39,7 +39,7 @@ class MPCRollout:
         TODO fix reward function
         """
         # reward is normalized
-        mpc_cost = self.env._cost(curr_state=curr_state, goal_state=goal_state)
+        mpc_cost = self.env._cost(pred_state=curr_state, goal_state=goal_state)
         return mpc_cost
     
     def perform_rollout(self, starting_envstate):
@@ -106,7 +106,7 @@ class MPCRollout:
             action_to_take = np.hstack((best_action_pos,
                                        best_action_rot))
             print("current state before taking action:", self.env._get_obs()[:3])
-            print("action to take", action_to_take[:3])
+            # print("action to take", action_to_take[:3])
 
             ########################    
             # execute the action
@@ -136,9 +136,9 @@ class MPCRollout:
         # norm_pred_states = np.asarray(norm_predicted_state)
         actual_state = np.asarray(true_state)
         x_axis = [index for index in range (len(actual_state))]
-        goal_x = np.full((len(actual_state),), 0.403)
-        goal_y = np.full((len(actual_state),), 0.384)
-        goal_z = np.full((len(actual_state),), 0.2857)
+        goal_x = np.full((len(actual_state),), 0.400)
+        goal_y = np.full((len(actual_state),), 0.376)
+        goal_z = np.full((len(actual_state),), 0.285)
         y1_z_axis = actual_state[:,2]
         y2_z_axis = pred_states[:,2]
         y3_x_axis = actual_state[:,0]

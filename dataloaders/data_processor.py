@@ -202,7 +202,7 @@ class Interpolation:
 
     def _get_slerp_fn(self):
         return Slerp(self.time, self.rot)
-
+    
 
 # contact segmentation
 class SegmentContact:

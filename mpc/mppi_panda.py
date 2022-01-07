@@ -27,6 +27,8 @@ class MPPI:
         self.beta = params.mppi_beta
         # self.mppi_mean = None
         self.mppi_mean = np.zeros((self.horizon, self.action_dim))
+
+        self.counter = 1
     ##########################################################
     # update action mean using weighted average of the actions
     # (by their resulting scores), Eq.2 on my slides
@@ -74,6 +76,10 @@ class MPPI:
         Returns:
             best_action: optimal action to perform, according to controller
         """
+        if self.counter == 1:
+            self.init_rot = R.from_matrix(curr_state[6:15].reshape(3,3))
+            self.init_euler_angle = self.init_rot.as_euler('zyx')
+            print("self.init_euler_angle", self.init_euler_angle)
         # past action is the first step of the prev averaged trajectory
         past_action = np.copy(self.mppi_mean[0])  # mu_{t-1}
 
@@ -92,12 +98,18 @@ class MPPI:
             rand_force = np.zeros((self.N, self.horizon, 3))
 
             # noisy rotation matrix
-            rand_euler_raw = np.random.normal(loc=0, scale=0.01/3, size=(self.N, self.horizon, 3)) * np.pi
+            
+            rand_euler_delta = np.random.normal(loc=0, scale=0.02/3, size=(self.N, self.horizon, 3)) * np.pi
+            euler_init = np.tile(self.init_euler_angle, (self.N, self.horizon, 1))
+            rand_euler_raw  = euler_init + rand_euler_delta
             rand_rot = np.stack([R.from_euler('zyx', euler).as_matrix().reshape((-1, 9))
                                     for euler in rand_euler_raw], axis=0)
-
+            print("init euler", self.init_rot.as_euler('zyx', degrees=True))
+            print("rand euler delta", rand_euler_delta[0,0]*180/ np.pi)
+            print("rand euler", rand_euler_raw[0,0]*180/ np.pi)
             eps = np.concatenate((rand_set_point, rand_force, rand_rot), axis=2)
             all_samples = copy.deepcopy(eps)
+            print("all samples", all_samples[0,:3,:])
 
             # actions = mean + noise, then smooth the actions temporally
             # TODO: where is the beta * (action_mean + noise) from?
@@ -160,7 +172,7 @@ class MPPI:
 
             # resulting candidate action sequences, all_samples: [N, horizon, action_dim]
             all_samples = np.clip(all_samples, -1, 1)
-
+            
             
             # plot to check sampled actions
             # x_axis = [index for index in range (all_samples.shape[0])]
@@ -250,6 +262,7 @@ class MPPI:
             # use all paths to update action mean (for horizon steps)
             selected_action = self.mppi_update(costs, all_samples)
         
+        self.counter += 1
         # print("selected action before inv normalizing", selected_action)
         selected_action = self.dyn_model.norm.inv_normalize(selected_action[None, None, :], is_action=True)[0]
         # print("selected action after inv normalizing", selected_action)

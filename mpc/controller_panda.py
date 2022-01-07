@@ -13,11 +13,11 @@ _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
                 dict(controller_type='rand_shooting',
-                     horizon=1,
-                     max_step=75,
-                     num_sample_seq=3000,
-                     rand_policy_angle_min=-0.001,
-                     rand_policy_angle_max=0.001,
+                     horizon=5,
+                     max_step=10,
+                     num_sample_seq=300,
+                     rand_policy_angle_min=-0.01,
+                     rand_policy_angle_max=0.01,
                      rand_policy_hold_action=1))
 
     dyn_model = Dyn_Model(cfg)
@@ -80,11 +80,12 @@ def build_env():
     random.seed(seed)
     np.random.seed(seed)
     # specify the env name
-    env = PandaReachModelLearning(initial_position=[0.395, 0.373, 0.40],  # reach [0.307, -0.000, 0.45]
-                                  target_position=[0.403, 0.384, 0.2857 ],  # reach [0.386, -0.008,  0.125]
+    env = PandaReachModelLearning(initial_position=[0.400, 0.376, 0.35], # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
+                                  target_position=[0.400, 0.376, 0.285 ],  # reach [0.386, -0.008,  0.125]
                                   max_position_offset=np.inf,
                                   nullspace_q_ref = [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117],
-                                  target_quaternion = [0.968,  0.244, -0.038,  0.025])
+                                  target_quaternion = [1.0, 0.25, 0.0, 0.0],
+                                  )
                                 #   pause_for_train=True,) [0.3980723  0.38012593 0.31273318]
     env.seed(seed)
     return env

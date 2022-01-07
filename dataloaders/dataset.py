@@ -46,7 +46,7 @@ class DemoDataset(Dataset):
         self.states_force = []
         self.actions_force = []
 
-        self.sample_time_end = -200
+        self.sample_time_end = -50
         # self.sample_time_end = -1
 
         self._read_all_demos()
@@ -82,15 +82,20 @@ class DemoDataset(Dataset):
                                                   self.state_attrs,
                                                   self.action_attrs,
                                                   self.contact_only)
+
             # sliding window factor, data_sampling_freq / pred_freq
             states_actions, states_padding = \
                 self._pair_state_action(self.sample_freq,
                                         states, actions,
                                         self.sl_factor)
+
+
             # learning the residual
             tmp_targets = np.vstack((states_actions[:, 0],
                                     states_padding))
+
             targets = np.zeros_like(tmp_targets[self.sl_factor:])
+            print("targets.shape", targets.shape)
             # pos and force residuals
             targets[:, :6] = (tmp_targets[self.sl_factor:, :6] -
                               tmp_targets[:-self.sl_factor, :6])
@@ -106,7 +111,6 @@ class DemoDataset(Dataset):
 
         self.states_actions = np.array(self.states_actions)
         self.targets = np.array(self.targets)
-        print("self.states_actions", self.states_actions.shape)
         norm = Normalization(self.stats)
         self.states_actions = norm.normalize(self.states_actions)
         self.targets = norm.normalize(self.targets[:, None, :],
@@ -139,8 +143,7 @@ class DemoDataset(Dataset):
         """
         with h5py.File(data_path, 'r') as f:
             # determine when the arm grasp and release object
-            gripper_t = np.array(f['franka_gripperjoint_states'][time])
-
+            gripper_t = np.array(f['PandaStatePublisherarm_states'][time])
             # for sim
             grasp_start_t = 0
             grasp_stop_t = gripper_t[-1]
@@ -151,13 +154,17 @@ class DemoDataset(Dataset):
             data = [{}, {}]  # [states, actions]
 
             for n, i in enumerate([states, actions]):
+                print("n :", n)
+                print("i :", i)
                 # clip time to avoid negative value
+                # print("unclipped t", np.asarray(f[i["name"]][time]))
                 t = np.clip(np.asarray(f[i["name"]][time]), 0, None)
-
                 # start and stop time idx are the time idx
                 # closest to grasp_start and grasp_stop
                 start_idx = np.argmin(abs(t - grasp_start_t))
+                print("start_idx", start_idx)
                 stop_idx = np.argmin(abs(t - grasp_stop_t))
+                print("stop_idx", stop_idx)
 
                 # discard the data when the arm not grasping the object
                 d = []
@@ -165,12 +172,15 @@ class DemoDataset(Dataset):
                     d.append(f[i["name"]][attrs][start_idx:stop_idx])
                 t = t[start_idx:stop_idx]
                 d = np.hstack(d)
+                print("d:", d.shape)
 
                 if contact_only:
                     # extract contact phase
                     is_state = True if n == 0 else False
                     t, d = self._contact(t, d, is_state)
-
+                print("start_time", t[0])
+                print("end_time", t[-1])
+        
                 data[n]["pos"] = np.array(d[:, :3])
                 # quaternions [x, y, z, w]
                 data[n]["rot"] = np.array(d[:, 3:7])
@@ -300,6 +310,8 @@ class DemoDataset(Dataset):
         t_interval = 1.0 / self.sample_freq
         padding_time = \
             [sample_time[-1] + f * t_interval for f in range(1, sl_factor + 1)]
+        print("padding_time min", min(padding_time))
+        print("padding_time max", max(padding_time))
         states_padding = \
             np.hstack((states_pos_interp.interp(padding_time),
                        states_force_interp.interp(padding_time),
