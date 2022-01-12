@@ -12,10 +12,10 @@ from scipy.spatial.transform import Rotation as R
 _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='mppi',
-                     horizon=5,
-                     max_step=150,
-                     num_sample_seq=300,
+                dict(controller_type='rand_shooting',
+                     horizon=1,
+                     max_step=1,
+                     num_sample_seq=30,
                      rand_policy_angle_min=-0.01,
                      rand_policy_angle_max=0.01,
                      rand_policy_hold_action=1))
@@ -80,11 +80,12 @@ def build_env():
     random.seed(seed)
     np.random.seed(seed)
     # specify the env name
-    env = PandaReachModelLearning(initial_position=[0.400, 0.376, 0.400], # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
-                                  target_position=[0.400, 0.376, 0.285 ],  # reach [0.386, -0.008,  0.125]
+    env = PandaReachModelLearning(initial_position=[0.276, -0.414, 0.220], # easy insertion 0.400, 0.376, 0.400 # hard insertion 0.2757, -0.414, 0.2129 # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
+                                  target_position=[0.268, -0.4115,  0.1818], # easy insertion 0.400, 0.376,  0.285 # hard insertion 0.268, -0.41156949,  0.18341826  # reach [0.386, -0.008,  0.125]
                                   max_position_offset=np.inf,
-                                  nullspace_q_ref = [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117],
-                                  target_quaternion = [1.0, 0.25, 0.0, 0.0],
+                                  nullspace_q_ref = [-0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162], # easy insertion 0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117
+                                  initial_quaternion = [0.97317216, -0.22617042, -0.04147844, 0.00790088], # hard insertion 0.97719944, -0.20961794, -0.03355442,  0.00395852
+                                  target_quaternion = [0.97317216, -0.22617042, -0.04147844, 0.00790088],
                                   )
                                 #   pause_for_train=True,) [0.3980723  0.38012593 0.31273318]
     env.seed(seed)

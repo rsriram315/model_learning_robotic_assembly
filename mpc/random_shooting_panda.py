@@ -162,13 +162,13 @@ class RandomShooting:
         # print("best_sim_number, cost", best_sim_number, costs[best_sim_number])
         best_action = np.copy(best_sequence[0])
         # print(best_action.shape, best_action[None, None, :].shape, best_sequence.shape)
-        # print("best action before inv_normalizing", best_action)
+        print("best action before inv_normalizing", best_action)
         
         # execute the candidate action sequences on the real dynamics
         # instead just on the model
         # unnormalized best actions
         best_action = self.dyn_model.norm.inv_normalize(best_action[None, None, :], is_action=True)[0]
-        # print("best action after inv_normalizing", best_action)
+        print("best action after inv_normalizing", best_action)
         pred_state = resulting_states_ls[0,best_sim_number,:]
         norm_pred_states = norm_resulting_states_ls[0,best_sim_number,:]
         # best_action[:3] = resulting_states_ls[0,best_sim_number,:3]

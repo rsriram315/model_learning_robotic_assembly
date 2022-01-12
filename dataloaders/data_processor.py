@@ -70,10 +70,10 @@ class Normalization:
     Normalization of data, (x - min(x)) / (max(x) - min(x)).
     """
     def __init__(self, stats):
-        self.stat_1 = stats["state_action_minimum"]
-        self.stat_2 = stats["state_action_range"]
-        self.stat_3 = stats["delta_state_min"]
-        self.stat_4 = stats["delta_state_range"]
+        self.stat_1 = stats["stat_1"]
+        self.stat_2 = stats["stat_2"]
+        self.stat_3 = stats["stat_3"]
+        self.stat_4 = stats["stat_4"]
 
     def _stats(self, data):
         array_min = np.amin(data, axis=0)
@@ -84,10 +84,10 @@ class Normalization:
         return array_min, array_range
 
     def get_stats(self):
-        stats = {"state_action_minimum": self.stat_1,
-                 "state_action_range": self.stat_2,
-                 "delta_state_min": self.stat_3,
-                 "delta_state_range": self.stat_4}
+        stats = {"stat_1": self.stat_1,
+                 "stat_2": self.stat_2,
+                 "stat_3": self.stat_3,
+                 "stat_4": self.stat_4}
         return stats
 
     def normalize(self, data, is_res=False, is_action=False):

@@ -1,6 +1,6 @@
 {
     "name": "mlp",
-    "train": false,
+    "train": true,
     "evaluate": false,
     "visualize": false,
     "rollout": false,

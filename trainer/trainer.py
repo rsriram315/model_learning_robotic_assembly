@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-
+from utils.geodesic_loss import GeodesicLoss
 from model import MLP, MCDropout
 from trainer.base_trainer import BaseTrainer
 from utils import MetricTracker, ensure_dir, prepare_device
@@ -33,7 +33,7 @@ class Trainer(BaseTrainer):
 
         model = self._build_model(model_cfg, dataset_stats)
         optimizer = self._build_optim(model, optim_cfg)
-        criterion = torch.nn.MSELoss(reduction='mean')
+        criterion = (torch.nn.MSELoss(reduction='mean'), GeodesicLoss(reduction='mean'))
 
         metric_fns = []
         self.train_metrics = \
@@ -92,7 +92,7 @@ class Trainer(BaseTrainer):
         tb_step = (epoch - 1) * len(self.dataloader)
 
         for batch_idx, (state_action, target) in enumerate(self.dataloader):
-
+ 
             state_action, target = \
                 (state_action.to(self.device, non_blocking=True),
                  target.to(self.device, non_blocking=True))
@@ -101,7 +101,12 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad(set_to_none=True)
             output = self.model(state_action)
 
-            loss = self.criterion(output, target)
+            self.criterion_1, self.criterion_2 = self.criterion
+            loss = 10 * self.criterion_1(output[:6], target[:6])
+            # print("MSE loss:", loss)
+            loss += self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+            # print("geodesic loss:", self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3)))
+            # print("total loss :", loss)
             loss.backward()
             self.optimizer.step()
 
@@ -139,7 +144,11 @@ class Trainer(BaseTrainer):
                 data, target = data.to(self.device), target.to(self.device)
 
                 output = self.model(data)
-                loss = self.criterion(output, target)
+                self.criterion_1, self.criterion_2 = self.criterion
+                loss = 10 * self.criterion_1(output[:6], target[:6])
+                loss += self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+
+                # loss = self.criterion(output, target)
 
                 self.valid_metrics.update('loss', loss.item())
                 # for met in self.metric_fns:
