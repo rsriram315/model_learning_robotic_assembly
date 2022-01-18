@@ -98,7 +98,7 @@ class MPPI:
 
             # noisy rotation matrix
 
-            rand_euler_delta = np.random.normal(loc=0, scale=0.01/3, size=(self.N, self.horizon, 3)) * np.pi
+            rand_euler_delta = np.random.normal(loc=0, scale=0.015/3, size=(self.N, self.horizon, 3)) * np.pi
             euler_init = np.tile(self.init_euler_angle, (self.N, self.horizon, 1))
             # rand_euler_raw  = euler_init + rand_euler_delta
             rand_rot = np.stack([R.from_euler('zyx', euler).as_matrix().reshape((-1, 9))

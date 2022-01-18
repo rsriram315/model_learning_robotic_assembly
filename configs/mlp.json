@@ -12,7 +12,7 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
-        "contact_only": false,
+        "contact_only": true,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_ee"]

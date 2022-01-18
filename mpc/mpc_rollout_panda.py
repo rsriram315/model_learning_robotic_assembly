@@ -26,9 +26,9 @@ class MPCRollout:
                                              self.cost,
                                              rand_policy, params)
         elif params.controller_type == 'mppi':
-            params.mppi_gamma = 70
+            params.mppi_gamma = 400
             params.mppi_mag_noise = 0.9
-            params.mppi_beta = 0.7
+            params.mppi_beta = 0.1
             self.controller = MPPI(self.env,
                                    self.dyn_model,
                                    self.cost,
@@ -136,9 +136,9 @@ class MPCRollout:
         # norm_pred_states = np.asarray(norm_predicted_state)
         actual_state = np.asarray(true_state)
         x_axis = [index for index in range (len(actual_state))]
-        goal_x = np.full((len(actual_state),), 0.27012079) # hard 0.27012079 # easy 0.400
-        goal_y = np.full((len(actual_state),), -0.41156949) # hard -0.41156949 # easy 0.376
-        goal_z = np.full((len(actual_state),), 0.18341826) # hard 0.18341826 # easy 0.285
+        goal_x = np.full((len(actual_state),), 0.400) # hard 0.268 # easy 0.400
+        goal_y = np.full((len(actual_state),), 0.376) # hard -0.411 # easy 0.376
+        goal_z = np.full((len(actual_state),), 0.285) # hard 0.183 # easy 0.285
         y1_z_axis = actual_state[:,2]
         y2_z_axis = pred_states[:,2]
         y3_x_axis = actual_state[:,0]

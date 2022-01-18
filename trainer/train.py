@@ -3,7 +3,7 @@ import numpy as np
 from copy import deepcopy
 from pathlib import Path
 
-from trainer import Trainer
+from trainer.trainer_panda import Trainer
 from trainer.ensemble_trainer import EnsembleTrainer
 from dataloaders import DemoDataLoader
 from dataloaders.dataset import DemoDataset

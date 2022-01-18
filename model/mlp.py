@@ -1,3 +1,4 @@
+from cmath import tanh
 import torch.nn as nn
 import torch  # noqa
 import torch.nn.functional as F

@@ -1,6 +1,6 @@
 # flake8: noqa
 import numpy as np
-
+from scipy.spatial.transform import Rotation as R
 from mpc.helper import calculate_costs
 
 class RandomShooting:
@@ -55,17 +55,17 @@ class RandomShooting:
         all_actions = np.array(all_samples)
 
 
-        # z_set_point_ls = np.arange(0.45, 0.125, -0.002)
+        # # z_set_point_ls = np.arange(0.45, 0.125, -0.002)
         # z_set_point_ls = np.arange(curr_state[2]+0.1, curr_state[2]-0.1, -0.002)
-        # print("z set points", z_set_point_ls)
+        # # print("z set points", z_set_point_ls)
         # for z in z_set_point_ls:
         #     action = np.copy(curr_state)
         #     action[2] = z 
-        #     action[6:15] = np.eye(3, dtype=np.float32).flatten()
+        #     action[6:15] = (R.from_quat([0.973, -0.226, -0.041, 0.007])).as_matrix().flatten()
         #     norm_action = self.dyn_model.norm.normalize(action[None, None, :])
         #     all_samples.append(norm_action)
         # all_actions = np.array(all_samples)
-        # print("all actions", all_actions[:5])
+        # # print("all actions", all_actions[:5])
 
         # plot to check sampled actions
         # x_axis = [index for index in range (all_actions.shape[0])]
@@ -110,17 +110,17 @@ class RandomShooting:
         # plt.scatter(x_axis, y1_axis, marker="o", color="green")
         # plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
         # plt.xlabel('samples')
-        # plt.ylabel('resulting state x ')
+        # plt.ylabel('resulting state x normalized')
         # plt.subplot(1,3,2)
         # plt.scatter(x_axis, y2_axis, marker="o", color="red")
         # plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
         # plt.xlabel('samples')
-        # plt.ylabel('resulting state y')
+        # plt.ylabel('resulting state y normalized')
         # plt.subplot(1,3,3)
         # plt.scatter(x_axis, y3_axis, marker="o", color="blue")
         # plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
         # plt.xlabel('samples')
-        # plt.ylabel('resulting state z')
+        # plt.ylabel('resulting state z normalized')
         # plt.figure()
 
         # ploting to see resulting statesplot
@@ -162,13 +162,13 @@ class RandomShooting:
         # print("best_sim_number, cost", best_sim_number, costs[best_sim_number])
         best_action = np.copy(best_sequence[0])
         # print(best_action.shape, best_action[None, None, :].shape, best_sequence.shape)
-        print("best action before inv_normalizing", best_action)
+        # print("best action before inv_normalizing", best_action)
         
         # execute the candidate action sequences on the real dynamics
         # instead just on the model
         # unnormalized best actions
         best_action = self.dyn_model.norm.inv_normalize(best_action[None, None, :], is_action=True)[0]
-        print("best action after inv_normalizing", best_action)
+        # print("best action after inv_normalizing", best_action)
         pred_state = resulting_states_ls[0,best_sim_number,:]
         norm_pred_states = norm_resulting_states_ls[0,best_sim_number,:]
         # best_action[:3] = resulting_states_ls[0,best_sim_number,:3]
