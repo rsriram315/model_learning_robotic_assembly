@@ -117,6 +117,8 @@ Makefile
 NOTES/
 JUPYTER/
 saved/
+data/
+recorded_data/
 experiments/
 *.png
 *.jpg
