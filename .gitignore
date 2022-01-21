@@ -117,6 +117,7 @@ Makefile
 NOTES/
 JUPYTER/
 saved/
+saved_finetune/
 data/
 recorded_data/
 experiments/

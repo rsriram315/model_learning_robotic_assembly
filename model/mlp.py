@@ -1,4 +1,3 @@
-from cmath import tanh
 import torch.nn as nn
 import torch  # noqa
 import torch.nn.functional as F
@@ -17,8 +16,8 @@ class MLP(BaseModel):
         self.device = device
 
     def forward(self, x):
-        x = F.tanh(self.fc1(x))
-        x = F.tanh(self.fc2(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         x = F.tanh(self.fc3(x))
 
         # 6D rotation representation
