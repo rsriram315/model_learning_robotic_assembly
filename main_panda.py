@@ -1,6 +1,6 @@
 import setup  # noqa
 import argparse
-
+from trainer.finetune import finetune
 from utils import read_json
 from trainer.train import train
 from eval import evaluate
@@ -28,7 +28,8 @@ def main(cfg_path):
         rollout(cfg)
     if cfg["mpc"]:
         mpc_controller(cfg)
-
+    if cfg["finetune"]:
+        finetune(cfg)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

@@ -1,14 +1,46 @@
 {
     "name": "mlp",
-    "train": true,
+    "train": false,
     "evaluate": false,
     "visualize": false,
     "rollout": false,
     "mpc": true,
+    "finetune" : false,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
         "root": "data",
+        "fnames": [],
+        "sample_freq": 1000,
+        "sl_factor": 50,
+        "contact_only": true,
+        "state_attrs": {
+            "name": "PandaStatePublisherarm_states",
+            "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
+        },
+        "action_attrs": {
+            "name": "PandaCartesianImpedanceControllercontrollerReference",
+            "attrs": ["pose", "wrench"]
+        },
+        "preprocess": {
+            "normalize": true,
+            "interp": {
+                "pos": "cubic_spline",
+                "rot": "slerp",
+                "force": "cubic_spline"
+            }
+        },
+        "stats": {
+            "stat_1": null,
+            "stat_2": null,
+            "stat_3": null,
+            "stat_4": null
+        }
+    },
+    "finetune_dataset": {
+        "name": "FinetuneDataset",
+        "seed": 42,
+        "root": "recorded_data",
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
@@ -65,6 +97,22 @@
         "weight_decay": 0,
         "amsgrad": true
     },
+    "finetune_trainer": {
+        "name": "finetune_mlp",
+        "num_epochs": 500,
+        "ckpts_dir": "saved_finetune/ckpts/",
+        "save_period": 5,
+        "early_stop": true,
+        "patience": 5,
+        "log_file": "saved_finetune/train.log",
+        "tb_dir": "saved_finetune/tb_log"
+    },
+    "finetune_optimizer": {
+        "name": "Adam",
+        "lr": 0.0001,
+        "weight_decay": 0,
+        "amsgrad": true
+    },
     "eval": {
         "ckpt_dir": "saved/ckpts/",
         "ckpt_pth": null,
@@ -75,5 +123,34 @@
         "axis": true,
         "trajectory": true,
         "contact": false
-    }
+    },
+    "task_type": {
+        "reach": false,
+        "easy_insertion": false,
+        "hard_insertion": true
+    },
+    "reach_task_environment":{
+        "initial_position": [0.307, -0.000, 0.45],
+        "initial_quaternion": [1, 0, 0, 0],
+        "target_position": [0.386, -0.008,  0.125],
+        "target_quaternion": [1, 0, 0, 0],
+        "nullspace_q_ref": [0.00, -0.79, 0.00, -2.36, 0.00, 1.57, 0.78],
+        "max_position_offset": "np.inf"
+    },
+    "easy_insertion_environment": {
+        "initial_position": [0.400, 0.376, 0.400],
+        "initial_quaternion": [1, 0.25, 0.000, 0],
+        "target_position": [0.400, 0.376,  0.285],
+        "target_quaternion": [1, 0.25, 0.000, 0],
+        "nullspace_q_ref": [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117],
+        "max_position_offset": "np.inf"
+    },
+    "hard_insertion_environment": {
+        "initial_position": [0.270, -0.410, 0.211],
+        "initial_quaternion": [0.986, -0.161, -0.0153, 0.0115],
+        "target_position": [0.269, -0.412,  0.1825],
+        "target_quaternion": [0.9849642,  -0.16776719, -0.04071259,  0.00649433],
+        "nullspace_q_ref": [-0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162],
+        "max_position_offset": "np.inf"
+    }   
 }

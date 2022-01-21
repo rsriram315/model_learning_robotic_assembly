@@ -14,7 +14,7 @@ def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
                 dict(controller_type='rand_shooting',
                      horizon=1,
-                     max_step=100,
+                     max_step=75,
                      num_sample_seq=3000,
                      rand_policy_angle_min=-0.01,
                      rand_policy_angle_max=0.01,
@@ -22,20 +22,12 @@ def mpc_controller(cfg):
 
     dyn_model = Dyn_Model(cfg)
     print("stats", dyn_model.norm.get_stats())
-    env = build_env()
+    env = build_env(cfg)
     rand_policy = Policy_Random(env)
-
-    goal_pos, goal_orn = get_goal()
+    goal_pos, goal_orn = get_goal(cfg["dataset"]["root"])
     print("goal_state ", goal_pos)
     print("goal orn mat", goal_orn)
     print("goal orn quat", (R.from_matrix(goal_orn)).as_quat())
-    
-    # goal_pos_norm = (goal_pos - np.array([0.29454313, -0.02973482,  0.02580059])) / np.array([1.07804996e-01, 4.36442115e-02, 4.49540457e-01])
-    # goal_pos_norm = 2 * (goal_pos_norm - 0.5)
-    # print("goal_state norm", goal_pos_norm) #[ 0.69785281 -0.01056377 -0.56079903]
-    # goal_pos_inv_norm  = (goal_pos / 2 + 0.5) * (np.array([1.07804996e-01, 4.36442115e-02, 4.49540457e-01]) + _FLOAT_EPS)
-    # goal_pos_inv_norm = goal_pos_inv_norm + np.array([0.29454313, -0.02973482,  0.02580059])
-    # print("goal_state inv_norm", goal_pos_inv_norm) #[ 0.36925531 -0.00809042  0.27855918]
 
     goal_state = goal_pos, goal_orn
 
@@ -52,7 +44,7 @@ def mpc_controller(cfg):
     num_eval_rollouts = 1
 
     for rollout_num in range(num_eval_rollouts):
-        # Note: if you want to evaluate a particular goal, call env.reset with
+        # Note: In Robosuite simulation if you want to evaluate a particular goal, call env.reset with
         # a reset_state where that reset_state dict has reset_pose, reset_vel,
         # and reset_goal
         obs = env.reset()
@@ -73,20 +65,42 @@ def mpc_controller(cfg):
         mpc_rollout.perform_rollout(starting_state)
 
 
-def build_env():
+def build_env(cfg):
     # create gazebo simulation environment
     rospy.init_node("panda_model_learning_reach")
     seed = 237
     random.seed(seed)
     np.random.seed(seed)
     # specify the env name
-    env = PandaReachModelLearning(initial_position=[0.400, 0.376, 0.350], # easy insertion 0.400, 0.376, 0.400 # hard insertion 0.276, -0.414, 0.210 # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
-                                  target_position=[0.400, 0.376,  0.285], # easy insertion 0.400, 0.376,  0.285 # hard insertion 0.265, -0.41156949,  0.183  # reach [0.386, -0.008,  0.125]
-                                  max_position_offset=np.inf,
-                                  nullspace_q_ref = [0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117], # easy insertion 0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117 # hard insertion -0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162
-                                  initial_quaternion = [1, 0.25, 0.000, 0], # hard insertion 0.973, -0.226, -0.041, 0.007
-                                  target_quaternion = [1, 0.25, 0.000, 0], # hard insertion 0.972, -0.227, -0.045, -0.011
-                                  )
+    # env = PandaReachModelLearning(initial_position=[0.270, -0.410, 0.211], # easy insertion 0.400, 0.376, 0.400 # hard insertion 0.276, -0.414, 0.210 # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
+    #                               target_position=[0.269, -0.412,  0.1825], # 0.2695, -0.4121,  0.1825 # easy insertion 0.400, 0.376,  0.285 # hard insertion 0.265, -0.41156949,  0.183  # reach [0.386, -0.008,  0.125]
+    #                               max_position_offset=np.inf,
+    #                               nullspace_q_ref = [-0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162], # easy insertion 0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117 # hard insertion -0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162
+    #                               initial_quaternion = [0.986, -0.161, -0.0153, 0.0115], # hard insertion 0.973, -0.226, -0.041, 0.007 # easy insertion 1, 0.25, 0.000, 0
+    #                               target_quaternion = [0.9849642,  -0.16776719, -0.04071259,  0.00649433], # hard insertion 0.972, -0.227, -0.045, -0.011 # easy insertion 1, 0.25, 0.000, 0
+    #                               )
                                 #   pause_for_train=True,) [0.3980723  0.38012593 0.31273318]
+    if cfg["task_type"]["hard_insertion"]:
+        env = PandaReachModelLearning(initial_position=cfg["hard_insertion_environment"]["initial_position"],
+                                    target_position=cfg["hard_insertion_environment"]["target_position"],
+                                    max_position_offset=cfg["hard_insertion_environment"]["max_position_offset"],
+                                    nullspace_q_ref = cfg["hard_insertion_environment"]["nullspace_q_ref"],
+                                    initial_quaternion = cfg["hard_insertion_environment"]["initial_quaternion"],
+                                    target_quaternion = cfg["hard_insertion_environment"]["target_quaternion"],)
+    
+    elif cfg["task_type"]["easy_insertion"]:
+        env = PandaReachModelLearning(initial_position=cfg["easy_insertion_environment"]["initial_position"],
+                                    target_position=cfg["easy_insertion_environment"]["target_position"],
+                                    max_position_offset=cfg["easy_insertion_environment"]["max_position_offset"],
+                                    nullspace_q_ref = cfg["easy_insertion_environment"]["nullspace_q_ref"],
+                                    initial_quaternion = cfg["easy_insertion_environment"]["initial_quaternion"],
+                                    target_quaternion = cfg["easy_insertion_environment"]["target_quaternion"],)
+    elif cfg["task_type"]["reach"]:
+        env = PandaReachModelLearning(initial_position=cfg["reach_task_environment"]["initial_position"],
+                                    target_position=cfg["reach_task_environment"]["target_position"],
+                                    max_position_offset=cfg["reach_task_environment"]["max_position_offset"],
+                                    nullspace_q_ref = cfg["reach_task_environment"]["nullspace_q_ref"],
+                                    initial_quaternion = cfg["reach_task_environment"]["initial_quaternion"],
+                                    target_quaternion = cfg["reach_task_environment"]["target_quaternion"],)
     env.seed(seed)
     return env

@@ -1,8 +1,9 @@
 # flake8: noqa
+from time import time
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from mpc.helper import calculate_costs
-
+import time
 class RandomShooting:
     """
     Generate multiple random action rollouts, and select the best one
@@ -12,14 +13,8 @@ class RandomShooting:
         self.dyn_model = dyn_model
         self.cost_fn = cost_fn
         self.rand_policy = rand_policy
-
         self.horizon = params.horizon
         self.N = params.num_sample_seq  # number of random action sequences
-
-        # TODO:deepcopy will generate error, don't know WHY
-        # self.env = deepcopy(env)
-
-        # TODO position range or even also rotation range
         self.random_sampling_params = {'angle_min': params.rand_policy_angle_min,
                                        'angle_max': params.rand_policy_angle_max,
                                        'hold_action': params.rand_policy_hold_action}
@@ -55,8 +50,8 @@ class RandomShooting:
         all_actions = np.array(all_samples)
 
 
-        # # z_set_point_ls = np.arange(0.45, 0.125, -0.002)
-        # z_set_point_ls = np.arange(curr_state[2]+0.1, curr_state[2]-0.1, -0.002)
+        # z_set_point_ls = np.arange(0.45, 0.125, -0.002)
+        # z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
         # # print("z set points", z_set_point_ls)
         # for z in z_set_point_ls:
         #     action = np.copy(curr_state)
@@ -90,7 +85,6 @@ class RandomShooting:
         # plt.xlabel('samples')
         # plt.ylabel('sampled z points')
         # plt.figure()
-
 
         #############################################################################
         # have model predict the result of executing those candidate action sequences
@@ -152,14 +146,11 @@ class RandomShooting:
         # evaluate the predicted trajectories
         # calculate costs
         #####################################
-        # average all the ending states in the recording as goal position
         costs = calculate_costs(resulting_states_ls, goal_state, self.cost_fn)
-        # print("costs", costs)
+        
         # pick best action sequence
         best_sim_number = np.argmin(costs)
-
         best_sequence = all_actions[best_sim_number]
-        # print("best_sim_number, cost", best_sim_number, costs[best_sim_number])
         best_action = np.copy(best_sequence[0])
         # print(best_action.shape, best_action[None, None, :].shape, best_sequence.shape)
         # print("best action before inv_normalizing", best_action)
@@ -170,8 +161,8 @@ class RandomShooting:
         best_action = self.dyn_model.norm.inv_normalize(best_action[None, None, :], is_action=True)[0]
         # print("best action after inv_normalizing", best_action)
         pred_state = resulting_states_ls[0,best_sim_number,:]
-        norm_pred_states = norm_resulting_states_ls[0,best_sim_number,:]
-        # best_action[:3] = resulting_states_ls[0,best_sim_number,:3]
+        # norm_pred_states = norm_resulting_states_ls[0,best_sim_number,:]
+
 
 
         return best_action, pred_state #, norm_pred_states
