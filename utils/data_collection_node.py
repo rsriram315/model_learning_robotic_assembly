@@ -31,9 +31,8 @@ class DataCollection:
         self.directory = directory
         self.recording = None
         self.num_recording = 0
+
         print("\n Intializing data collection \n")
-        # self.base_pos = self.env.unwrapped.robots[0].base_pos
-        # self.base_ori = self.env.unwrapped.robots[0].base_ori  # quaternions
 
         # how often to save simulation state, in terms of environment steps
         self.collect_freq = collect_freq
@@ -51,11 +50,12 @@ class DataCollection:
         """
         n = len(os.listdir(self.directory))
         now = datetime.now()
-        filename = f"recording_{n+1:04}_{now.year}_{now.month:02}_{now.day:02}.h5"
-        file_path = os.path.join(self.directory, filename)
+        self.filename = f"recording_{n+1:04}_{now.year}_{now.month:02}_{now.day:02}.h5"
+        print(f"\n... Saving data to {self.filename} ...\n")
+        self.file_path = os.path.join(self.directory, self.filename)
 
         for key in self.recording.keys():
-            with h5py.File(file_path, 'a') as f:
+            with h5py.File(self.file_path, 'a') as f:
                 # check whether a group with the resource name already exists,
                 # if not create it and set up its children datasets
                 group = f.create_group(key)
@@ -103,16 +103,12 @@ class DataCollection:
         self.recording[GRIPPER]["time_stamp"].append(curr_time)
         self.recording[GRIPPER]["q"].append(curr_time)
 
-        # transform to base frame is still needed
+        # store robot state info read from /PandaStatePublisher/arm_states
         self.recording[STATE]["time_stamp"].append(curr_time)
-        # https://robosuite.ai/docs/simulation/robot.html heres said that the _hand_pos and _hand_quat
-        # are the position and orientation of the end-effector in base frame of the robot
         self.recording[STATE]["tcp_pose_base"].append(np.hstack((curr_pos, curr_orn)))
-        # np.hstack((self.env.unwrapped.robots[0]._hand_pos, self.env.unwrapped.robots[0]._hand_quat)))
         self.recording[STATE]["tcp_wrench_ee"].append(curr_wrench)
 
-        # transform to base frame and also express the orientation in changes
+        # store the messages sent to CartesianImpedenceSetpoint
         self.recording[ACTION]["time_stamp"].append(curr_time)
         self.recording[ACTION]["pose"].append(np.hstack((action_pos, action_orn)))
-        # orientation still needed to be convert to quaternions
         self.recording[ACTION]["wrench"].append([0, 0, 0, 0, 0, 0])
