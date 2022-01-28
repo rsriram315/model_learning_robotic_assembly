@@ -48,13 +48,13 @@ def rotation_diff(target_rot, init_rot):
 
 
 def recover_rotation(diff_state, init_state):
-    init_rot = R.from_matrix(init_state[:, 6:].reshape(-1, 3, 3))
-    diff_rot = R.from_matrix(diff_state[:, 6:].reshape(-1, 3, 3))
+    init_rot = R.from_matrix(init_state[:, 6:15].reshape(-1, 3, 3))
+    diff_rot = R.from_matrix(diff_state[:, 6:15].reshape(-1, 3, 3))
     target_rot = diff_rot * init_rot
 
     # output orientation matrix
     recover_target = np.copy(diff_state)
-    recover_target[:, 6:] = target_rot.as_matrix().reshape(-1, 9)
+    recover_target[:, 6:15] = target_rot.as_matrix().reshape(-1, 9)
     return recover_target
 
 
@@ -90,7 +90,7 @@ class Normalization:
                  "stat_4": self.stat_4}
         return stats
 
-    def normalize(self, data, is_res=False, is_action=False):
+    def normalize(self, data, is_res=False, is_action=False, axis=1):
         """
         standard normalization for data
         """
@@ -120,7 +120,8 @@ class Normalization:
 
         normalized_data = (data - min) / range
         if dim == 1:
-            normalized_data = np.squeeze(normalized_data, axis=1)
+            normalized_data = np.squeeze(normalized_data, axis=axis)
+
         return 2 * (normalized_data - 0.5)
 
     def inv_normalize(self, data, is_res=False, is_action=False):
