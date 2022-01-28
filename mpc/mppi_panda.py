@@ -98,7 +98,7 @@ class MPPI:
 
             # noisy rotation matrix
 
-            rand_euler_delta = np.random.normal(loc=0, scale=0.015/3, size=(self.N, self.horizon, 3)) * np.pi
+            rand_euler_delta = np.random.normal(loc=0, scale=0.02/2, size=(self.N, self.horizon, 3)) * np.pi
             euler_init = np.tile(self.init_euler_angle, (self.N, self.horizon, 1))
             # rand_euler_raw  = euler_init + rand_euler_delta
             rand_rot = np.stack([R.from_euler('zyx', euler).as_matrix().reshape((-1, 9))
@@ -133,10 +133,10 @@ class MPPI:
                         all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
                 else:
                     all_samples[:, h, :3] = \
-                        (self.beta * (self.mppi_mean[h-1, :3] + eps[:, h, :3]) +
+                        (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
                         (1 - self.beta) * all_samples[:, h-1, :3])
 
-                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h-1, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
+                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
                     past_rot = all_samples[:, h-1, 6:15].reshape((-1, 3, 3))
 
                     for n in range(self.N):
@@ -145,60 +145,44 @@ class MPPI:
 
             # print("all samples after: ", all_samples[0,:3,:])
 
-            """
-                # first step, the past action and mppi_mean are just zero ,so the
-                # first generate action (1st horizon) is just the noise itself
-            all_samples[:, 0, :3] = \
-                (self.beta * eps[:, 0, :3] +
-                    (1 - self.beta) * past_action[:3]) + self.mppi_mean[0, :3]
-
-            new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, 0, 6:15]]
-            past_rot = past_action[6:15].reshape((3, 3))
-
-            for n in range(self.N):
-                interp_R = R.from_matrix([new_rot[n], past_rot])
-                all_samples[n, 0, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
-
-            for h in range(max(self.horizon - 1, 0)):
-                all_samples[:, h+1, :3] = \
-                    (self.beta * (self.mppi_mean[h+1, :3] + eps[:, h+1, :3]) +
-                        (1 - self.beta) * all_samples[:, h, :3])
-
-                new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h+1, 6:15]]
-                past_rot = all_samples[:, h, 6:15].reshape((-1, 3, 3))
-
-                for n in range(self.N):
-                    interp_R = R.from_matrix([new_rot[n], past_rot[n]])
-                    all_samples[n, h+1, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
-            """
-
             # resulting candidate action sequences, all_samples: [N, horizon, action_dim]
             all_samples = np.clip(all_samples, -1, 1)
 
-
-            # plot to check sampled actions
-            # x_axis = [index for index in range (all_samples.shape[0])]
-            # y1_axis = all_samples[:,0,0]
-            # y2_axis = all_samples[:,0,1]
-            # y3_axis = all_samples[:,0,2]
-            # norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
-            # import matplotlib.pyplot as plt
-            # plt.subplot(1,3,1)
-            # plt.scatter(x_axis, y1_axis, marker="o", color="green")
-            # plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('sampled x points')
-            # plt.subplot(1,3,2)
-            # plt.scatter(x_axis, y2_axis, marker="o", color="red")
-            # plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('sampled y points')
-            # plt.subplot(1,3,3)
-            # plt.scatter(x_axis, y3_axis, marker="o", color="blue")
-            # plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('sampled z points')
-            # plt.figure()
+            if self.counter == 200:
+                all_samples = []
+                z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
+                # print("z set points", z_set_point_ls)
+                for z in z_set_point_ls:
+                    action = np.copy(curr_state)
+                    action[2] = z 
+                    action[6:15] = (R.from_quat([0.973, -0.226, -0.041, 0.007])).as_matrix().flatten()
+                    norm_action = self.dyn_model.norm.normalize(action[None, None, :])
+                    all_samples.append(norm_action)
+                all_samples = np.array(all_samples)
+                # print("all actions", all_actions[:5])
+                # plot to check sampled actions
+                x_axis = [index for index in range (all_samples.shape[0])]
+                y1_axis = all_samples[:,0,0]
+                y2_axis = all_samples[:,0,1]
+                y3_axis = all_samples[:,0,2]
+                norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
+                import matplotlib.pyplot as plt
+                plt.subplot(1,3,1)
+                plt.scatter(x_axis, y1_axis, marker="o", color="green")
+                plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('sampled x points')
+                plt.subplot(1,3,2)
+                plt.scatter(x_axis, y2_axis, marker="o", color="red")
+                plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('sampled y points')
+                plt.subplot(1,3,3)
+                plt.scatter(x_axis, y3_axis, marker="o", color="blue")
+                plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('sampled z points')
+                plt.figure()
 
 
             #####################################################################
@@ -209,54 +193,55 @@ class MPPI:
             resulting_states_ls, norm_resulting_states_ls= \
                 self.dyn_model.do_forward_sim(curr_state, np.copy(all_samples))
 
-            # ploting to see resulting statesplot
-            import matplotlib.pyplot as plt
-            # x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]
-            # norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
-            # y1_axis = norm_resulting_states_ls[0,:,0]
-            # y2_axis = norm_resulting_states_ls[0,:,1]
-            # y3_axis = norm_resulting_states_ls[0,:,2]
-            # plt.subplot(1,3,1)
-            # plt.scatter(x_axis, y1_axis, marker="o", color="green")
-            # plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('resulting state x ')
-            # plt.subplot(1,3,2)
-            # plt.scatter(x_axis, y2_axis, marker="o", color="red")
-            # plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('resulting state y')
-            # plt.subplot(1,3,3)
-            # plt.scatter(x_axis, y3_axis, marker="o", color="blue")
-            # plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('resulting state z')
-            # plt.figure()
+            if self.counter == 200:
+                # ploting to see resulting statesplot
+                import matplotlib.pyplot as plt
+                x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]
+                norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
+                y1_axis = norm_resulting_states_ls[0,:,0]
+                y2_axis = norm_resulting_states_ls[0,:,1]
+                y3_axis = norm_resulting_states_ls[0,:,2]
+                plt.subplot(1,3,1)
+                plt.scatter(x_axis, y1_axis, marker="o", color="green")
+                plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('resulting state x ')
+                plt.subplot(1,3,2)
+                plt.scatter(x_axis, y2_axis, marker="o", color="red")
+                plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('resulting state y')
+                plt.subplot(1,3,3)
+                plt.scatter(x_axis, y3_axis, marker="o", color="blue")
+                plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_samples.shape[0])], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('resulting state z')
+                plt.figure()
 
-            # ploting to see resulting statesplot
-            # import matplotlib.pyplot as plt
-            # x_axis = [index for index in range (resulting_states_ls.shape[1])]
-            # curr_state = [curr_state for _ in range (resulting_states_ls.shape[1])]
-            # curr_state = np.asarray(curr_state)
-            # y1_axis = resulting_states_ls[0,:,0]
-            # y2_axis = resulting_states_ls[0,:,1]
-            # y3_axis = resulting_states_ls[0,:,2]
-            # plt.subplot(1,3,1)
-            # plt.scatter(x_axis, y1_axis, marker="o", color="green")
-            # plt.plot(x_axis, curr_state[:,0], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('resulting state x ')
-            # plt.subplot(1,3,2)
-            # plt.scatter(x_axis, y2_axis, marker="o", color="red")
-            # plt.plot(x_axis, curr_state[:,1], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('resulting state y')
-            # plt.subplot(1,3,3)
-            # plt.scatter(x_axis, y3_axis, marker="o", color="blue")
-            # plt.plot(x_axis, curr_state[:,2], marker="o", color="yellow")
-            # plt.xlabel('samples')
-            # plt.ylabel('resulting state z')
-            # plt.show()
+                # ploting to see resulting statesplot
+                import matplotlib.pyplot as plt
+                x_axis = [index for index in range (resulting_states_ls.shape[1])]
+                curr_state = [curr_state for _ in range (resulting_states_ls.shape[1])]
+                curr_state = np.asarray(curr_state)
+                y1_axis = resulting_states_ls[0,:,0]
+                y2_axis = resulting_states_ls[0,:,1]
+                y3_axis = resulting_states_ls[0,:,2]
+                plt.subplot(1,3,1)
+                plt.scatter(x_axis, y1_axis, marker="o", color="green")
+                plt.plot(x_axis, curr_state[:,0], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('resulting state x ')
+                plt.subplot(1,3,2)
+                plt.scatter(x_axis, y2_axis, marker="o", color="red")
+                plt.plot(x_axis, curr_state[:,1], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('resulting state y')
+                plt.subplot(1,3,3)
+                plt.scatter(x_axis, y3_axis, marker="o", color="blue")
+                plt.plot(x_axis, curr_state[:,2], marker="o", color="yellow")
+                plt.xlabel('samples')
+                plt.ylabel('resulting state z')
+                plt.show()
 
 
             # average all the ending states in the recording as goal position

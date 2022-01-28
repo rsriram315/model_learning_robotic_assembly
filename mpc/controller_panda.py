@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from types import SimpleNamespace
-from amira_gym_ros.task_envs.panda_model_learning_rework import PandaReachModelLearning
+from amira_gym_ros.task_envs.panda_model_learning import PandaModelLearning
 import rospy
 from mpc.dyn_model import Dyn_Model
 from mpc.mpc_rollout_panda import MPCRollout
@@ -12,12 +12,12 @@ from scipy.spatial.transform import Rotation as R
 _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='rand_shooting',
-                     horizon=1,
-                     max_step=75,
-                     num_sample_seq=3000,
-                     rand_policy_angle_min=-0.01,
-                     rand_policy_angle_max=0.01,
+                dict(controller_type='mppi',
+                     horizon=5,
+                     max_step=100,
+                     num_sample_seq=300,
+                     rand_policy_angle_min=-0.02,
+                     rand_policy_angle_max=0.02,
                      rand_policy_hold_action=1))
 
     dyn_model = Dyn_Model(cfg)
@@ -81,7 +81,7 @@ def build_env(cfg):
     #                               )
                                 #   pause_for_train=True,) [0.3980723  0.38012593 0.31273318]
     if cfg["task_type"]["hard_insertion"]:
-        env = PandaReachModelLearning(initial_position=cfg["hard_insertion_environment"]["initial_position"],
+        env = PandaModelLearning(initial_position=cfg["hard_insertion_environment"]["initial_position"],
                                     target_position=cfg["hard_insertion_environment"]["target_position"],
                                     max_position_offset=cfg["hard_insertion_environment"]["max_position_offset"],
                                     nullspace_q_ref = cfg["hard_insertion_environment"]["nullspace_q_ref"],
@@ -89,14 +89,14 @@ def build_env(cfg):
                                     target_quaternion = cfg["hard_insertion_environment"]["target_quaternion"],)
     
     elif cfg["task_type"]["easy_insertion"]:
-        env = PandaReachModelLearning(initial_position=cfg["easy_insertion_environment"]["initial_position"],
+        env = PandaModelLearning(initial_position=cfg["easy_insertion_environment"]["initial_position"],
                                     target_position=cfg["easy_insertion_environment"]["target_position"],
                                     max_position_offset=cfg["easy_insertion_environment"]["max_position_offset"],
                                     nullspace_q_ref = cfg["easy_insertion_environment"]["nullspace_q_ref"],
                                     initial_quaternion = cfg["easy_insertion_environment"]["initial_quaternion"],
                                     target_quaternion = cfg["easy_insertion_environment"]["target_quaternion"],)
     elif cfg["task_type"]["reach"]:
-        env = PandaReachModelLearning(initial_position=cfg["reach_task_environment"]["initial_position"],
+        env = PandaModelLearning(initial_position=cfg["reach_task_environment"]["initial_position"],
                                     target_position=cfg["reach_task_environment"]["target_position"],
                                     max_position_offset=cfg["reach_task_environment"]["max_position_offset"],
                                     nullspace_q_ref = cfg["reach_task_environment"]["nullspace_q_ref"],

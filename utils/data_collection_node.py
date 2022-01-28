@@ -50,7 +50,7 @@ class DataCollection:
         """
         n = len(os.listdir(self.directory))
         now = datetime.now()
-        self.filename = f"recording_{n+1:04}_{now.year}_{now.month:02}_{now.day:02}.h5"
+        self.filename = f"recording_{n+1:04}_{now.year}_{now.month:02}_{now.day:02}_{now.hour:02}_{now.minute:02}.h5"
         print(f"\n... Saving data to {self.filename} ...\n")
         self.file_path = os.path.join(self.directory, self.filename)
 

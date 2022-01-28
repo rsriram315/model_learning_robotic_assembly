@@ -21,7 +21,7 @@ class BaseTrainer:
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
-
+        self.trainer_cfg = trainer_cfg
         self.num_epochs = trainer_cfg["num_epochs"]
 
         self.ckpts_dir = Path(trainer_cfg["ckpts_dir"])

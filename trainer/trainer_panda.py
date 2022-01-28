@@ -148,8 +148,6 @@ class Trainer(BaseTrainer):
                 loss = 1 * self.criterion_1(output[:6], target[:6])
                 loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
 
-                # loss = self.criterion(output, target)
-
                 self.valid_metrics.update('loss', loss.item())
                 # for met in self.metric_fns:
                 #     self.valid_metrics.update(met.__name__,

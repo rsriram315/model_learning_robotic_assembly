@@ -18,7 +18,7 @@ class MLP(BaseModel):
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = F.tanh(self.fc3(x))
+        x = torch.tanh(self.fc3(x))
 
         # 6D rotation representation
         x = compute_rotation_matrix_from_ortho6d(x, device=self.device)

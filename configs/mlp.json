@@ -44,7 +44,7 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
-        "contact_only": true,
+        "contact_only": false,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
@@ -89,11 +89,12 @@
         "early_stop": true,
         "patience": 5,
         "log_file": "saved/train.log",
-        "tb_dir": "saved/tb_log"
+        "tb_dir": "saved/tb_log",
+        "criterion": "Geodesic_MSE"
     },
     "optimizer": {
         "name": "Adam",
-        "lr": 0.001,
+        "lr": 0.0005,
         "weight_decay": 0,
         "amsgrad": true
     },
@@ -105,11 +106,12 @@
         "early_stop": true,
         "patience": 5,
         "log_file": "saved_finetune/train.log",
-        "tb_dir": "saved_finetune/tb_log"
+        "tb_dir": "saved_finetune/tb_log",
+        "criterion": "Geodesic_MSE"
     },
     "finetune_optimizer": {
         "name": "Adam",
-        "lr": 0.0001,
+        "lr": 0.00005,
         "weight_decay": 0,
         "amsgrad": true
     },
@@ -146,7 +148,7 @@
         "max_position_offset": "np.inf"
     },
     "hard_insertion_environment": {
-        "initial_position": [0.270, -0.410, 0.211],
+        "initial_position": [0.270, -0.410, 0.209],
         "initial_quaternion": [0.986, -0.161, -0.0153, 0.0115],
         "target_position": [0.269, -0.412,  0.1825],
         "target_quaternion": [0.9849642,  -0.16776719, -0.04071259,  0.00649433],

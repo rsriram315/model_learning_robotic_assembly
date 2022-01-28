@@ -18,7 +18,7 @@ class RandomShooting:
         self.random_sampling_params = {'angle_min': params.rand_policy_angle_min,
                                        'angle_max': params.rand_policy_angle_max,
                                        'hold_action': params.rand_policy_hold_action}
-
+        self.step = 0
     def get_action(self, curr_state, goal_state, step):
         """
         Select optimal action
@@ -49,8 +49,6 @@ class RandomShooting:
         # all_actions: [num_sample_seq, num_rollout, num_action_dim]
         all_actions = np.array(all_samples)
 
-
-        # z_set_point_ls = np.arange(0.45, 0.125, -0.002)
         # z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
         # # print("z set points", z_set_point_ls)
         # for z in z_set_point_ls:
@@ -61,30 +59,30 @@ class RandomShooting:
         #     all_samples.append(norm_action)
         # all_actions = np.array(all_samples)
         # # print("all actions", all_actions[:5])
-
-        # plot to check sampled actions
-        # x_axis = [index for index in range (all_actions.shape[0])]
-        # y1_axis = all_actions[:,0,0]
-        # y2_axis = all_actions[:,0,1]
-        # y3_axis = all_actions[:,0,2]
-        # norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
-        # import matplotlib.pyplot as plt
-        # plt.subplot(1,3,1)
-        # plt.scatter(x_axis, y1_axis, marker="o", color="green")
-        # plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('sampled x points')
-        # plt.subplot(1,3,2)
-        # plt.scatter(x_axis, y2_axis, marker="o", color="red")
-        # plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('sampled y points')
-        # plt.subplot(1,3,3)
-        # plt.scatter(x_axis, y3_axis, marker="o", color="blue")
-        # plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('sampled z points')
-        # plt.figure()
+        if self.step == 300:
+            # plot to check sampled actions
+            x_axis = [index for index in range (all_actions.shape[0])]
+            y1_axis = all_actions[:,0,0]
+            y2_axis = all_actions[:,0,1]
+            y3_axis = all_actions[:,0,2]
+            norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
+            import matplotlib.pyplot as plt
+            plt.subplot(1,3,1)
+            plt.scatter(x_axis, y1_axis, marker="o", color="green")
+            plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('sampled x points')
+            plt.subplot(1,3,2)
+            plt.scatter(x_axis, y2_axis, marker="o", color="red")
+            plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('sampled y points')
+            plt.subplot(1,3,3)
+            plt.scatter(x_axis, y3_axis, marker="o", color="blue")
+            plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('sampled z points')
+            plt.figure()
 
         #############################################################################
         # have model predict the result of executing those candidate action sequences
@@ -93,54 +91,55 @@ class RandomShooting:
         # [horizon+1, N, state_size]
         resulting_states_ls, norm_resulting_states_ls = self.dyn_model.do_forward_sim(curr_state, np.copy(all_actions))
 
-        # ploting to see resulting statesplot
-        # import matplotlib.pyplot as plt
-        # x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]
-        # norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
-        # y1_axis = norm_resulting_states_ls[0,:,0]
-        # y2_axis = norm_resulting_states_ls[0,:,1]
-        # y3_axis = norm_resulting_states_ls[0,:,2]        
-        # plt.subplot(1,3,1)
-        # plt.scatter(x_axis, y1_axis, marker="o", color="green")
-        # plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('resulting state x normalized')
-        # plt.subplot(1,3,2)
-        # plt.scatter(x_axis, y2_axis, marker="o", color="red")
-        # plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('resulting state y normalized')
-        # plt.subplot(1,3,3)
-        # plt.scatter(x_axis, y3_axis, marker="o", color="blue")
-        # plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('resulting state z normalized')
-        # plt.figure()
+        if self.step == 300:
+            # ploting to see resulting statesplot
+            import matplotlib.pyplot as plt
+            x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]
+            norm_curr_state = np.squeeze(self.dyn_model.norm.normalize(curr_state[None, None, :])[0])
+            y1_axis = norm_resulting_states_ls[0,:,0]
+            y2_axis = norm_resulting_states_ls[0,:,1]
+            y3_axis = norm_resulting_states_ls[0,:,2]        
+            plt.subplot(1,3,1)
+            plt.scatter(x_axis, y1_axis, marker="o", color="green")
+            plt.plot(x_axis, [norm_curr_state[0] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('resulting state x normalized')
+            plt.subplot(1,3,2)
+            plt.scatter(x_axis, y2_axis, marker="o", color="red")
+            plt.plot(x_axis, [norm_curr_state[1] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('resulting state y normalized')
+            plt.subplot(1,3,3)
+            plt.scatter(x_axis, y3_axis, marker="o", color="blue")
+            plt.plot(x_axis, [norm_curr_state[2] for _ in range (all_actions.shape[0])], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('resulting state z normalized')
+            plt.figure()
 
-        # ploting to see resulting statesplot
-        # import matplotlib.pyplot as plt
-        # x_axis = [index for index in range (resulting_states_ls.shape[1])]
-        # curr_state = [curr_state for _ in range (resulting_states_ls.shape[1])]
-        # curr_state = np.asarray(curr_state)
-        # y1_axis = resulting_states_ls[0,:,0]
-        # y2_axis = resulting_states_ls[0,:,1]
-        # y3_axis = resulting_states_ls[0,:,2]        
-        # plt.subplot(1,3,1)
-        # plt.scatter(x_axis, y1_axis, marker="o", color="green")
-        # plt.plot(x_axis, curr_state[:,0], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('resulting state x ')
-        # plt.subplot(1,3,2)
-        # plt.scatter(x_axis, y2_axis, marker="o", color="red")
-        # plt.plot(x_axis, curr_state[:,1], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('resulting state y')
-        # plt.subplot(1,3,3)
-        # plt.scatter(x_axis, y3_axis, marker="o", color="blue")
-        # plt.plot(x_axis, curr_state[:,2], marker="o", color="yellow")
-        # plt.xlabel('samples')
-        # plt.ylabel('resulting state z')
-        # plt.show()
+            # ploting to see resulting statesplot
+            import matplotlib.pyplot as plt
+            x_axis = [index for index in range (resulting_states_ls.shape[1])]
+            curr_state = [curr_state for _ in range (resulting_states_ls.shape[1])]
+            curr_state = np.asarray(curr_state)
+            y1_axis = resulting_states_ls[0,:,0]
+            y2_axis = resulting_states_ls[0,:,1]
+            y3_axis = resulting_states_ls[0,:,2]        
+            plt.subplot(1,3,1)
+            plt.scatter(x_axis, y1_axis, marker="o", color="green")
+            plt.plot(x_axis, curr_state[:,0], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('resulting state x ')
+            plt.subplot(1,3,2)
+            plt.scatter(x_axis, y2_axis, marker="o", color="red")
+            plt.plot(x_axis, curr_state[:,1], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('resulting state y')
+            plt.subplot(1,3,3)
+            plt.scatter(x_axis, y3_axis, marker="o", color="blue")
+            plt.plot(x_axis, curr_state[:,2], marker="o", color="yellow")
+            plt.xlabel('samples')
+            plt.ylabel('resulting state z')
+            plt.show()
 
         #####################################
         # evaluate the predicted trajectories
@@ -163,6 +162,6 @@ class RandomShooting:
         pred_state = resulting_states_ls[0,best_sim_number,:]
         # norm_pred_states = norm_resulting_states_ls[0,best_sim_number,:]
 
-
+        self.step += 1
 
         return best_action, pred_state #, norm_pred_states

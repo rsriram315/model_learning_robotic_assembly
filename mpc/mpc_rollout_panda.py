@@ -22,9 +22,9 @@ class MPCRollout:
                                              self.cost,
                                              rand_policy, params)
         elif params.controller_type == 'mppi':
-            params.mppi_gamma = 170
+            params.mppi_gamma = 300
             params.mppi_mag_noise = 0.9
-            params.mppi_beta = 0.5
+            params.mppi_beta = 0.9
             self.controller = MPPI(self.env,
                                    self.dyn_model,
                                    self.cost,
@@ -88,7 +88,7 @@ class MPCRollout:
             if self.controller_type == 'mppi' and count == 1:
                 self.controller.mppi_mean = np.tile(curr_state, (self.controller.horizon, 1))
                 # self.controller.mppi_mean[:, :3] = [0, 0, 0]
-                self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
+                # self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
                 # self.controller.mppi_mean[:, 6:15] = np.eye(3,3).flatten()  # action rotation is delta
             print("current state before executing mpc", self.env._get_obs()[:3])
             
@@ -127,7 +127,7 @@ class MPCRollout:
                 self.env.robot_interface._arm_state.tcp_wrench_ee.torque.y,
                 self.env.robot_interface._arm_state.tcp_wrench_ee.torque.z,
             ])
-
+            print("curr_wrench", curr_wrench)
             curr_time = count
 
             action = np.copy(action_to_take)
@@ -174,7 +174,7 @@ class MPCRollout:
         # norm_pred_states = np.asarray(norm_predicted_state)
         actual_state = np.asarray(true_state)
         x_axis = [index for index in range (len(actual_state))]
-        goal_x = np.full((len(actual_state),), 0.2695) # hard 0.268 # easy 0.400
+        goal_x = np.full((len(actual_state),), 0.269) # hard 0.268 # easy 0.400
         goal_y = np.full((len(actual_state),), -0.412) # hard -0.411 # easy 0.376
         goal_z = np.full((len(actual_state),), 0.182) # hard 0.183 # easy 0.285
         y1_z_axis = actual_state[:,2]

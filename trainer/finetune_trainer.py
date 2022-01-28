@@ -3,6 +3,7 @@ import numpy as np
 from model import MLP, MCDropout
 from trainer.base_trainer import BaseTrainer
 from utils import MetricTracker, ensure_dir, prepare_device
+from utils.geodesic_loss import GeodesicLoss
 
 
 class Trainer(BaseTrainer):
@@ -33,7 +34,10 @@ class Trainer(BaseTrainer):
 
         model = self._build_model(model_cfg, dataset_stats)
         optimizer = self._build_optim(model, optim_cfg)
-        criterion = torch.nn.MSELoss(reduction='mean')
+        if trainer_cfg["criterion"] == "Geodesic_MSE":
+            criterion = (torch.nn.MSELoss(reduction='mean'), GeodesicLoss(reduction='mean'))
+        elif trainer_cfg["criterion"] == "MSE":
+            criterion = torch.nn.MSELoss(reduction='mean')
 
         metric_fns = []
         self.train_metrics = \
@@ -103,7 +107,17 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad(set_to_none=True)
             output = self.model(state_action)
 
-            loss = self.criterion(output, target)
+            if self.trainer_cfg["criterion"] == "Geodesic_MSE":
+                self.criterion_1, self.criterion_2 = self.criterion
+                loss = 1 * self.criterion_1(output[:6], target[:6])
+                # print("MSE loss:", loss)
+                loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+                # print("geodesic loss:", 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3)))
+                # print("total loss :", loss)
+            
+            elif self.trainer_cfg["criterion"] == "MSE":
+                loss = self.criterion(output, target)
+
             loss.backward()
             self.optimizer.step()
 
@@ -139,10 +153,18 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             for _, (data, target) in enumerate(self.valid_dataloader):
                 data, target = data.to(self.device), target.to(self.device)
-
                 output = self.model(data)
-                loss = self.criterion(output, target)
-                # loss = self.criterion(output, target)
+
+                if self.trainer_cfg["criterion"] == "Geodesic_MSE":
+                    self.criterion_1, self.criterion_2 = self.criterion
+                    loss = 1 * self.criterion_1(output[:6], target[:6])
+                    # print("MSE loss:", loss)
+                    loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+                    # print("geodesic loss:", 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3)))
+                    # print("total loss :", loss)
+
+                elif self.trainer_cfg["criterion"] == "MSE":
+                    loss = self.criterion(output, target)
 
                 self.valid_metrics.update('loss', loss.item())
                 # for met in self.metric_fns:
