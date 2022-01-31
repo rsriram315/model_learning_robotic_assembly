@@ -1,10 +1,10 @@
 {
     "name": "mlp",
-    "train": false,
+    "train": true,
     "evaluate": false,
     "visualize": false,
     "rollout": false,
-    "mpc": true,
+    "mpc": false,
     "finetune" : false,
     "dataset": {
         "name": "DemoDataset",
