@@ -22,9 +22,9 @@ class MPCRollout:
                                              self.cost,
                                              rand_policy, params)
         elif params.controller_type == 'mppi':
-            params.mppi_gamma = 300
+            params.mppi_gamma = 400
             params.mppi_mag_noise = 0.9
-            params.mppi_beta = 0.9
+            params.mppi_beta = 0.1
             self.controller = MPPI(self.env,
                                    self.dyn_model,
                                    self.cost,
@@ -87,8 +87,9 @@ class MPCRollout:
             # get optimal action
             if self.controller_type == 'mppi' and count == 1:
                 self.controller.mppi_mean = np.tile(curr_state, (self.controller.horizon, 1))
+                self.controller.mppi_mean = self.dyn_model.norm.normalize(self.controller.mppi_mean[None,:,:], is_action=True,axis=0)
                 # self.controller.mppi_mean[:, :3] = [0, 0, 0]
-                # self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
+                self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
                 # self.controller.mppi_mean[:, 6:15] = np.eye(3,3).flatten()  # action rotation is delta
             print("current state before executing mpc", self.env._get_obs()[:3])
             
@@ -98,6 +99,7 @@ class MPCRollout:
             # norm_predicted_state.append(norm_pred_next_state)
             
             print("best_action", best_action[:3])
+            print("best_action rot", best_action[6:15])
             best_action_pos = best_action[:3] - np.copy(self.env._get_obs()[:3])
             max_input.append(best_action_pos)
             best_action_rot = best_action[6:]
@@ -127,7 +129,6 @@ class MPCRollout:
                 self.env.robot_interface._arm_state.tcp_wrench_ee.torque.y,
                 self.env.robot_interface._arm_state.tcp_wrench_ee.torque.z,
             ])
-            print("curr_wrench", curr_wrench)
             curr_time = count
 
             action = np.copy(action_to_take)

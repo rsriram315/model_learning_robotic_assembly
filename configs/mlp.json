@@ -13,7 +13,7 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
-        "contact_only": true,
+        "contact_only": false,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
@@ -94,7 +94,7 @@
     },
     "optimizer": {
         "name": "Adam",
-        "lr": 0.0005,
+        "lr": 0.001,
         "weight_decay": 0,
         "amsgrad": true
     },

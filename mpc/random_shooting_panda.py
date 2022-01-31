@@ -59,7 +59,18 @@ class RandomShooting:
         #     all_samples.append(norm_action)
         # all_actions = np.array(all_samples)
         # # print("all actions", all_actions[:5])
-        if self.step == 300:
+        if self.step == 40:
+            all_samples = []
+            z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
+            # print("z set points", z_set_point_ls)
+            for z in z_set_point_ls:
+                action = np.copy(curr_state)
+                action[2] = z 
+                # action[6:15] = (R.from_quat([0.973, -0.226, -0.041, 0.007])).as_matrix().flatten()
+                norm_action = self.dyn_model.norm.normalize(action[None, None, :])
+                all_samples.append(norm_action)
+            all_actions = np.array(all_samples)
+
             # plot to check sampled actions
             x_axis = [index for index in range (all_actions.shape[0])]
             y1_axis = all_actions[:,0,0]
@@ -91,7 +102,7 @@ class RandomShooting:
         # [horizon+1, N, state_size]
         resulting_states_ls, norm_resulting_states_ls = self.dyn_model.do_forward_sim(curr_state, np.copy(all_actions))
 
-        if self.step == 300:
+        if self.step == 40:
             # ploting to see resulting statesplot
             import matplotlib.pyplot as plt
             x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]

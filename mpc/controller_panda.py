@@ -12,10 +12,10 @@ from scipy.spatial.transform import Rotation as R
 _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='mppi',
-                     horizon=5,
+                dict(controller_type='rand_shooting',
+                     horizon=1,
                      max_step=100,
-                     num_sample_seq=300,
+                     num_sample_seq=3000,
                      rand_policy_angle_min=-0.02,
                      rand_policy_angle_max=0.02,
                      rand_policy_hold_action=1))

@@ -26,7 +26,7 @@ class MPPI:
         self.sigma = params.mppi_mag_noise * np.ones(self.action_dim)
         self.beta = params.mppi_beta
         self.mppi_mean = None
-        self.mppi_mean_normalized  = None
+        # self.mppi_mean_normalized  = None
         # self.mppi_mean = np.zeros((self.horizon, self.action_dim))
 
         self.counter = 1
@@ -45,14 +45,14 @@ class MPPI:
         # weights = np.exp(self.mppi_gamma * (scores - np.amax(scores)))[:, None, None]  # [N, 1, 1] # pddm formulation
         weights = np.exp( - self.mppi_gamma * scores)[:, None, None]  # [N, 1, 1] # mppi formulation
         sum_weights = np.sum(weights) + _FLOAT_EPS  # numerical stability
-
+        print("weigths", weights[:5])
         #######################################################################
         # weight all actions of the sequence by that sequence's resulted reward
         #######################################################################
         weighted_actions = np.copy(all_samples)
         weighted_actions[:, :, :3] = weights * all_samples[:, :, :3]  # [N, H, action_dim]
         self.mppi_mean[:, :3] = np.sum(weighted_actions[:, :, :3], axis=0) / sum_weights
-
+        print(" self.mppi_mean[:, :3]",  self.mppi_mean[:5, :3])
         # sum over all the sampled trajectories
         # weighted_actions = weights * all_samples  # [N, H, action_dim]
         # self.mppi_mean = np.sum(weighted_actions, axis=0) / sum_weights
@@ -82,20 +82,20 @@ class MPPI:
             print("self.init_euler_angle", (self.init_euler_angle) * 180 / np.pi)
         # past action is the first step of the prev averaged trajectory
         past_action = np.copy(self.mppi_mean[0])  # mu_{t-1}
-        past_action_normalized = np.squeeze(self.dyn_model.norm.normalize(past_action[None, None, :], is_action=True))
+        # past_action_normalized = np.squeeze(self.dyn_model.norm.normalize(past_action[None, None, :], is_action=True))
 
         # remove the 1st entry of mean (mean from last timestamp, which was just executed)
         # and copy the penultimate entry to the last entry (starting point, for the next timestep)
         self.mppi_mean[:-1] = self.mppi_mean[1:]  # mu_{t}
-        self.mppi_mean_normalized = self.dyn_model.norm.normalize(self.mppi_mean[None,:,:], is_action=True, axis=0)
-        # print("mppi_mean", self.mppi_mean)
+        # self.mppi_mean_normalized = self.dyn_model.norm.normalize(self.mppi_mean[None,:,:], is_action=True, axis=0)
+        print("mppi_mean", self.mppi_mean)
         # print("mppi_mean_normalized", self.mppi_mean_normalized)
         for k in range(1):
             ##############################################
             # noise source
             ##############################################
             # only disturb set point position for prototyping
-            rand_set_point = np.random.normal(loc=0, scale=0.1,
+            rand_set_point = np.random.normal(loc=0, scale=1.0/3,
                                 size=(self.N, self.horizon, 3)) * self.sigma[:3]
             rand_force = np.zeros((self.N, self.horizon, 3))
 
@@ -111,7 +111,8 @@ class MPPI:
             # print("rand euler", rand_euler_raw[0,0]*180/ np.pi)
             eps = np.concatenate((rand_set_point, rand_force, rand_rot), axis=2)
             all_samples = copy.deepcopy(eps)
-            # print("all samples before", all_samples[0,:3,:])
+            print("eps", eps[0, :3, :])
+            print("all samples before", all_samples[0,:3,:])
 
             # actions = mean + noise, then smooth the actions temporally
             # TODO: where is the beta * (action_mean + noise) from?
@@ -123,36 +124,32 @@ class MPPI:
                     # first step, the past action and mppi_mean are just zero ,so the
                     # first generate action (1st horizon) is just the noise itself
                     all_samples[:, h, :3] = \
-                        (self.beta * (self.mppi_mean_normalized[h, :3] + eps[:, h, :3]) +
-                        (1 - self.beta) * past_action_normalized[:3])
+                        (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
+                        (1 - self.beta) * past_action[:3])
 
-                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean_normalized[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
-                    # print("initial mean", self.mppi_mean[h, 6:15].reshape(3,3))
-                    # print("new_rot", new_rot)
-                    past_rot = past_action_normalized[6:15].reshape((3, 3))
+                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
+                    past_rot = past_action[6:15].reshape((3, 3))
 
                     for n in range(self.N):
                         interp_R = R.from_matrix([new_rot[n], past_rot])
                         all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
                 else:
-                    # print("self.mppi_mean[h, :3]", self.mppi_mean[h, :3])
                     all_samples[:, h, :3] = \
-                        (self.beta * (self.mppi_mean_normalized[h, :3] + eps[:, h, :3]) +
+                        (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
                         (1 - self.beta) * all_samples[:, h-1, :3])
 
-                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean_normalized[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
+                    new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
                     past_rot = all_samples[:, h-1, 6:15].reshape((-1, 3, 3))
 
                     for n in range(self.N):
                         interp_R = R.from_matrix([new_rot[n], past_rot[n]])
                         all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
 
-            # print("all samples after: ", all_samples[0,:3,:])
 
             # resulting candidate action sequences, all_samples: [N, horizon, action_dim]
             all_samples = np.clip(all_samples, -1, 1)
-
-            if self.counter == 700:
+            print("all samples after: ", all_samples[0,:3,:])
+            if self.counter == 70:
                 all_samples = []
                 z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
                 # print("z set points", z_set_point_ls)
@@ -196,8 +193,8 @@ class MPPI:
             # [horizon+1, N, state_size]
             resulting_states_ls, norm_resulting_states_ls= \
                 self.dyn_model.do_forward_sim(curr_state, np.copy(all_samples))
-
-            if self.counter == 700:
+            print("resulting_states_ls", resulting_states_ls[0, :3, :])
+            if self.counter == 70:
                 # ploting to see resulting statesplot
                 import matplotlib.pyplot as plt
                 x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]
@@ -250,9 +247,10 @@ class MPPI:
 
             # average all the ending states in the recording as goal position
             costs = calculate_costs(resulting_states_ls, goal_state, self.cost_fn)
+            # print("costs", costs)
             # use all paths to update action mean (for horizon steps)
             selected_action = self.mppi_update(costs, all_samples)
-
+            print("selected_action",selected_action)
 
         self.counter += 1
         # print("selected action before inv normalizing", selected_action)
