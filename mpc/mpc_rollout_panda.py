@@ -1,30 +1,41 @@
 # flake8: noqa
 import time
+import os
 import numpy as np
-# import robosuite.utils.transform_utils as T
 from scipy.spatial.transform import Rotation as R
 from mpc.random_shooting_panda import RandomShooting
 from mpc.mppi_panda import MPPI
 import matplotlib.pyplot as plt
 from utils.data_collection_node import DataCollection
+from utils.utils import ensure_dir
+from datetime import datetime
+
 class MPCRollout:
-    def __init__(self, env, dyn_model, rand_policy, goal_state, params):
+    def __init__(self, env, dyn_model, rand_policy, goal_state, params, artifact_cb, param_cb, image_cb):
         self.env = env
         self.dyn_model = dyn_model
         self.max_step = params.max_step
         self.controller_type = params.controller_type
         self.goal_state = goal_state
+        self.params = params
+        self.artifact_cb = artifact_cb
+        self.param_cb = param_cb
+        self.image_cb = image_cb
 
         # init controller parameters
-        if params.controller_type == 'rand_shooting':
+        if params.controller_type == 'random_shooting':
             self.controller = RandomShooting(self.env,
                                              self.dyn_model,
                                              self.cost,
                                              rand_policy, params)
         elif params.controller_type == 'mppi':
-            params.mppi_gamma = 400
-            params.mppi_mag_noise = 0.9
-            params.mppi_beta = 0.1
+            self.params.mppi_gamma = 20
+            self.params.mppi_mag_noise = 1.0
+            self.params.mppi_beta = 0.9
+            # log params to mlflow
+            self.param_cb(dict(mppi_gamma=params.mppi_gamma,
+                               mppi_magnitude_noise=params.mppi_mag_noise,
+                               mppi_beta=params.mppi_beta))
             self.controller = MPPI(self.env,
                                    self.dyn_model,
                                    self.cost,
@@ -59,7 +70,6 @@ class MPCRollout:
         # init vars for rollout
         #######################
         step = 1
-        # self.starting_envstate = starting_envstate
 
         ###################################
         # initialize first K states/actions
@@ -75,33 +85,39 @@ class MPCRollout:
         true_state = []
         predicted_state = []
         norm_predicted_state = []
-        max_input = []
+        true_state.append(curr_state)
+        predicted_state.append(curr_state)
 
+        # Init Data colelction node
+        if self.params.record_mpc_rollouts:
+            now = datetime.now()
+            self.data_dir = os.path.join(self.params.rollout_save_dir, self.params.task_type, self.params.controller_type,
+                         f"{now.year}_{now.month:02}_{now.day:02}")
+            self.param_cb(dict(rollout_save_dir=self.data_dir))
+            ensure_dir(self.data_dir)
+            self.data_collector = DataCollection(self.env, self.data_dir, self.artifact_cb)
+            self.data_collector.reset()
 
-        self.data_dir = "/home/rsr7rng/thesis/model_learning_panda/recorded_data"
-        self.data_collector = DataCollection(self.env, self.data_dir)
-        self.data_collector.reset()
-
-        while not(done or step >= self.max_step):
+        while not(done or step > self.max_step):
             count += 1
             # get optimal action
-            if self.controller_type == 'mppi' and count == 1:
+            if self.controller_type == 'mppi' and count==1:
                 self.controller.mppi_mean = np.tile(curr_state, (self.controller.horizon, 1))
                 self.controller.mppi_mean = self.dyn_model.norm.normalize(self.controller.mppi_mean[None,:,:], is_action=True,axis=0)
                 # self.controller.mppi_mean[:, :3] = [0, 0, 0]
                 self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
                 # self.controller.mppi_mean[:, 6:15] = np.eye(3,3).flatten()  # action rotation is delta
+                print("Init controller mean: ", self.controller.mppi_mean[:,:3])
+                # time.sleep(10)
             print("current state before executing mpc", self.env._get_obs()[:3])
             
             best_action, pred_next_state = self.controller.get_action(curr_state, self.goal_state, step)
-
             predicted_state.append(pred_next_state)
             # norm_predicted_state.append(norm_pred_next_state)
             
             print("best_action", best_action[:3])
             print("best_action rot", best_action[6:15])
             best_action_pos = best_action[:3] - np.copy(self.env._get_obs()[:3])
-            max_input.append(best_action_pos)
             best_action_rot = best_action[6:]
             
             action_to_take = np.hstack((best_action_pos,
@@ -111,7 +127,7 @@ class MPCRollout:
             ########################################################################    
             # recording current tcp state and action sent to cartesisan impedence setpoint
             ########################################################################
-            curr_pose = np.array([
+            curr_state_pose = np.array([
                 self.env.robot_interface._arm_state.tcp_pose_base.position.x,
                 self.env.robot_interface._arm_state.tcp_pose_base.position.y,
                 self.env.robot_interface._arm_state.tcp_pose_base.position.z,
@@ -121,7 +137,7 @@ class MPCRollout:
                 self.env.robot_interface._arm_state.tcp_pose_base.orientation.w,
             ])
 
-            curr_wrench = np.array([
+            curr_state_wrench = np.array([
                 self.env.robot_interface._arm_state.tcp_wrench_ee.force.x,
                 self.env.robot_interface._arm_state.tcp_wrench_ee.force.y,
                 self.env.robot_interface._arm_state.tcp_wrench_ee.force.z,
@@ -129,14 +145,14 @@ class MPCRollout:
                 self.env.robot_interface._arm_state.tcp_wrench_ee.torque.y,
                 self.env.robot_interface._arm_state.tcp_wrench_ee.torque.z,
             ])
-            curr_time = count
+            curr_time = time.time() - rollout_start
 
             action = np.copy(action_to_take)
-            current_pose_in_rot_matrix = self.env._quat_pose_to_rotation_matrix(curr_pose)
+            current_pose_in_rot_matrix = self.env._quat_pose_to_rotation_matrix(curr_state_pose)
             new_rot_mat = action[3:].reshape(3,3)
             action[:3] = np.clip(action[:3], -0.001, 0.001)
             new_pose_in_rot_matrix = np.hstack((current_pose_in_rot_matrix[:3] + action[:3], new_rot_mat.ravel()))
-            action_pose = self.env._rotation_matrix_pose_to_quat(new_pose_in_rot_matrix)        
+            curr_action_pose = self.env._rotation_matrix_pose_to_quat(new_pose_in_rot_matrix)        
 
             ########################    
             # execute the action
@@ -152,21 +168,27 @@ class MPCRollout:
             ################################################    
             # saving collected data in .h5 file
             ################################################ 
-            if step <= self.max_step and not done:
-                print("\n... Recording data ... \n ")
-                self.data_collector.record(curr_pose, action_pose, curr_wrench, curr_time)
-            else:
-                
-                self.data_collector.flush()
-                print(f"... Saving to directory {self.data_collector.directory} ... \n")
+            if self.params.record_mpc_rollouts:
+                if step < self.max_step:
+                    print("\n... Recording data ... \n ")
+                    self.data_collector.record(curr_state_pose, curr_action_pose, curr_state_wrench, curr_time, curr_state, pred_next_state, reward)
+                    if done:
+                        self.param_cb(dict(success=True,
+                                    steps_to_solve_task=step,
+                                    rollout_time=time.time()- rollout_start))
+                        self.data_collector.flush()
+                        print(f"... Saving to directory {self.data_collector.directory} ... \n")
+                        break
+                else:
+                    self.param_cb(dict(success=False,
+                                    rollout_time=time.time()- rollout_start))
+                    self.data_collector.flush()
+                    print(f"... Saving to directory {self.data_collector.directory} ... \n")
             
             step += 1
         
         
         print("Time for 1 rollout: {:0.2f} s\n\n".format(time.time() - rollout_start))
-        max_input = np.asarray(max_input)
-        print("max input", np.amax(max_input, axis=0))
-        print("min input", np.amin(max_input, axis=0))
 
         ################################################    
         # visualising the executed 2D trajectory
@@ -175,42 +197,48 @@ class MPCRollout:
         # norm_pred_states = np.asarray(norm_predicted_state)
         actual_state = np.asarray(true_state)
         x_axis = [index for index in range (len(actual_state))]
-        goal_x = np.full((len(actual_state),), 0.269) # hard 0.268 # easy 0.400
-        goal_y = np.full((len(actual_state),), -0.412) # hard -0.411 # easy 0.376
-        goal_z = np.full((len(actual_state),), 0.182) # hard 0.183 # easy 0.285
-        y1_z_axis = actual_state[:,2]
-        y2_z_axis = pred_states[:,2]
-        y3_x_axis = actual_state[:,0]
-        y4_x_axis = pred_states[:,0]
-        y5_y_axis = actual_state[:,1]
-        y6_y_axis = pred_states[:,1]
+        goal_x = np.full((len(actual_state),), 0.269) # hard  0.269 # easy 0.400 # reach 0.386
+        goal_y = np.full((len(actual_state),), -0.412) # hard -0.412 # easy 0.376 # reach -0.008
+        goal_z = np.full((len(actual_state),), 0.1825) # hard 0.1825 # easy 0.285 # reach 0.125
+        
+        # plt.subplots_adjust(left=0.07, bottom=0.08, right=0.97, top=0.90, wspace=0.25)
+        fig, axs  = plt.subplots(1, 3, figsize=(20, 10), sharex='all')
+        axs[0].plot(x_axis, actual_state[:,0], marker=".", color="tab:green", label="actual pos")
+        axs[0].plot(x_axis, pred_states[:,0], marker=".", color="tab:red", label="predicted pos")
+        axs[0].plot(x_axis, goal_x,marker=".", color="tab:blue", label="goal pos")
+        # axs[0].plot(x_axis, norm_pred_states[:,0], marker="o", color="yellow")
+        axs[0].set_xlabel('Iteration')
+        axs[0].set_ylabel('x-axis position')
+        axs[0].set_title('End effector trajectory: x-axis')
+        axs[0].legend()
+        axs[0].grid(linestyle='dotted')
 
-        plt.subplot(1,3,1)
-        plt.plot(x_axis, y3_x_axis, marker="o", color="green")
-        plt.plot(x_axis, y4_x_axis, marker="o", color="red")
-        plt.plot(x_axis, goal_x,marker="o", color="blue")
-        # plt.plot(x_axis, norm_pred_states[:,0], marker="o", color="yellow")
-        plt.xlabel('iteration')
-        plt.ylabel('x axis position')
-        plt.title('state deviation x axis')
-
-        plt.subplot(1,3,2)
-        plt.plot(x_axis, y5_y_axis, marker="o", color="green")
-        plt.plot(x_axis, y6_y_axis, marker="o", color="red")
-        plt.plot(x_axis, goal_y, marker="o", color="blue")
-        # plt.plot(x_axis, norm_pred_states[:,1], marker="o", color="yellow")
-        plt.xlabel('iteration')
-        plt.ylabel('y axis position')
-        plt.title('state deviation y axis')
-
-        plt.subplot(1,3,3)
-        plt.plot(x_axis, y1_z_axis, marker="o", color="green")
-        plt.plot(x_axis, y2_z_axis, marker="o", color="red")
-        plt.plot(x_axis, goal_z, marker="o", color="blue")
-        # plt.plot(x_axis, norm_pred_states[:,2], marker="o", color="yellow")
-        plt.xlabel('iteration')
-        plt.ylabel('z axis position')
-        plt.title('state deviation z axis')
+        # plt.subplot(1,3,2)
+        axs[1].plot(x_axis, actual_state[:,1], marker=".", color="tab:green", label="actual pos")
+        axs[1].plot(x_axis, pred_states[:,1], marker=".", color="tab:red", label="predicted pos")
+        axs[1].plot(x_axis, goal_y, marker=".", color="tab:blue", label="goal pos")
+        # axs[1].plot(x_axis, norm_pred_states[:,1], marker="o", color="yellow")
+        axs[1].set_xlabel('Iteration')
+        axs[1].set_ylabel('y axis position')
+        axs[1].set_title('End effector trajectory: y-axis')
+        axs[1].legend()
+        axs[1].grid(linestyle='dotted')
+        
+        # plt.subplot(1,3,3)
+        axs[2].plot(x_axis, actual_state[:,2], marker=".", color="tab:green", label="actual pos")
+        axs[2].plot(x_axis, pred_states[:,2], marker=".", color="tab:red", label="predicted pos")
+        axs[2].plot(x_axis, goal_z, marker=".", color="tab:blue", label="goal pos")
+        # axs[2].plot(x_axis, norm_pred_states[:,2], marker="o", color="yellow")
+        axs[2].set_xlabel('Iteration')
+        axs[2].set_ylabel('z axis position')
+        axs[2].set_title('End effector trajectory: z-axis')
+        axs[2].legend()
+        axs[2].grid(linestyle='dotted')
+        fig.suptitle('MPC rollout: End-effector trajectory', fontsize=16)
+        # fig.tight_layout()
+        # logging the trajectory to mlflow
+        if self.image_cb:
+            self.image_cb(fig)
         plt.show()
 
         ################################################    

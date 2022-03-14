@@ -1,7 +1,11 @@
 import numpy as np
 import random
+import mlflow
+import os
 from types import SimpleNamespace
-from amira_gym_ros.task_envs.panda_model_learning import PandaModelLearning
+from amira_gym_ros.task_envs.panda_model_learning_reach import PandaModelLearningReach
+from amira_gym_ros.task_envs.panda_model_learning_easy_insertion import PandaModelLearningEasyInsertion
+from amira_gym_ros.task_envs.panda_model_learning_hard_insertion import PandaModelLearningHardInsertion
 import rospy
 from mpc.dyn_model import Dyn_Model
 from mpc.mpc_rollout_panda import MPCRollout
@@ -11,18 +15,45 @@ from scipy.spatial.transform import Rotation as R
 
 _FLOAT_EPS = np.finfo(np.float64).eps
 def mpc_controller(cfg):
+    # function for logging artifacts to mlflow
+    def artifact_cb(filename):
+        mlflow.log_artifact(filename)
+    
+    # function for logging params to mlflow
+    def param_cb(params):
+        mlflow.log_params(params)
+    
+    # function for logging figures to mlflow
+    def image_cb(image):
+        mlflow.log_figure(image, f"{params.controller_type}_rollout.svg", )
+    
+    # create environment and log related params to mlflow
+    env, experiment = build_env(cfg)
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='rand_shooting',
-                     horizon=1,
+                dict(controller_type='mppi',
+                     horizon=6,
                      max_step=100,
-                     num_sample_seq=3000,
+                     num_sample_seq=500,
                      rand_policy_angle_min=-0.02,
                      rand_policy_angle_max=0.02,
-                     rand_policy_hold_action=1))
-
-    dyn_model = Dyn_Model(cfg)
+                     rand_policy_hold_action=1,
+                     task_type=experiment.name,
+                     record_mpc_rollouts=cfg["record_rollouts"]["record_mpc_rollout"],
+                     rollout_save_dir=cfg["record_rollouts"]["save_base_dir"],))
+    # logging MPC params to mlflow
+    mlflow.log_params(dict(controller_type=params.controller_type,
+                     horizon=params.horizon,
+                     max_step=params.max_step,
+                     num_sample_seq=params.num_sample_seq,
+                     rand_policy_angle_min=params.rand_policy_angle_min,
+                     rand_policy_angle_max=params.rand_policy_angle_max,
+                     rand_policy_hold_action=params.rand_policy_hold_action,
+                     task_type=experiment.name,
+                     record_mpc_rollouts=cfg["record_rollouts"]["record_mpc_rollout"]))
+    
+    dyn_model = Dyn_Model(cfg, param_cb=param_cb)
+    param_cb(dict(model=dyn_model.model))
     print("stats", dyn_model.norm.get_stats())
-    env = build_env(cfg)
     rand_policy = Policy_Random(env)
     goal_pos, goal_orn = get_goal(cfg["dataset"]["root"])
     print("goal_state ", goal_pos)
@@ -35,7 +66,10 @@ def mpc_controller(cfg):
                              dyn_model,
                              rand_policy,
                              goal_state,
-                             params)
+                             params,
+                             artifact_cb,
+                             param_cb,
+                             image_cb)
 
     ################################
     # RUN ROLLOUTS
@@ -67,21 +101,17 @@ def mpc_controller(cfg):
 
 def build_env(cfg):
     # create gazebo simulation environment
-    rospy.init_node("panda_model_learning_reach")
+    rospy.init_node("panda_model_learning_rollout")
+    ml_logdir = os.path.join(os.environ['HOME'], '.mlflow', 'mlruns')
+    mlflow.set_tracking_uri('file:' + ml_logdir)
     seed = 237
     random.seed(seed)
     np.random.seed(seed)
-    # specify the env name
-    # env = PandaReachModelLearning(initial_position=[0.270, -0.410, 0.211], # easy insertion 0.400, 0.376, 0.400 # hard insertion 0.276, -0.414, 0.210 # 0.395, 0.373, 0.35 # reach [0.307, -0.000, 0.45]
-    #                               target_position=[0.269, -0.412,  0.1825], # 0.2695, -0.4121,  0.1825 # easy insertion 0.400, 0.376,  0.285 # hard insertion 0.265, -0.41156949,  0.183  # reach [0.386, -0.008,  0.125]
-    #                               max_position_offset=np.inf,
-    #                               nullspace_q_ref = [-0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162], # easy insertion 0.786, -0.058, -0.01, -1.69, -0.010, 1.64, 1.117 # hard insertion -0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162
-    #                               initial_quaternion = [0.986, -0.161, -0.0153, 0.0115], # hard insertion 0.973, -0.226, -0.041, 0.007 # easy insertion 1, 0.25, 0.000, 0
-    #                               target_quaternion = [0.9849642,  -0.16776719, -0.04071259,  0.00649433], # hard insertion 0.972, -0.227, -0.045, -0.011 # easy insertion 1, 0.25, 0.000, 0
-    #                               )
-                                #   pause_for_train=True,) [0.3980723  0.38012593 0.31273318]
     if cfg["task_type"]["hard_insertion"]:
-        env = PandaModelLearning(initial_position=cfg["hard_insertion_environment"]["initial_position"],
+        mlflow.set_experiment('hard_insertion_experiments')
+        experiment = mlflow.get_experiment_by_name("hard_insertion_experiments")
+        mlflow.log_params(cfg["hard_insertion_environment"])
+        env = PandaModelLearningHardInsertion(initial_position=cfg["hard_insertion_environment"]["initial_position"],
                                     target_position=cfg["hard_insertion_environment"]["target_position"],
                                     max_position_offset=cfg["hard_insertion_environment"]["max_position_offset"],
                                     nullspace_q_ref = cfg["hard_insertion_environment"]["nullspace_q_ref"],
@@ -89,18 +119,24 @@ def build_env(cfg):
                                     target_quaternion = cfg["hard_insertion_environment"]["target_quaternion"],)
     
     elif cfg["task_type"]["easy_insertion"]:
-        env = PandaModelLearning(initial_position=cfg["easy_insertion_environment"]["initial_position"],
+        mlflow.set_experiment('easy_insertion_experiments')
+        experiment = mlflow.get_experiment_by_name("easy_insertion_experiments")
+        mlflow.log_params(cfg["easy_insertion_environment"])
+        env = PandaModelLearningEasyInsertion(initial_position=cfg["easy_insertion_environment"]["initial_position"],
                                     target_position=cfg["easy_insertion_environment"]["target_position"],
                                     max_position_offset=cfg["easy_insertion_environment"]["max_position_offset"],
                                     nullspace_q_ref = cfg["easy_insertion_environment"]["nullspace_q_ref"],
                                     initial_quaternion = cfg["easy_insertion_environment"]["initial_quaternion"],
                                     target_quaternion = cfg["easy_insertion_environment"]["target_quaternion"],)
     elif cfg["task_type"]["reach"]:
-        env = PandaModelLearning(initial_position=cfg["reach_task_environment"]["initial_position"],
+        mlflow.set_experiment('reach_experiments')
+        experiment = mlflow.get_experiment_by_name("reach_experiments")
+        mlflow.log_params(cfg["reach_task_environment"])
+        env = PandaModelLearningReach(initial_position=cfg["reach_task_environment"]["initial_position"],
                                     target_position=cfg["reach_task_environment"]["target_position"],
                                     max_position_offset=cfg["reach_task_environment"]["max_position_offset"],
                                     nullspace_q_ref = cfg["reach_task_environment"]["nullspace_q_ref"],
                                     initial_quaternion = cfg["reach_task_environment"]["initial_quaternion"],
                                     target_quaternion = cfg["reach_task_environment"]["target_quaternion"],)
     env.seed(seed)
-    return env
+    return env, experiment

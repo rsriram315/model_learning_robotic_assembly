@@ -136,7 +136,8 @@ class BaseTrainer:
             'epoch': epoch,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'dataset_stats': self.dataset_stats
+            'dataset_stats': self.dataset_stats,
+            'model': self.model,
         }
         fname = self.ckpts_dir / f'ckpt-epoch{epoch}.pth'
         torch.save(state, fname)
@@ -153,6 +154,7 @@ class BaseTrainer:
         ckpt = torch.load(resume_path)
         self.start_epoch = ckpt['epoch'] + 1
         self.model.load_state_dict(ckpt['state_dict'])
+        # this is commented out since we want a differnt optimizer when finetuning 
         # self.optimizer.load_state_dict(ckpt['optimizer'])
 
         self.write_log(f"Checkpoint loaded. "

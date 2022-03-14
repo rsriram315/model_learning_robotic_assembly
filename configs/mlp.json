@@ -13,7 +13,7 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
-        "contact_only": true,
+        "contact_only": false,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
@@ -90,11 +90,11 @@
         "patience": 5,
         "log_file": "saved/train.log",
         "tb_dir": "saved/tb_log",
-        "criterion": "Geodesic_MSE"
+        "criterion": "MSE"
     },
     "optimizer": {
         "name": "Adam",
-        "lr": 0.001,
+        "lr": 0.0005,
         "weight_decay": 0,
         "amsgrad": true
     },
@@ -154,5 +154,9 @@
         "target_quaternion": [0.9849642,  -0.16776719, -0.04071259,  0.00649433],
         "nullspace_q_ref": [-0.5593, -0.2211, -0.3533, -1.9742, -0.1533, 1.7523, 0.5162],
         "max_position_offset": "np.inf"
+    },
+    "record_rollouts": {
+        "record_mpc_rollout": false,
+        "save_base_dir": "recorded_data/"
     }   
 }

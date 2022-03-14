@@ -13,15 +13,17 @@ from datetime import datetime
 STATE = "PandaStatePublisherarm_states"
 ACTION = "PandaCartesianImpedanceControllercontrollerReference"
 GRIPPER = "franka_gripperjoint_states"
+ROLLOUT = "mpc_rollout_states"
 
 class DataCollection:
-    def __init__(self, env, directory, collect_freq=1, flush_freq=100):
+    def __init__(self, env, directory, artifact_cb, collect_freq=1, flush_freq=100):
         """
         Initializes the data collection wrapper.
 
         Args:
             env (MujocoEnv): The environment to monitor.
             directory (str): Where to store collected data.
+            artifact_cb : mlflow callback function to save .h5 file as mlflow artifact data
             collect_freq (int): How often to save simulation state, in terms of environment steps.
             flush_freq (int): How frequently to dump data to disk, in terms of environment steps.
         """
@@ -31,6 +33,7 @@ class DataCollection:
         self.directory = directory
         self.recording = None
         self.num_recording = 0
+        self.artifact_cb = artifact_cb
 
         print("\n Intializing data collection \n")
 
@@ -65,6 +68,7 @@ class DataCollection:
                     data_1 = self.recording[key][key_1]
                     group.create_dataset(key_1, data=data_1)
 
+        self.artifact_cb(self.file_path)
         self.num_recording += 1
         self.reset()
 
@@ -87,17 +91,17 @@ class DataCollection:
 
                           "franka_gripperjoint_states": {
                             "time_stamp": [],
-                            "q": []}}
+                            "q": []},
+                        
+                          "mpc_rollout_states":{
+                              "time_stamp": [],
+                              "actual_next_state": [],
+                              "pred_next_state": [],
+                              "reward": []}
+                          }
 
-    def record(self, curr_pose, action_pose, curr_wrench, curr_time):
-        # collect the current simulation state if necessary
-        # if self.t % self.collect_freq == 0:
-
-        curr_pos = curr_pose[:3]
-        curr_orn = curr_pose[3:7]
-
-        action_pos = action_pose[:3]
-        action_orn = action_pose[3:7]
+    def record(self, curr_state_pose, curr_action_pose, curr_state_wrench, curr_time,
+               actual_next_state, pred_next_state, reward):
 
         # gripper state
         self.recording[GRIPPER]["time_stamp"].append(curr_time)
@@ -105,10 +109,17 @@ class DataCollection:
 
         # store robot state info read from /PandaStatePublisher/arm_states
         self.recording[STATE]["time_stamp"].append(curr_time)
-        self.recording[STATE]["tcp_pose_base"].append(np.hstack((curr_pos, curr_orn)))
-        self.recording[STATE]["tcp_wrench_ee"].append(curr_wrench)
+        self.recording[STATE]["tcp_pose_base"].append(curr_state_pose)
+
+        self.recording[STATE]["tcp_wrench_ee"].append(curr_state_wrench)
 
         # store the messages sent to CartesianImpedenceSetpoint
         self.recording[ACTION]["time_stamp"].append(curr_time)
-        self.recording[ACTION]["pose"].append(np.hstack((action_pos, action_orn)))
+        self.recording[ACTION]["pose"].append(curr_action_pose)
         self.recording[ACTION]["wrench"].append([0, 0, 0, 0, 0, 0])
+
+         # store the mpc states for visualisation
+        self.recording[ROLLOUT]["time_stamp"].append(curr_time)
+        self.recording[ROLLOUT]["actual_next_state"].append(actual_next_state)
+        self.recording[ROLLOUT]["pred_next_state"].append(pred_next_state)
+        self.recording[ROLLOUT]["reward"].append(reward)

@@ -1,9 +1,9 @@
 # flake8: noqa
+from operator import contains
 import numpy as np
 import torch
 from pathlib import Path
 from copy import deepcopy
-
 from model import MLP
 from utils import prepare_device
 from dataloaders.data_processor import Normalization, recover_rotation
@@ -17,10 +17,12 @@ class Dyn_Model:
     This class implements: init, do_forward_sim
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, param_cb=None):
         self.cfg = deepcopy(cfg)
+        self.param_cb = param_cb
         self.model, self.cfg = self._build_model(self.cfg)
         self.norm = Normalization(self.cfg["dataset"]["stats"])
+
 
     def _build_model(self, cfg):
         self.device, self.device_ids = prepare_device(
@@ -32,6 +34,11 @@ class Dyn_Model:
             ckpt_pth = self.cfg["eval"]["ckpt_pth"]
 
         ckpt = torch.load(ckpt_pth, map_location=self.device)
+        if self.param_cb:
+            if 'model' in ckpt.keys():
+                self.param_cb(dict(model_used_during_training=ckpt['model']))
+            else:
+                self.param_cb(dict(model_used_during_training=None))
         cfg["dataset"]["stats"] = ckpt["dataset_stats"]
         model_cfg = cfg["model"]
 
@@ -40,6 +47,7 @@ class Dyn_Model:
                     model_cfg["output_dims"],
                     self.device)
         print(model)
+        
 
         # load model checkpoint
         model.load_state_dict(ckpt["state_dict"])

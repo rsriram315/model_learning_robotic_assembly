@@ -35,17 +35,10 @@ class Policy_Random(object):
         ############################
         # sample set point position
         ############################
-        if (self.counter % hold_action)==0:
-            # toy actions for checking the model
-            z_set_point_ls = np.arange(0.45, -0., -0.002)
-            # # self.rand_set_point = np.array([0.307, 0., z_set_point_ls[traj_count]])
-            
+        if (self.counter % hold_action)==0:            
             # sample actions in [-1,1]
             self.rand_set_point = np.random.uniform(np.array([-1, -1, -1]), np.array([1, 1, 1]), 3)
-            # self.rand_set_point = np.array([0.69785281, -0.01056377, np.random.uniform(-1, 1)])
             self.rand_force = np.zeros(3)
-            # self.rand_force = np.array([-10, -10, -10])
-            # self.rand_rot = np.array([1, 0, 0, 0, 1, 0, 0, 0, 1])
             self.euler_delta = np.random.uniform(angle_min, angle_max, size=3) * np.pi
             self.rand_euler = R.from_euler('zyx', (self.init_euler_angle + self.euler_delta) ,degrees=False)
             # print("self.init_euler_angle", self.init_rot.as_euler('zyx', degrees=True))

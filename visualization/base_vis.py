@@ -78,7 +78,7 @@ class BaseVisualize:
         ax.set_ylabel("average loss")
 
         plt.tight_layout()
-        plt.savefig(fname, dpi=200)
+        plt.savefig(fname, dpi=200, format='svg')
         plt.close(fig)
 
     def _vis_axis(self, pred, target, time, fname, plot_mat=False):
@@ -121,7 +121,7 @@ class BaseVisualize:
                 if r == rows - 1:
                     axs[r, c].set_xlabel('time')
         plt.tight_layout()
-        plt.savefig(fname, dpi=200)
+        plt.savefig(fname, dpi=200, format='svg')
         plt.close(fig)
 
     def _vis_trajectory(self, pred, state, fname):
@@ -149,7 +149,7 @@ class BaseVisualize:
         ax.legend()
 
         plt.tight_layout()
-        plt.savefig(fname, dpi=200)
+        plt.savefig(fname, dpi=200, format='svg')
         plt.close(fig)
 
     def _recover_data(self, pred, state):
