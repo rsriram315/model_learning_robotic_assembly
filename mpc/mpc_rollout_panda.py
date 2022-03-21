@@ -29,7 +29,7 @@ class MPCRollout:
                                              self.cost,
                                              rand_policy, params)
         elif params.controller_type == 'mppi':
-            self.params.mppi_gamma = 20
+            self.params.mppi_gamma = 5
             self.params.mppi_mag_noise = 1.0
             self.params.mppi_beta = 0.9
             # log params to mlflow

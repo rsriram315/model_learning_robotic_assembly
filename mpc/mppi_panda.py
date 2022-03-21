@@ -27,7 +27,7 @@ class MPPI:
         self.beta = params.mppi_beta
         self.mppi_mean = None
         # self.mppi_mean_normalized  = None
-        self.mppi_mean = np.zeros((self.horizon, self.action_dim))
+        # self.mppi_mean = np.zeros((self.horizon, self.action_dim))
 
         self.counter = 1
     ##########################################################
@@ -45,7 +45,7 @@ class MPPI:
         # weights = np.exp(self.mppi_gamma * (scores - np.amax(scores)))[:, None, None]  # [N, 1, 1] # pddm formulation
         weights = np.exp(-self.mppi_gamma * scores)[:, None, None]  # [N, 1, 1] # mppi formulation
         sum_weights = np.sum(weights) + _FLOAT_EPS  # numerical stability
-        print("weigths", weights[:5])
+        print("weigths", weights)
         #######################################################################
         # weight all actions of the sequence by that sequence's resulted reward
         #######################################################################
@@ -60,11 +60,11 @@ class MPPI:
         for h in range(all_samples.shape[1]):
             certain_horizon = np.copy(all_samples[:, h, 6:15]).reshape((-1, 3, 3))
             rot_certain_horizon = R.from_matrix(certain_horizon)
-            w = np.squeeze(weights/sum_weights)
+            w = np.squeeze(weights/sum_weights, axis=(1,2))
             self.mppi_mean[h, 6:15] = rot_certain_horizon.mean(weights=w).as_matrix().flatten()
         # the generated mppi_mean is a weighted average trajectories of the sampled trajectories
         # return 1st element of the mean, which corresponds to curr timestep
-        print(" self.mppi_mean[:, :3]",  self.mppi_mean[:, :3])
+        print(" \n self.mppi_mean[:, :3]",  self.mppi_mean[:, :3])
         return self.mppi_mean[0]
 
     def get_action(self, curr_state, goal_state, step):
@@ -195,7 +195,7 @@ class MPPI:
             #####################
             # plot for debugging
             #####################
-            if self.counter == 500:
+            if self.counter == 1000:
                 all_samples = []
                 z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
                 # print("z set points", z_set_point_ls)
@@ -244,7 +244,7 @@ class MPPI:
             #####################
             # plot for debugging
             #####################
-            if self.counter == 500:
+            if self.counter == 1000:
                 # ploting to see resulting statesplot
                 import matplotlib.pyplot as plt
                 x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]
@@ -297,9 +297,15 @@ class MPPI:
 
             # average all the ending states in the recording as goal position
             costs = calculate_costs(resulting_states_ls, goal_state, self.cost_fn)
+            idx  = np.argsort(costs)
+            sorted_cost = costs[idx]
+            sorted_all_samples = all_samples[idx]
+            best_seq_num = np.argmin(costs)
             print("costs", costs[:5])
             # use all paths to update action mean (for horizon steps)
-            selected_action = self.mppi_update(costs, all_samples)
+            print("\n", sorted_cost[:20].shape, sorted_all_samples.shape)
+            selected_action = self.mppi_update(np.atleast_1d(costs[best_seq_num]), all_samples[best_seq_num][None, :])
+            # selected_action = self.mppi_update(np.atleast_1d(sorted_cost[0]), sorted_all_samples[0][None, :])
             print("selected_action",selected_action)
 
         self.counter += 1
