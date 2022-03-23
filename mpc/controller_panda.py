@@ -30,10 +30,10 @@ def mpc_controller(cfg):
     # create environment and log related params to mlflow
     env, experiment = build_env(cfg)
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='mppi',
-                     horizon=6,
+                dict(controller_type='random_shooting',
+                     horizon=1,
                      max_step=100,
-                     num_sample_seq=500,
+                     num_sample_seq=3000,
                      rand_policy_angle_min=-0.02,
                      rand_policy_angle_max=0.02,
                      rand_policy_hold_action=1,
