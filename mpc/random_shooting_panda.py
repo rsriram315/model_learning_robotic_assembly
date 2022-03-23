@@ -48,7 +48,7 @@ class RandomShooting:
             all_samples.append(np.array(sample_per_traj))
         # all_actions: [num_sample_seq, num_rollout, num_action_dim]
         all_actions = np.array(all_samples)
-        print("all samples after clipping: ", all_actions[:5,:,:])
+        # print("all samples after clipping: ", all_actions[:5,:,:])
 
         # z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
         # # print("z set points", z_set_point_ls)

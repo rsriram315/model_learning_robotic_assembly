@@ -35,13 +35,16 @@ class MLPRollout(MLPVisualize):
 
             if self.vis_cfg["loss"]:
                 loss_fname = self.vis_dir / "loss" / suffix_fname
-                self._vis_loss(losses_per_demo, time[1:], loss_fname)
+                print(losses_per_demo.shape)
+                print(target_per_demo.shape)
+                print(len(time[2:]))
+                self._vis_loss(losses_per_demo, time[2:], loss_fname)
 
             if self.vis_cfg["axis"]:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
                 self._vis_axis(preds_per_demo,
                                target_per_demo,
-                               time[1:],
+                               time[2:],
                                axis_fname)
 
             if self.vis_cfg["trajectory"]:
@@ -67,16 +70,16 @@ class MLPRollout(MLPVisualize):
         with torch.no_grad():
             for i in range(len(dataset) - 1):
                 state_action, target = dataset.__getitem__(i)
-                gt_states.append(np.copy(state_action[None, :15]))
+                gt_states.append(np.copy(state_action[None, :12]))
 
                 if rollout < self.horizon:
-                    state_action[:15] = np.copy(ro_pred)
+                    state_action[:12] = np.copy(ro_pred)
                     rollout += 1
                 else:
                     rollout = 0
-                ro_states.append(np.copy(state_action[None, :15]))
+                ro_states.append(np.copy(state_action[None, :12]))
 
-                # batch_size x 15
+                # batch_size x 12
                 state_action = torch.tensor(state_action[None, ...]).to(self.device)
                 target = torch.tensor(target[None, ...]).to(self.device)
                 output = model(state_action)  # predicted difference
@@ -86,8 +89,8 @@ class MLPRollout(MLPVisualize):
                 ro_pred = output.cpu().numpy()
                 ro_pred = self.norm.inv_normalize(ro_pred[:, None, :],
                                                   is_res=True)
-                ro_pred[:, :6] += self.norm.inv_normalize(ro_states[-1]
-                                                          [:, None, :])[:, :6]
+                ro_pred[:, :3] += self.norm.inv_normalize(ro_states[-1]
+                                                          [:, None, :])[:, :3]
                 ro_pred = recover_rotation(ro_pred, ro_states[-1])
                 ro_pred = self.norm.normalize(ro_pred[:, None, :])
 
@@ -98,7 +101,7 @@ class MLPRollout(MLPVisualize):
                 # predicted current state (normalized) and
                 # the ground truth next states
                 loss = criterion(torch.tensor(ro_pred),
-                                 torch.tensor(next_state_action[None, :15]))
+                                 torch.tensor(next_state_action[None, :12]))
                 loss = torch.mean(loss, axis=1)
 
                 losses.extend(loss.cpu().numpy())
@@ -109,7 +112,7 @@ class MLPRollout(MLPVisualize):
 
     def _recover_data(self, pred, state):
         recover_output = np.copy(pred)
-        recover_output[:, :15] = self.norm.inv_normalize(pred[:, None, :15])
+        recover_output[:, :12] = self.norm.inv_normalize(pred[:, None, :12])
         recover_output = add_euler_angle(recover_output)
 
         recover_target = self.norm.inv_normalize(state)

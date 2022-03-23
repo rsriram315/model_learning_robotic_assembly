@@ -122,7 +122,7 @@ class Dyn_Model:
         curr_ro_state = self.norm.inv_normalize(ro_state[:, None, :])
         # recover predicted diff of states
         recover_ro_output = self.norm.inv_normalize(ro_pred[:, None, :], is_res=True)
-        recover_ro_output[:, :6] += curr_ro_state[:, :6]
+        recover_ro_output[:, :3] += curr_ro_state[:, :3]
         recover_ro_output = recover_rotation(np.copy(recover_ro_output),
                                              np.copy(curr_ro_state))
         new_ro_state = self.norm.normalize(recover_ro_output[:, None ,:])

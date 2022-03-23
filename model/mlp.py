@@ -28,6 +28,7 @@ class MLP(BaseModel):
     
         # 6D rotation representation
         x = compute_rotation_matrix_from_ortho6d(x, device=self.device)
+
         return x
 
 

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from model import MLP
 from utils import prepare_device
-from dataloaders.dataset import DemoDataset
+from dataloaders.dataset_panda import DemoDataset
 from dataloaders.data_processor import Normalization, recover_rotation,\
                                        add_euler_angle
 
@@ -52,13 +52,13 @@ class BaseVisualize:
 
             if self.vis_cfg["loss"]:
                 loss_fname = self.vis_dir / "loss" / suffix_fname
-                self._vis_loss(losses_per_demo, time, loss_fname)
+                self._vis_loss(losses_per_demo, time[1:], loss_fname)
 
             if self.vis_cfg["axis"]:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
                 self._vis_axis(preds_per_demo[:-1, :],
                                target_per_demo[1:, :],
-                               time[1:],
+                               time[2:],
                                axis_fname)
 
             if self.vis_cfg["trajectory"]:
@@ -88,7 +88,7 @@ class BaseVisualize:
                         'matrix R row 3', 'euler angles']
             figsize = (25, 20)
         else:
-            features = ['pos', 'force', 'euler angles']
+            features = ['pos', 'euler angles']
             figsize = (20, 10)
         axis = ['x', 'y', 'z']
 
@@ -103,7 +103,7 @@ class BaseVisualize:
                 feature = features[r]
             for c, ax in enumerate(axis):
                 idx = c + 3 * r
-                axs[r, c].scatter(time,
+                axs[r, c].scatter(time[:],
                                   target[:, idx],
                                   s=size,
                                   c='tab:blue',
@@ -156,7 +156,7 @@ class BaseVisualize:
         curr_state = self.norm.inv_normalize(state)
         recover_output = self.norm.inv_normalize(pred, is_res=True)
         # recover pos and forces
-        recover_output[:, :6] += curr_state[:, :6]
+        recover_output[:, :3] += curr_state[:, :3]
 
         # recover rotation matrix and add euler angles
         recover_target = np.copy(curr_state)  # target is just the next state
@@ -177,7 +177,7 @@ class BaseVisualize:
 
         with torch.no_grad():
             for _, (state_action, target) in enumerate(dataloader):
-                states.extend(state_action[:, None, :15].numpy())
+                states.extend(state_action[:, None, :12].numpy())
                 # targets.extend(target[:, None, :].numpy())
 
                 state_action, target = (state_action.to(self.device),

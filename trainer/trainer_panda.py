@@ -102,7 +102,6 @@ class Trainer(BaseTrainer):
                 (state_action.to(self.device, non_blocking=True),
                  target.to(self.device, non_blocking=True))
 
-
             if self.trainer_cfg["criterion"] == "Geodesic_MSE":
                 # intialize the gradient to None first
                 self.optimizer.zero_grad(set_to_none=True)
@@ -111,14 +110,14 @@ class Trainer(BaseTrainer):
                 self.criterion_1, self.criterion_2 = self.criterion
                 for horizon in range(target.shape[1]):
                     output = self.model(input)
-                    horizon_loss = 1 * self.criterion_1(output[:, :6], target[:, horizon, :6])
+                    horizon_loss = 1 * self.criterion_1(output[:, :3], target[:, horizon, :3])
                     # print("MSE loss:", horizon_loss)
-                    horizon_loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3))
+                    horizon_loss += 1 * self.criterion_2(output[:, 3:].reshape(-1,3,3), target[:, horizon, 3:].reshape(-1,3,3))
                     # print("geodesic loss:", 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3)))
                     loss += horizon_loss
                     # print("total loss :", loss)
                     if horizon+1 < target.shape[1]:
-                        input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+                        input = torch.hstack((output, state_action[:, horizon+1, 12:]))
             
             elif self.trainer_cfg["criterion"] == "MSE":
                 self.optimizer.zero_grad(set_to_none=True)
@@ -126,11 +125,12 @@ class Trainer(BaseTrainer):
                 loss = 0
                 for horizon in range(target.shape[1]):
                     output = self.model(input)
+                    # print("\n output shape", output.shape)
                     horizon_loss = self.criterion(output, target[:,horizon, :])
                     # print("\nhorizon loss", horizon_loss)
                     loss += horizon_loss
                     if horizon+1 < target.shape[1]:
-                        input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+                        input = torch.hstack((output, state_action[:, horizon+1, 12:]))
             
             loss.backward()
             self.optimizer.step()
@@ -174,11 +174,11 @@ class Trainer(BaseTrainer):
                     self.criterion_1, self.criterion_2 = self.criterion
                     for horizon in range(target.shape[1]):
                         output = self.model(input)
-                        val_loss = 1 * self.criterion_1(output[:, :6], target[:, horizon, :6])
-                        val_loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3))
+                        val_loss = 1 * self.criterion_1(output[:, :3], target[:, horizon, :3])
+                        val_loss += 1 * self.criterion_2(output[:, 3:].reshape(-1,3,3), target[:, horizon, 3:].reshape(-1,3,3))
                         loss += val_loss
                         if horizon+1 < target.shape[1]:
-                            input = torch.hstack((output, data[:, horizon+1, 15:]))
+                            input = torch.hstack((output, data[:, horizon+1, 12:]))
                 
                 elif self.trainer_cfg["criterion"] == "MSE":
                     for horizon in range(target.shape[1]):
@@ -186,7 +186,7 @@ class Trainer(BaseTrainer):
                         val_loss = self.criterion(output, target[:,horizon, :])
                         loss += val_loss
                         if horizon+1 < target.shape[1]:
-                            input = torch.hstack((output, data[:, horizon+1, 15:]))
+                            input = torch.hstack((output, data[:, horizon+1, 12:]))
 
                 self.valid_metrics.update('loss', loss.item())
                 # for met in self.metric_fns:

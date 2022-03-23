@@ -112,6 +112,7 @@ class DemoDataset(Dataset):
         self.states_actions = np.array(self.states_actions)
         self.targets = np.array(self.targets)
         norm = Normalization(self.stats)
+        print(norm.get_stats())
         self.states_actions = norm.normalize(self.states_actions)
         self.targets = norm.normalize(self.targets[:, None, :],
                                       is_res=True)

@@ -32,8 +32,8 @@ def compute_rotation_matrix_from_ortho6d(raw_output, device):
         https://math.stackexchange.com/questions/1847465/why-to-use-gram-schmidt-process-to-orthonormalise-a-basis-instead-of-cross-produ
     """
     # first 3 elements are pos
-    x_raw = raw_output[:, 6:9]
-    y_raw = raw_output[:, 9:12]
+    x_raw = raw_output[:, 3:6]
+    y_raw = raw_output[:, 6:9]
 
     x = normalize_vector(x_raw, device)
     z = cross_product(x, y_raw)
@@ -44,7 +44,7 @@ def compute_rotation_matrix_from_ortho6d(raw_output, device):
     y = y.view(-1, 3)
     z = z.view(-1, 3)
 
-    output = torch.cat((raw_output[:, :6], x, y, z), 1)
+    output = torch.cat((raw_output[:, :3], x, y, z), 1)
     return output
 
 

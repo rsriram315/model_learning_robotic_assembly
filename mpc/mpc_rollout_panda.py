@@ -105,8 +105,7 @@ class MPCRollout:
                 self.controller.mppi_mean = np.tile(curr_state, (self.controller.horizon, 1))
                 self.controller.mppi_mean = self.dyn_model.norm.normalize(self.controller.mppi_mean[None,:,:], is_action=True,axis=0)
                 # self.controller.mppi_mean[:, :3] = [0, 0, 0]
-                self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
-                # self.controller.mppi_mean[:, 6:15] = np.eye(3,3).flatten()  # action rotation is delta
+                # self.controller.mppi_mean[:, 3:12] = np.eye(3,3).flatten()  # action rotation is delta
                 print("Init controller mean: ", self.controller.mppi_mean[:,:3])
                 # time.sleep(10)
             print("current state before executing mpc", self.env._get_obs()[:3])
@@ -116,9 +115,9 @@ class MPCRollout:
             # norm_predicted_state.append(norm_pred_next_state)
             
             print("best_action", best_action[:3])
-            print("best_action rot", best_action[6:15])
+            print("best_action rot", best_action[3:12])
             best_action_pos = best_action[:3] - np.copy(self.env._get_obs()[:3])
-            best_action_rot = best_action[6:]
+            best_action_rot = best_action[3:]
             
             action_to_take = np.hstack((best_action_pos,
                                        best_action_rot))
@@ -159,7 +158,6 @@ class MPCRollout:
             ########################
             obs, reward, done, _ = self.env.step(action_to_take)
             curr_state = np.hstack((np.copy(obs[:3]),
-                                   np.copy(obs[3:6]),
                                    np.copy(obs[6:15])))
             print(" curr state after executing action", curr_state[:3])
             true_state.append(curr_state)

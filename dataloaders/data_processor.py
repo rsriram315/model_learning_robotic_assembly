@@ -32,7 +32,7 @@ def homogeneous_transform(data, r_noise=0.001, t_noise=0.1):
     # print("(homogeneous_matrix @ np.hstack((data[:3], 1)))", (homogeneous_matrix @
     #                    np.hstack((data[:3], 1))))
 
-    data[6:] = (np.copy(data[6:].reshape(3, 3) @
+    data[3:] = (np.copy(data[3:].reshape(3, 3) @
                         homogeneous_matrix[:3, :3]).flatten())
     
     # print(" data[6:].reshape(3, 3) @ homogeneous_matrix[:3, :3]", data[6:].reshape(3, 3) @
@@ -48,18 +48,18 @@ def rotation_diff(target_rot, init_rot):
 
 
 def recover_rotation(diff_state, init_state):
-    init_rot = R.from_matrix(init_state[:, 6:15].reshape(-1, 3, 3))
-    diff_rot = R.from_matrix(diff_state[:, 6:15].reshape(-1, 3, 3))
+    init_rot = R.from_matrix(init_state[:, 3:12].reshape(-1, 3, 3))
+    diff_rot = R.from_matrix(diff_state[:, 3:12].reshape(-1, 3, 3))
     target_rot = diff_rot * init_rot
 
     # output orientation matrix
     recover_target = np.copy(diff_state)
-    recover_target[:, 6:15] = target_rot.as_matrix().reshape(-1, 9)
+    recover_target[:, 3:12] = target_rot.as_matrix().reshape(-1, 9)
     return recover_target
 
 
 def add_euler_angle(state):
-    rot = R.from_matrix(state[:, 6:].reshape(-1, 3, 3))
+    rot = R.from_matrix(state[:, 3:].reshape(-1, 3, 3))
     # output euler angles
     euler_angle = rot.as_euler('xyz', degrees=True)
     return np.hstack((state, euler_angle))
@@ -85,8 +85,8 @@ class Normalization:
         array_min = np.amin(data, axis=0)
         array_range = np.amax(data, axis=0) - array_min + _FLOAT_EPS
 
-        array_min[:, 6:] = np.zeros(9) - 1
-        array_range[:, 6:] = np.ones(9) + 1
+        array_min[:, 3:] = np.zeros(9) - 1
+        array_range[:, 3:] = np.ones(9) + 1
         return array_min, array_range
 
     def get_stats(self):

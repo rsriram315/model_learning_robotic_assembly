@@ -9,7 +9,7 @@ from zmq.backend import device
 
 from model import MLP, MCDropout
 from dataloaders import DemoDataLoader
-from dataloaders.dataset import DemoDataset
+from dataloaders.dataset_panda import DemoDataset
 from utils import prepare_device
 from utils.logger import write_log
 from utils.geodesic_loss import GeodesicLoss
@@ -46,12 +46,13 @@ class Evaluate:
             for state_action, target in tqdm(self.dataloader):
                 state_action, target = (state_action.to(self.device),
                                         target.to(self.device))
+                print("STATE ACTION SHAE", state_action.shape)
                 output = self.model(state_action)
                 
                 if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
                     criterion_1, criterion_2 = criterion
-                    loss = 1 * criterion_1(output[:6], target[:6])
-                    loss += 1 * criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+                    loss = 1 * criterion_1(output[:3], target[:3])
+                    loss += 1 * criterion_2(output[:, 3:].reshape(-1,3,3), target[:, 3:].reshape(-1,3,3))
                 elif self.cfg["trainer"]["criterion"] == "MSE":
                     loss = criterion(output, target)
                 

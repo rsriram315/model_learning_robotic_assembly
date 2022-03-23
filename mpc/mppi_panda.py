@@ -58,10 +58,10 @@ class MPPI:
         # self.mppi_mean = np.sum(weighted_actions, axis=0) / sum_weights
 
         for h in range(all_samples.shape[1]):
-            certain_horizon = np.copy(all_samples[:, h, 6:15]).reshape((-1, 3, 3))
+            certain_horizon = np.copy(all_samples[:, h, 3:12]).reshape((-1, 3, 3))
             rot_certain_horizon = R.from_matrix(certain_horizon)
             w = np.squeeze(weights/sum_weights)
-            self.mppi_mean[h, 6:15] = rot_certain_horizon.mean(weights=w).as_matrix().flatten()
+            self.mppi_mean[h, 3:12] = rot_certain_horizon.mean(weights=w).as_matrix().flatten()
         # the generated mppi_mean is a weighted average trajectories of the sampled trajectories
         # return 1st element of the mean, which corresponds to curr timestep
         print(" self.mppi_mean[:, :3]",  self.mppi_mean[:, :3])
@@ -78,7 +78,7 @@ class MPPI:
             best_action: optimal action to perform, according to controller
         """
         if self.counter == 1:
-            self.init_rot = R.from_matrix(curr_state[6:15].reshape(3,3))
+            self.init_rot = R.from_matrix(curr_state[3:12].reshape(3,3))
             self.init_euler_angle = self.init_rot.as_euler('zyx')
             print("self.init_euler_angle", (self.init_euler_angle) * 180 / np.pi)
         # past action is the first step of the prev averaged trajectory
@@ -99,7 +99,6 @@ class MPPI:
             # only disturb set point position for prototyping
             rand_set_point = np.random.uniform(np.array([-1, -1, -1]), np.array([1, 1, 1]),
                                 size=(self.N, self.horizon, 3)) * self.sigma[:3]
-            rand_force = np.zeros((self.N, self.horizon, 3))
             # noisy rotation matrix
             rand_euler_delta = np.random.uniform(-0.02, 0.02, size=(self.N, self.horizon, 3)) * np.pi
             # rand_euler_delta = np.random.normal(loc=0, scale=0.02/3, size=(self.N, self.horizon, 3)) * np.pi
@@ -110,7 +109,7 @@ class MPPI:
             print("init euler", self.init_rot.as_euler('zyx', degrees=True))
             print("rand euler delta", rand_euler_delta[0,0]*180/ np.pi)
             print("rand euler", rand_euler_raw[0,0]*180/ np.pi)
-            eps = np.concatenate((rand_set_point, rand_force, rand_rot), axis=2)
+            eps = np.concatenate((rand_set_point, rand_rot), axis=2)
             all_samples = copy.deepcopy(eps)
             print("all samples before smoothing", all_samples[:10,0,:3])
 
@@ -165,13 +164,13 @@ class MPPI:
                     
                     
                     # new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
-                    new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
-                    past_rot = past_action[6:15].reshape((3, 3))
+                    new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 3:12]]
+                    past_rot = past_action[3:12].reshape((3, 3))
 
                     for n in range(self.N):
                         interp_R = R.from_matrix([new_rot[n], past_rot])
                         # all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
-                        all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1]).as_matrix().flatten()
+                        all_samples[n, h, 3:12] = interp_R.mean([self.beta, 1]).as_matrix().flatten()
 
                 else:
                     # all_samples[:, h, :3] = \
@@ -181,12 +180,12 @@ class MPPI:
                     all_samples[:, h, :3] = self.beta*(self.mppi_mean[h, :3] + eps[:, h, :3]) + (1-self.beta)*all_samples[:, h-1, :3]
                     
                     # new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
-                    new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
-                    past_rot = all_samples[:, h-1, 6:15].reshape((-1, 3, 3))
+                    new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 3:12]]
+                    past_rot = all_samples[:, h-1, 3:12].reshape((-1, 3, 3))
 
                     for n in range(self.N):
                         interp_R = R.from_matrix([new_rot[n], past_rot[n]])
-                        all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
+                        all_samples[n, h, 3:12] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
             # resulting candidate action sequences, all_samples: [N, horizon, action_dim]
             print("all samples after smoothing: ", all_samples[:10,0,:3])
             all_samples = np.clip(all_samples, -1, 1)

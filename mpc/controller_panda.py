@@ -5,7 +5,7 @@ import os
 from types import SimpleNamespace
 from amira_gym_ros.task_envs.panda_model_learning_reach import PandaModelLearningReach
 from amira_gym_ros.task_envs.panda_model_learning_easy_insertion import PandaModelLearningEasyInsertion
-from amira_gym_ros.task_envs.panda_model_learning_hard_insertion import PandaModelLearningHardInsertion
+from amira_gym_ros.task_envs.panda_model_learning_hard_insertion_ablation_study import PandaModelLearningHardInsertion
 import rospy
 from mpc.dyn_model import Dyn_Model
 from mpc.mpc_rollout_panda import MPCRollout
@@ -85,12 +85,10 @@ def mpc_controller(cfg):
 
         # Get the initial global frame state of eef
         robot_init_pos = np.copy(obs[:3])
-        robot_init_force = np.copy(obs[3:6])
         robot_init_orn = np.copy(obs[6:15])
         
         # unnormalized starting state
         starting_state = np.hstack((robot_init_pos,
-                                    robot_init_force,
                                     robot_init_orn))
 
         print("starting state", starting_state)
