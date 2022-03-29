@@ -27,6 +27,11 @@ class DemoDataset(Dataset):
         self.contact_only = ds_cfg["contact_only"]
         self.sample_freq = ds_cfg["sample_freq"]
         self.sl_factor = ds_cfg["sl_factor"]
+
+        # for prototyping
+        # self.sample_freq = int(ds_cfg["sample_freq"] / 20)
+        # self.sl_factor = 1
+        
         self.state_attrs = ds_cfg["state_attrs"]
         self.action_attrs = ds_cfg["action_attrs"]
 
@@ -48,15 +53,19 @@ class DemoDataset(Dataset):
 
         self.sample_time_end = -50
         # self.sample_time_end = -1
-        self.train_horizon = 1
+        self.multi_horizon_training = ds_cfg["multi_horizon_training"]
+        self.train_horizon = ds_cfg["training_horizon"]
         self._read_all_demos()
 
     def __len__(self):
-        return len(self.states_actions)-self.train_horizon
+        return len(self.states_actions)-(self.sl_factor * self.train_horizon)
 
     def __getitem__(self, idx):
-        if self.train_horizon > 1:
-            state, action = np.squeeze(np.hsplit(self.states_actions[idx: idx+self.train_horizon],2))
+        if self.multi_horizon_training:
+            assert self.train_horizon > 1, " value of config 'training_horizon' should be greateer than 1 for multi horizon training"
+            indices = np.arange(idx, idx+(self.sl_factor*self.train_horizon)+1, self.sl_factor)
+            state, action = np.squeeze(np.hsplit(self.states_actions[indices],2))
+            # state, action = np.squeeze(np.hsplit(self.states_actions[idx: idx+self.train_horizon],2))
             target = self.targets[idx: idx+self.train_horizon]
             if self.is_train:
                 if np.random.uniform() < 0.2:  # 0.2 probility to add noise
@@ -102,7 +111,7 @@ class DemoDataset(Dataset):
 
             targets = np.zeros_like(tmp_targets[self.sl_factor:])
             print("targets.shape", targets.shape)
-            # pos and force residuals
+            # pos residuals
             targets[:, :3] = (tmp_targets[self.sl_factor:, :3] -
                               tmp_targets[:-self.sl_factor, :3])
             targets[:, 3:] = rotation_diff(tmp_targets[self.sl_factor:, 3:],
@@ -111,12 +120,11 @@ class DemoDataset(Dataset):
             self.states_actions.extend(states_actions)
             self.targets.extend(targets)
 
-            # for sim
-            # self.states_force.extend(np.array(states_actions[:, 0, 3:6]))
-            # self.actions_force.extend(np.array(states_actions[:, 1, 3:6]))
 
         self.states_actions = np.array(self.states_actions)
+        print("self.states_actions.shape", self.states_actions.shape)
         self.targets = np.array(self.targets)
+        print("self.targets", self.targets.shape)
         norm = Normalization(self.stats)
         self.states_actions = norm.normalize(self.states_actions)
         self.targets = norm.normalize(self.targets[:, None, :],
@@ -261,9 +269,10 @@ class DemoDataset(Dataset):
         """
         start_time = max(min(states["time"]), min(actions["time"]))
         end_time = min(max(states["time"]), max(actions["time"]))
-
+        print("start_time", start_time)
+        print("start_time", end_time)
         sample_time = np.arange(start_time, end_time, 1.0/sample_freq)
-
+        print("sample_time.shape", sample_time.shape)
         # TODO you have to manually change the sample time range
         # because the slerp algorithm do not extrapolate
         # therefore if you change the sl_factor, it could raise error
@@ -289,23 +298,13 @@ class DemoDataset(Dataset):
         actions_rot_interp = Interpolation(actions["rot"], actions["time"],
                                            self.preprocess["interp"]["rot"])
 
-        # # force interpolation
-        # states_force_interp = \
-        #     Interpolation(states["force"], states["time"],
-        #                   self.preprocess["interp"]["force"])
-        # actions_force_interp = \
-        #     Interpolation(actions["force"], actions["time"],
-        #                   self.preprocess["interp"]["force"])
-
         # concatenate interpolated values
         states_interp = \
             np.hstack((states_pos_interp.interp(sample_time),
-                    #    states_force_interp.interp(sample_time),
                        states_rot_interp.interp(sample_time)))
 
         actions_interp = \
             np.hstack((actions_pos_interp.interp(sample_time),
-                    #    actions_force_interp.interp(sample_time),
                        actions_rot_interp.interp(sample_time)))
 
         states_actions = \
@@ -319,6 +318,5 @@ class DemoDataset(Dataset):
         print("padding_time max", max(padding_time))
         states_padding = \
             np.hstack((states_pos_interp.interp(padding_time),
-                    #    states_force_interp.interp(padding_time),
                        states_rot_interp.interp(padding_time)))
         return np.array(states_actions), np.array(states_padding)

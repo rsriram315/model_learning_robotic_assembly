@@ -10,6 +10,7 @@ class EnsembleTrainer:
     def __init__(self,
                  dataloader,
                  dataset_stats,
+                 dataset_cfg,
                  trainer_cfg,
                  optim_cfg,
                  model_cfg,
@@ -18,7 +19,7 @@ class EnsembleTrainer:
 
         self.dataloader = dataloader
         self.dataset_stats = dataset_stats
-
+        self.dataset_cfg = dataset_cfg
         self.trainer_cfg = trainer_cfg
         self.optim_cfg = optim_cfg
         self.model_cfg = model_cfg
@@ -36,6 +37,7 @@ class EnsembleTrainer:
 
             trainer = Trainer(self.dataloader,
                               self.dataset_stats,
+                              self.dataset_cfg,
                               self.trainer_cfg,
                               self.optim_cfg,
                               self.model_cfg,

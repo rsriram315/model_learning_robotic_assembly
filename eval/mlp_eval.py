@@ -46,12 +46,11 @@ class Evaluate:
             for state_action, target in tqdm(self.dataloader):
                 state_action, target = (state_action.to(self.device),
                                         target.to(self.device))
-                print("STATE ACTION SHAE", state_action.shape)
                 output = self.model(state_action)
                 
                 if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
                     criterion_1, criterion_2 = criterion
-                    loss = 1 * criterion_1(output[:3], target[:3])
+                    loss = 1 * criterion_1(output[:, :3], target[:, :3])
                     loss += 1 * criterion_2(output[:, 3:].reshape(-1,3,3), target[:, 3:].reshape(-1,3,3))
                 elif self.cfg["trainer"]["criterion"] == "MSE":
                     loss = criterion(output, target)
@@ -73,7 +72,8 @@ class Evaluate:
         num_train_demo = int(len(demos) * 0.8)
         ds_cfg["fnames"] = (np.random.RandomState(ds_cfg["seed"])
                               .permutation(demos)[num_train_demo:])
-
+        ds_cfg["multi_horizon_training"] = False
+        ds_cfg["training_horizon"] = 1
         dataset = DemoDataset(ds_cfg)
         dataloader = DemoDataLoader(dataset, dl_cfg)
 

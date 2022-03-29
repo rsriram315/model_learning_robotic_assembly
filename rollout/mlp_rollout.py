@@ -1,8 +1,9 @@
+from cgi import print_arguments
 import torch
 import numpy as np
 from copy import deepcopy
 from pathlib import Path
-
+from utils.geodesic_loss import GeodesicLoss
 from visualization.vis_mlp import MLPVisualize
 from dataloaders.data_processor import Normalization, recover_rotation,\
                                        add_euler_angle
@@ -35,9 +36,6 @@ class MLPRollout(MLPVisualize):
 
             if self.vis_cfg["loss"]:
                 loss_fname = self.vis_dir / "loss" / suffix_fname
-                print(losses_per_demo.shape)
-                print(target_per_demo.shape)
-                print(len(time[2:]))
                 self._vis_loss(losses_per_demo, time[2:], loss_fname)
 
             if self.vis_cfg["axis"]:
@@ -64,14 +62,17 @@ class MLPRollout(MLPVisualize):
         ro_states = []
         preds = []
 
-        criterion = torch.nn.MSELoss(reduction='none')
+        # criterion = torch.nn.MSELoss(reduction='none')
+        if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
+            criterion = (torch.nn.MSELoss(reduction='none'), GeodesicLoss(reduction='mean'))
+        elif self.cfg["trainer"]["criterion"] == "MSE":
+            criterion = torch.nn.MSELoss(reduction='none')
         losses = []
 
         with torch.no_grad():
             for i in range(len(dataset) - 1):
                 state_action, target = dataset.__getitem__(i)
                 gt_states.append(np.copy(state_action[None, :12]))
-
                 if rollout < self.horizon:
                     state_action[:12] = np.copy(ro_pred)
                     rollout += 1
@@ -83,7 +84,6 @@ class MLPRollout(MLPVisualize):
                 state_action = torch.tensor(state_action[None, ...]).to(self.device)
                 target = torch.tensor(target[None, ...]).to(self.device)
                 output = model(state_action)  # predicted difference
-
                 # get rollout prediction in the correct scale
                 # and this is the new state for next prediction
                 ro_pred = output.cpu().numpy()
@@ -100,10 +100,14 @@ class MLPRollout(MLPVisualize):
                 # loss is set to the difference between
                 # predicted current state (normalized) and
                 # the ground truth next states
-                loss = criterion(torch.tensor(ro_pred),
-                                 torch.tensor(next_state_action[None, :12]))
+                if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
+                    criterion_1, criterion_2 = criterion
+                    loss = criterion_1(torch.tensor(ro_pred[:, :3], dtype=torch.double), torch.tensor(next_state_action[None, :3], dtype=torch.double))
+                    loss += criterion_2(torch.tensor(ro_pred[:, 3:12].reshape(-1,3,3), dtype=torch.double), torch.tensor(next_state_action[None, 3:12].reshape(-1,3,3), dtype=torch.double))
+                elif self.cfg["trainer"]["criterion"] == "MSE":
+                    loss = criterion(torch.tensor(ro_pred),
+                                torch.tensor(next_state_action[None, :12]))
                 loss = torch.mean(loss, axis=1)
-
                 losses.extend(loss.cpu().numpy())
                 preds.extend(ro_pred)
 

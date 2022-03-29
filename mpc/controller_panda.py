@@ -3,7 +3,7 @@ import random
 import mlflow
 import os
 from types import SimpleNamespace
-from amira_gym_ros.task_envs.panda_model_learning_reach import PandaModelLearningReach
+from amira_gym_ros.task_envs.panda_model_learning_reach_ablation_study import PandaModelLearningReach
 from amira_gym_ros.task_envs.panda_model_learning_easy_insertion import PandaModelLearningEasyInsertion
 from amira_gym_ros.task_envs.panda_model_learning_hard_insertion_ablation_study import PandaModelLearningHardInsertion
 import rospy
@@ -31,9 +31,9 @@ def mpc_controller(cfg):
     env, experiment = build_env(cfg)
     params = (lambda d: SimpleNamespace(**d))(
                 dict(controller_type='random_shooting',
-                     horizon=1,
+                     horizon=10,
                      max_step=100,
-                     num_sample_seq=3000,
+                     num_sample_seq=500,
                      rand_policy_angle_min=-0.02,
                      rand_policy_angle_max=0.02,
                      rand_policy_hold_action=1,

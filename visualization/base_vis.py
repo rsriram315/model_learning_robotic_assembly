@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-
+from utils.geodesic_loss import GeodesicLoss
 from model import MLP
 from utils import prepare_device
 from dataloaders.dataset_panda import DemoDataset
@@ -58,7 +58,7 @@ class BaseVisualize:
                 axis_fname = self.vis_dir / "axis" / suffix_fname
                 self._vis_axis(preds_per_demo[:-1, :],
                                target_per_demo[1:, :],
-                               time[2:],
+                               time[1:-1],
                                axis_fname)
 
             if self.vis_cfg["trajectory"]:
@@ -169,8 +169,11 @@ class BaseVisualize:
         bs = 1024  # batch size
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=False)
         # get function handles of loss and metrics
-        criterion = torch.nn.MSELoss(reduction='none')
-
+        # criterion = torch.nn.MSELoss(reduction='none')
+        if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
+            criterion = (torch.nn.MSELoss(reduction='none'), GeodesicLoss(reduction='mean'))
+        elif self.cfg["trainer"]["criterion"] == "MSE":
+            criterion = torch.nn.MSELoss(reduction='none')
         losses = []
         preds = []
         states = []
@@ -183,9 +186,14 @@ class BaseVisualize:
                 state_action, target = (state_action.to(self.device),
                                         target.to(self.device))
                 output = model(state_action)
-                loss = criterion(output, target)
-                loss = torch.mean(loss, axis=1)
+                if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
+                    criterion_1, criterion_2 = criterion
+                    loss = criterion_1(output[:, :3], target[:, :3])
+                    loss += criterion_2(output[:, 3:].reshape(-1,3,3), target[:, 3:].reshape(-1,3,3))
+                elif self.cfg["trainer"]["criterion"] == "MSE":
+                    loss = criterion(output, target)
 
+                loss = torch.mean(loss, axis=1)
                 losses.extend(loss.cpu().numpy())
                 preds.extend(output.cpu().numpy()[:, None, :])
 
@@ -198,6 +206,8 @@ class BaseVisualize:
         sl_factor = ds_cfg["sl_factor"]
         ds_cfg["sample_freq"] = int(sample_freq / sl_factor)
         ds_cfg["sl_factor"] = 1
+        ds_cfg["multi_horizon_training"] = False
+        ds_cfg["training_horizon"] = 1
 
         dataset = DemoDataset(ds_cfg)
         return dataset

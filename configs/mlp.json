@@ -14,6 +14,8 @@
         "sample_freq": 1000,
         "sl_factor": 50,
         "contact_only": true,
+        "multi_horizon_training": true,
+        "training_horizon": 10,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
@@ -44,6 +46,8 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
+        "multi_horizon_training": false,
+        "training_horizon": 10,
         "contact_only": false,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
@@ -71,7 +75,7 @@
     "dataloader": {
         "name": "DemoDataLoader",
         "batch_size": 1024,
-        "shuffle": true,
+        "shuffle": false,
         "validation_split": 0.2,
         "num_workers": 4
     },
@@ -83,14 +87,14 @@
     },
     "trainer": {
         "name": "mlp",
-        "num_epochs": 500,
+        "num_epochs": 100,
         "ckpts_dir": "saved/ckpts/",
         "save_period": 5,
-        "early_stop": true,
+        "early_stop": false,
         "patience": 5,
         "log_file": "saved/train.log",
         "tb_dir": "saved/tb_log",
-        "criterion": "MSE"
+        "criterion": "Geodesic_MSE"
     },
     "optimizer": {
         "name": "Adam",
@@ -100,10 +104,10 @@
     },
     "finetune_trainer": {
         "name": "finetune_mlp",
-        "num_epochs": 500,
+        "num_epochs": 200,
         "ckpts_dir": "saved_finetune/ckpts/",
         "save_period": 5,
-        "early_stop": true,
+        "early_stop": false,
         "patience": 5,
         "log_file": "saved_finetune/train.log",
         "tb_dir": "saved_finetune/tb_log",
@@ -111,7 +115,7 @@
     },
     "finetune_optimizer": {
         "name": "Adam",
-        "lr": 0.00005,
+        "lr": 0.0005,
         "weight_decay": 0,
         "amsgrad": true
     },

@@ -14,7 +14,7 @@ def add_noise(data, noise_lv=0.1):
     return data
 
 
-def homogeneous_transform(data, r_noise=0.001, t_noise=0.1):
+def     homogeneous_transform(data, r_noise=0.001, t_noise=0.1):
     # generate random homegeneous_matrix
     noisy_r = R.from_euler('zyx', np.random.normal(0, r_noise, size=3) * np.pi)
     rotation_matrix = noisy_r.as_matrix()
@@ -124,8 +124,8 @@ class Normalization:
             range = array_range[1]
             min = array_min[1]
         else:
-            # state_actions has dim [N_samples, 2, 15]
-            # best action has dim [1, 1, 15]
+            # state_actions has dim [N_samples, 2, 12]
+            # best action has dim [1, 1, 12]
             dim = data.shape[1]  # check if state action or not
             range = array_range[:dim]
             min = array_min[:dim]  
