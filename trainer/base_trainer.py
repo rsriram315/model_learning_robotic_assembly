@@ -16,11 +16,13 @@ class BaseTrainer:
                  metric_fns,
                  optimizer,
                  dataset_stats,
+                 dataset_cfg,
                  trainer_cfg,
                  resume_path):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
+        self.dataset_cfg = dataset_cfg
         self.trainer_cfg = trainer_cfg
         self.num_epochs = trainer_cfg["num_epochs"]
 

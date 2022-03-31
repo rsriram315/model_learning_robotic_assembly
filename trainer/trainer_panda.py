@@ -13,6 +13,7 @@ class Trainer(BaseTrainer):
     def __init__(self,
                  dataloader,
                  dataset_stats,
+                 dataset_cfg,
                  trainer_cfg,
                  optim_cfg,
                  model_cfg,
@@ -50,6 +51,7 @@ class Trainer(BaseTrainer):
                          metric_fns,
                          optimizer,
                          dataset_stats,
+                         dataset_cfg,
                          trainer_cfg,
                          resume_path)
 
@@ -102,35 +104,44 @@ class Trainer(BaseTrainer):
                 (state_action.to(self.device, non_blocking=True),
                  target.to(self.device, non_blocking=True))
 
-
-            if self.trainer_cfg["criterion"] == "Geodesic_MSE":
-                # intialize the gradient to None first
-                self.optimizer.zero_grad(set_to_none=True)
-                input = state_action[:,0].clone().detach()
-                loss = 0
-                self.criterion_1, self.criterion_2 = self.criterion
-                for horizon in range(target.shape[1]):
-                    output = self.model(input)
-                    horizon_loss = 1 * self.criterion_1(output[:, :6], target[:, horizon, :6])
-                    # print("MSE loss:", horizon_loss)
-                    horizon_loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3))
-                    # print("geodesic loss:", 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3)))
-                    loss += horizon_loss
-                    # print("total loss :", loss)
-                    if horizon+1 < target.shape[1]:
-                        input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+            # intialize the gradient to None first
+            self.optimizer.zero_grad(set_to_none=True)
+            loss = 0
             
-            elif self.trainer_cfg["criterion"] == "MSE":
-                self.optimizer.zero_grad(set_to_none=True)
-                input = state_action[:,0].clone().detach()
-                loss = 0
-                for horizon in range(target.shape[1]):
-                    output = self.model(input)
-                    horizon_loss = self.criterion(output, target[:,horizon, :])
-                    # print("\nhorizon loss", horizon_loss)
-                    loss += horizon_loss
-                    if horizon+1 < target.shape[1]:
-                        input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+            if self.dataset_cfg["multi_horizon_training"]:
+                assert self.dataset_cfg["training_horizon"] > 1, " value of config 'training_horizon' should be greateer than 1 for multi horizon training"
+                if self.trainer_cfg["criterion"] == "Geodesic_MSE":
+                    input = state_action[:,0].clone().detach()
+                    self.criterion_1, self.criterion_2 = self.criterion
+                    for horizon in range(target.shape[1]):
+                        output = self.model(input)
+                        horizon_loss = 1 * self.criterion_1(output[:, :6], target[:, horizon, :6])
+                        horizon_loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3))
+                        loss += horizon_loss
+                        if horizon+1 < target.shape[1]:
+                            input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+                
+                elif self.trainer_cfg["criterion"] == "MSE":
+                    input = state_action[:,0].clone().detach()
+                    for horizon in range(target.shape[1]):
+                        output = self.model(input)
+                        horizon_loss = self.criterion(output, target[:,horizon, :])
+                        loss += horizon_loss
+                        if horizon+1 < target.shape[1]:
+                            input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+
+                loss = loss / target.shape[1]
+            
+            else:
+                if self.trainer_cfg["criterion"] == "Geodesic_MSE":
+                    output = self.model(state_action)
+                    self.criterion_1, self.criterion_2 = self.criterion
+                    loss = 1 * self.criterion_1(output[:, :6], target[:, :6])
+                    loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+
+                elif self.trainer_cfg["criterion"] == "MSE":
+                    output = self.model(state_action)
+                    loss = self.criterion(output, target)
             
             loss.backward()
             self.optimizer.step()
@@ -165,28 +176,43 @@ class Trainer(BaseTrainer):
         self.valid_metrics.reset()
 
         with torch.no_grad():
-            for _, (data, target) in enumerate(self.valid_dataloader):
-                data, target = data.to(self.device), target.to(self.device)
-                input = data[:,0].clone().detach()
+            for _, (state_action, target) in enumerate(self.valid_dataloader):
+                state_action, target = state_action.to(self.device), target.to(self.device)
                 loss = 0
 
-                if self.trainer_cfg["criterion"] == "Geodesic_MSE":
-                    self.criterion_1, self.criterion_2 = self.criterion
-                    for horizon in range(target.shape[1]):
-                        output = self.model(input)
-                        val_loss = 1 * self.criterion_1(output[:, :6], target[:, horizon, :6])
-                        val_loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3))
-                        loss += val_loss
-                        if horizon+1 < target.shape[1]:
-                            input = torch.hstack((output, data[:, horizon+1, 15:]))
-                
-                elif self.trainer_cfg["criterion"] == "MSE":
-                    for horizon in range(target.shape[1]):
-                        output = self.model(input)
-                        val_loss = self.criterion(output, target[:,horizon, :])
-                        loss += val_loss
-                        if horizon+1 < target.shape[1]:
-                            input = torch.hstack((output, data[:, horizon+1, 15:]))
+                if self.dataset_cfg["multi_horizon_training"]:
+                    assert self.dataset_cfg["training_horizon"] > 1, " value of config 'training_horizon' should be greateer than 1 for multi horizon training"
+                    if self.trainer_cfg["criterion"] == "Geodesic_MSE":
+                        input = state_action[:,0].clone().detach()
+                        self.criterion_1, self.criterion_2 = self.criterion
+                        for horizon in range(target.shape[1]):
+                            output = self.model(input)
+                            val_loss = 1 * self.criterion_1(output[:, :6], target[:, horizon, :6])
+                            val_loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, horizon, 6:].reshape(-1,3,3))
+                            loss += val_loss
+                            if horizon+1 < target.shape[1]:
+                                input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+                    
+                    elif self.trainer_cfg["criterion"] == "MSE":
+                        input = state_action[:,0].clone().detach()
+                        for horizon in range(target.shape[1]):
+                            output = self.model(input)
+                            val_loss = self.criterion(output, target[:,horizon, :])
+                            loss += val_loss
+                            if horizon+1 < target.shape[1]:
+                                input = torch.hstack((output, state_action[:, horizon+1, 15:]))
+                    loss = loss / target.shape[1]
+
+                else :
+                    if self.trainer_cfg["criterion"] == "Geodesic_MSE":
+                        self.criterion_1, self.criterion_2 = self.criterion
+                        output = self.model(state_action)
+                        loss = 1 * self.criterion_1(output[:, :6], target[:, :6])
+                        loss += 1 * self.criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+                    
+                    elif self.trainer_cfg["criterion"] == "MSE":
+                        output = self.model(state_action)
+                        loss = self.criterion(output, target)
 
                 self.valid_metrics.update('loss', loss.item())
                 # for met in self.metric_fns:

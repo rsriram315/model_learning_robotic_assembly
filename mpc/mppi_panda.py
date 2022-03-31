@@ -55,8 +55,6 @@ class MPPI:
         
         # sum over all the sampled trajectories
         # weighted_actions = weights * all_samples  # [N, H, action_dim]
-        # self.mppi_mean = np.sum(weighted_actions, axis=0) / sum_weights
-
         for h in range(all_samples.shape[1]):
             certain_horizon = np.copy(all_samples[:, h, 6:15]).reshape((-1, 3, 3))
             rot_certain_horizon = R.from_matrix(certain_horizon)
@@ -101,7 +99,7 @@ class MPPI:
                                 size=(self.N, self.horizon, 3)) * self.sigma[:3]
             rand_force = np.zeros((self.N, self.horizon, 3))
             # noisy rotation matrix
-            rand_euler_delta = np.random.uniform(-0.02, 0.02, size=(self.N, self.horizon, 3)) * np.pi
+            rand_euler_delta = np.random.uniform(-0.03, 0.03, size=(self.N, self.horizon, 3)) * np.pi
             # rand_euler_delta = np.random.normal(loc=0, scale=0.02/3, size=(self.N, self.horizon, 3)) * np.pi
             euler_init = np.tile(self.init_euler_angle, (self.N, self.horizon, 1))
             rand_euler_raw  = euler_init + rand_euler_delta
@@ -195,7 +193,7 @@ class MPPI:
             #####################
             # plot for debugging
             #####################
-            if self.counter == 1000:
+            if self.counter == 500:
                 all_samples = []
                 z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
                 # print("z set points", z_set_point_ls)
@@ -244,7 +242,7 @@ class MPPI:
             #####################
             # plot for debugging
             #####################
-            if self.counter == 1000:
+            if self.counter == 500:
                 # ploting to see resulting statesplot
                 import matplotlib.pyplot as plt
                 x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]

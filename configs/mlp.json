@@ -1,11 +1,11 @@
 {
     "name": "mlp",
     "train": false,
+    "finetune" : false,
     "evaluate": false,
     "visualize": false,
     "rollout": false,
     "mpc": true,
-    "finetune" : false,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
@@ -13,7 +13,9 @@
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
-        "contact_only": false,
+        "multi_horizon_training": false,
+        "training_horizon": 10,
+        "contact_only": true,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
@@ -40,10 +42,12 @@
     "finetune_dataset": {
         "name": "FinetuneDataset",
         "seed": 42,
-        "root": "recorded_data",
+        "root": "recorded_data/hard_insertion_experiments/random_shooting/2022_03_03/",
         "fnames": [],
         "sample_freq": 1000,
         "sl_factor": 50,
+        "multi_horizon_training": false,
+        "training_horizon": 10,
         "contact_only": false,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
@@ -90,7 +94,7 @@
         "patience": 5,
         "log_file": "saved/train.log",
         "tb_dir": "saved/tb_log",
-        "criterion": "MSE"
+        "criterion": "Geodesic_MSE"
     },
     "optimizer": {
         "name": "Adam",
@@ -111,7 +115,7 @@
     },
     "finetune_optimizer": {
         "name": "Adam",
-        "lr": 0.00005,
+        "lr": 0.0001,
         "weight_decay": 0,
         "amsgrad": true
     },
@@ -156,7 +160,7 @@
         "max_position_offset": "np.inf"
     },
     "record_rollouts": {
-        "record_mpc_rollout": false,
+        "record_mpc_rollout": true,
         "save_base_dir": "recorded_data/"
     }   
 }

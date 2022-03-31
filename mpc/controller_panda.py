@@ -31,9 +31,9 @@ def mpc_controller(cfg):
     env, experiment = build_env(cfg)
     params = (lambda d: SimpleNamespace(**d))(
                 dict(controller_type='mppi',
-                     horizon=5,
-                     max_step=100,
-                     num_sample_seq=500,
+                     horizon=1,
+                     max_step=200,
+                     num_sample_seq=700,
                      rand_policy_angle_min=-0.02,
                      rand_policy_angle_max=0.02,
                      rand_policy_hold_action=1,

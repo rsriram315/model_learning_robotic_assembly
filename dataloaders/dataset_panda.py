@@ -48,22 +48,37 @@ class DemoDataset(Dataset):
 
         self.sample_time_end = -50
         # self.sample_time_end = -1
-        self.train_horizon = 5
+        # self.train_horizon = 5
+        self.multi_horizon_training = ds_cfg["multi_horizon_training"]
+        self.train_horizon = ds_cfg["training_horizon"]
         self._read_all_demos()
 
     def __len__(self):
-        return len(self.states_actions)-self.train_horizon
+        return len(self.states_actions)- (self.sl_factor * self.train_horizon)
 
     def __getitem__(self, idx):
-        state, action = np.squeeze(np.hsplit(self.states_actions[idx: idx+self.train_horizon],2))
-        target = self.targets[idx: idx+self.train_horizon]
-        if self.is_train:
-            if np.random.uniform() < 0.2:  # 0.2 probility to add noise
-                for i in range(self.train_horizon):
-                    state[i] = add_noise(state[i])
-                    state[i] = homogeneous_transform(state[i], t_noise=0.001)
-                    target[i] = add_noise(target[i])
-                    target[i] = homogeneous_transform(target[i], r_noise=0.00001, t_noise=0.001)
+        if self.multi_horizon_training:
+            assert self.train_horizon > 1, " value of config 'training_horizon' should be greateer than 1 for multi horizon training"
+            indices = np.arange(idx, idx+(self.sl_factor*self.train_horizon)+1, self.sl_factor)
+            state, action = np.squeeze(np.hsplit(self.states_actions[indices],2))
+            target = self.targets[idx: idx+self.train_horizon]
+            if self.is_train:
+                if np.random.uniform() < 0.2:  # 0.2 probility to add noise
+                    for i in range(self.train_horizon):
+                        state[i] = add_noise(state[i])
+                        state[i] = homogeneous_transform(state[i], t_noise=0.001)
+                        target[i] = add_noise(target[i])
+                        target[i] = homogeneous_transform(target[i], r_noise=0.00001, t_noise=0.001)
+
+        else:
+            state, action = self.states_actions[idx]
+            target = self.targets[idx, :]
+            if self.is_train:
+                if np.random.uniform() < 0.2:  # 0.2 probility to add noise
+                    state = add_noise(state)
+                    state = homogeneous_transform(state, t_noise=0.001)
+                    target = add_noise(target)
+                    target = homogeneous_transform(target, r_noise=0.00001, t_noise=0.001)
 
         sample = np.hstack((state, action))
         return np.float32(sample), np.float32(target)

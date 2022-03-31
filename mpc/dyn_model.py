@@ -36,9 +36,12 @@ class Dyn_Model:
         ckpt = torch.load(ckpt_pth, map_location=self.device)
         if self.param_cb:
             if 'model' in ckpt.keys():
-                self.param_cb(dict(model_used_during_training=ckpt['model']))
+                self.param_cb(dict(model_used_during_training=ckpt['model'],
+                                   loaded_checkpoint=ckpt_pth))
             else:
-                self.param_cb(dict(model_used_during_training=None))
+                self.param_cb(dict(model_used_during_training=None,
+                                   loaded_checkpoint=ckpt_pth))
+
         cfg["dataset"]["stats"] = ckpt["dataset_stats"]
         model_cfg = cfg["model"]
 

@@ -41,6 +41,7 @@ def train(cfg):
     if trainer_name == "mlp":
         trainer = Trainer(dataloader,
                           dataset.stats,
+                          cfg["dataset"],
                           cfg["trainer"],
                           cfg["optimizer"],
                           cfg["model"],
@@ -48,6 +49,7 @@ def train(cfg):
     elif trainer_name == "ensemble":
         trainer = EnsembleTrainer(dataloader,
                                   dataset.stats,
+                                  cfg["dataset"],
                                   cfg["trainer"],
                                   cfg["optimizer"],
                                   cfg["model"],

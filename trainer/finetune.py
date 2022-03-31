@@ -6,7 +6,7 @@ from pathlib import Path
 from trainer.finetune_trainer import Trainer
 from trainer.ensemble_trainer import EnsembleTrainer
 from dataloaders import DemoDataLoader
-from dataloaders.dataset import DemoDataset
+from dataloaders.dataset_panda import DemoDataset
 
 
 # # fix random seeds for reproducibility
@@ -41,6 +41,7 @@ def finetune(cfg):
     if trainer_name == "finetune_mlp":
         trainer = Trainer(dataloader,
                           dataset.stats,
+                          cfg["finetune_dataset"],
                           cfg["finetune_trainer"],
                           cfg["finetune_optimizer"],
                           cfg["model"],
@@ -49,6 +50,7 @@ def finetune(cfg):
     elif trainer_name == "ensemble":
         trainer = EnsembleTrainer(dataloader,
                                   dataset.stats,
+                                  cfg["finetune_dataset"],
                                   cfg["trainer"],
                                   cfg["optimizer"],
                                   cfg["model"],

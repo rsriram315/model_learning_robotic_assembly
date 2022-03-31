@@ -48,7 +48,7 @@ class RandomShooting:
             all_samples.append(np.array(sample_per_traj))
         # all_actions: [num_sample_seq, num_rollout, num_action_dim]
         all_actions = np.array(all_samples)
-        print("all samples after clipping: ", all_actions[:5,:,:])
+        # print("all samples after clipping: ", all_actions[:5,:,:])
 
         # z_set_point_ls = np.arange(curr_state[2]+0.005, curr_state[2]-0.005, -0.0001)
         # # print("z set points", z_set_point_ls)
@@ -60,7 +60,7 @@ class RandomShooting:
         #     all_samples.append(norm_action)
         # all_actions = np.array(all_samples)
         # # print("all actions", all_actions[:5])
-        if self.step == 200:
+        if self.step == 400:
             all_samples = []
             z_set_point_ls = np.arange(curr_state[2]+0.01, curr_state[2]-0.01, -0.0001)
             # print("z set points", z_set_point_ls)
@@ -102,8 +102,8 @@ class RandomShooting:
 
         # [horizon+1, N, state_size]
         resulting_states_ls, norm_resulting_states_ls = self.dyn_model.do_forward_sim(curr_state, np.copy(all_actions))
-        print("resulting_states_ls", resulting_states_ls[0, :5, :])
-        if self.step == 200:
+        # print("resulting_states_ls", resulting_states_ls[0, :5, :])
+        if self.step == 400:
             # ploting to see resulting statesplot
             import matplotlib.pyplot as plt
             x_axis = [index for index in range (norm_resulting_states_ls.shape[1])]

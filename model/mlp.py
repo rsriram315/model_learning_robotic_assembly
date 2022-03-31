@@ -15,7 +15,7 @@ class MLP(BaseModel):
         self.fc2 = nn.Linear(500, 500)
         self.fc2_activation = torch.nn.ReLU()
         self.fc3 = nn.Linear(500, output_dims)
-        self.fc3_activation = torch.nn.Tanh()
+        # self.fc3_activation = torch.nn.Tanh()
         self.device = device
 
     def forward(self, x):
@@ -24,7 +24,7 @@ class MLP(BaseModel):
         x = self.fc2(x)
         x = self.fc2_activation(x)
         x = self.fc3(x)
-        x = self.fc3_activation(x)
+        # x = self.fc3_activation(x)
     
         # 6D rotation representation
         x = compute_rotation_matrix_from_ortho6d(x, device=self.device)
