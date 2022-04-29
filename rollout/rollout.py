@@ -23,7 +23,7 @@ def rollout(cfg):
         vis.visualize()
         losses.append(np.mean(vis.losses))
 
-    fig = plt.figure(figsize=(8, 4))
+    fig = plt.figure(figsize=(6, 4))
     ax = fig.add_subplot(111)
     ax.set_title("rollout horizon and loss")
     ax.plot(horizons, losses, 'o-')
@@ -31,5 +31,5 @@ def rollout(cfg):
     ax.set_ylabel("loss")
 
     plt.tight_layout()
-    plt.savefig("./saved/horizon_loss", dpi=200)
+    plt.savefig("./saved/horizon_loss.eps", dpi=1200, format='eps')
     plt.close(fig)

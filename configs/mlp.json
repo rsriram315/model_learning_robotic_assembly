@@ -2,10 +2,10 @@
     "name": "mlp",
     "train": false,
     "finetune" : false,
-    "evaluate": false,
-    "visualize": false,
-    "rollout": false,
-    "mpc": true,
+    "evaluate": true,
+    "visualize": true,
+    "rollout": true,
+    "mpc": false,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
@@ -14,8 +14,8 @@
         "sample_freq": 1000,
         "sl_factor": 50,
         "multi_horizon_training": false,
-        "training_horizon": 10,
-        "contact_only": true,
+        "training_horizon": 0,
+        "contact_only": false,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
             "attrs": ["tcp_pose_base", "tcp_wrench_ee"]
@@ -47,7 +47,7 @@
         "sample_freq": 1000,
         "sl_factor": 50,
         "multi_horizon_training": false,
-        "training_horizon": 10,
+        "training_horizon": 0,
         "contact_only": false,
         "state_attrs": {
             "name": "PandaStatePublisherarm_states",
@@ -87,10 +87,10 @@
     },
     "trainer": {
         "name": "mlp",
-        "num_epochs": 500,
+        "num_epochs": 100,
         "ckpts_dir": "saved/ckpts/",
         "save_period": 5,
-        "early_stop": true,
+        "early_stop": false,
         "patience": 5,
         "log_file": "saved/train.log",
         "tb_dir": "saved/tb_log",
@@ -160,7 +160,7 @@
         "max_position_offset": "np.inf"
     },
     "record_rollouts": {
-        "record_mpc_rollout": true,
+        "record_mpc_rollout": false,
         "save_base_dir": "recorded_data/"
     }   
 }

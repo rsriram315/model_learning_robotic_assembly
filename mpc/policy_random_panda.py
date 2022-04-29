@@ -41,13 +41,6 @@ class Policy_Random(object):
             self.rand_force = np.zeros(3)
             self.euler_delta = np.random.uniform(angle_min, angle_max, size=3) * np.pi
             self.rand_euler = R.from_euler('zyx', (self.init_euler_angle + self.euler_delta) ,degrees=False)
-            # print("self.init_euler_angle", self.init_rot.as_euler('zyx', degrees=True))
-            # print("self.rand_delta",  (self.euler_delta * 180)/np.pi)
-            # print("self.rand_euler", self.init_rot.as_euler('zyx', degrees=True) + (self.euler_delta * 180)/np.pi)
-            # print("self.rand_force",self.rand_force)
-            # print("self.rand_set_point", self.rand_set_point)
-            # print("self.rand_quat", self.rand_euler.as_quat())
-            # print("self.rand_mat", self.rand_euler.as_matrix().reshape(3,3))
             self.rand_rot = self.rand_euler.as_matrix().flatten()
 
             self.rand_action = np.hstack((self.rand_set_point,

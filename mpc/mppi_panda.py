@@ -87,9 +87,8 @@ class MPPI:
         # remove the 1st entry of mean (mean from last timestamp, which was just executed)
         # and copy the penultimate entry to the last entry (starting point, for the next timestep)
         self.mppi_mean[:-1] = self.mppi_mean[1:]  # mu_{t}
-        # self.mppi_mean_normalized = self.dyn_model.norm.normalize(self.mppi_mean[None,:,:], is_action=True, axis=0)
         print("mppi_mean", self.mppi_mean[:, :3])
-        # print("mppi_mean_normalized", self.mppi_mean_normalized)
+
         for k in range(1):
             ##############################################
             # noise source
@@ -99,7 +98,7 @@ class MPPI:
                                 size=(self.N, self.horizon, 3)) * self.sigma[:3]
             rand_force = np.zeros((self.N, self.horizon, 3))
             # noisy rotation matrix
-            rand_euler_delta = np.random.uniform(-0.03, 0.03, size=(self.N, self.horizon, 3)) * np.pi
+            rand_euler_delta = np.random.uniform(-0.01, 0.01, size=(self.N, self.horizon, 3)) * np.pi
             # rand_euler_delta = np.random.normal(loc=0, scale=0.02/3, size=(self.N, self.horizon, 3)) * np.pi
             euler_init = np.tile(self.init_euler_angle, (self.N, self.horizon, 1))
             rand_euler_raw  = euler_init + rand_euler_delta
@@ -113,56 +112,11 @@ class MPPI:
             print("all samples before smoothing", all_samples[:10,0,:3])
 
             # actions = mean + noise, then smooth the actions temporally
-            # TODO: where is the beta * (action_mean + noise) from?
-            # in the slides, it should be just beta * noise! Double check is needed!!!
-
-
-            # for h in range(self.horizon):
-            #     if h == 0:
-            #         # first step, the past action and mppi_mean are just zero ,so the
-            #         # first generate action (1st horizon) is just the noise itself
-            #         # all_samples[:, h, :3] = \
-            #         #     (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
-            #         #     (1 - self.beta) * past_action[:3])
-            #         all_samples[:, h, :3] = (self.beta * eps[:, h, :3]) + past_action[:3]
-                    
-                    
-            #         # new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
-            #         new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
-            #         past_rot = past_action[6:15].reshape((3, 3))
-
-            #         for n in range(self.N):
-            #             interp_R = R.from_matrix([new_rot[n], past_rot])
-            #             # all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
-            #             all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1]).as_matrix().flatten()
-
-            #     else:
-            #         # all_samples[:, h, :3] = \
-            #         #     (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
-            #         #     (1 - self.beta) * all_samples[:, h-1, :3])
-            #         all_samples[:, h, :3] = (self.beta * eps[:, h, :3]) + (1 - self.beta) * all_samples[:, h-1, :3] + self.mppi_mean[h, :3]
-                    
-                    
-            #         # new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
-            #         new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
-            #         past_rot = all_samples[:, h-1, 6:15].reshape((-1, 3, 3))
-
-            #         for n in range(self.N):
-            #             interp_R = R.from_matrix([new_rot[n], past_rot[n]])
-            #             all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
-
-
             for h in range(self.horizon):
                 if h == 0:
                     # first step, the past action and mppi_mean are just zero ,so the
                     # first generate action (1st horizon) is just the noise itself
-                    # all_samples[:, h, :3] = \
-                    #     (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
-                    #     (1 - self.beta) * past_action[:3])
                     all_samples[:, h, :3] = (self.beta * eps[:, h, :3]) + past_action[:3]
-                    
-                    
-                    # new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
                     new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
                     past_rot = past_action[6:15].reshape((3, 3))
 
@@ -172,19 +126,14 @@ class MPPI:
                         all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1]).as_matrix().flatten()
 
                 else:
-                    # all_samples[:, h, :3] = \
-                    #     (self.beta * (self.mppi_mean[h, :3] + eps[:, h, :3]) +
-                    #     (1 - self.beta) * all_samples[:, h-1, :3])
-                    # all_samples[:, h, :3] = self.beta * eps[:, h, :3] + (1 - self.beta) * (all_samples[:, h-1, :3] - self.mppi_mean[h-1, :3]) + self.mppi_mean[h, :3]
                     all_samples[:, h, :3] = self.beta*(self.mppi_mean[h, :3] + eps[:, h, :3]) + (1-self.beta)*all_samples[:, h-1, :3]
-                    
-                    # new_rot = [eps_rot.reshape((3, 3)) @ self.mppi_mean[h, 6:15].reshape(3,3) for eps_rot in eps[:, h, 6:15]]
                     new_rot = [eps_rot.reshape((3, 3)) for eps_rot in eps[:, h, 6:15]]
                     past_rot = all_samples[:, h-1, 6:15].reshape((-1, 3, 3))
 
                     for n in range(self.N):
                         interp_R = R.from_matrix([new_rot[n], past_rot[n]])
                         all_samples[n, h, 6:15] = interp_R.mean([self.beta, 1-self.beta]).as_matrix().flatten()
+            
             # resulting candidate action sequences, all_samples: [N, horizon, action_dim]
             print("all samples after smoothing: ", all_samples[:10,0,:3])
             all_samples = np.clip(all_samples, -1, 1)

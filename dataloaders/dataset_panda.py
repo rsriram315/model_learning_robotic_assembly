@@ -58,7 +58,7 @@ class DemoDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.multi_horizon_training:
-            assert self.train_horizon > 1, " value of config 'training_horizon' should be greateer than 1 for multi horizon training"
+            assert self.train_horizon > 1, " value of config 'training_horizon' should be greater than 1 for multi horizon training"
             indices = np.arange(idx, idx+(self.sl_factor*self.train_horizon)+1, self.sl_factor)
             state, action = np.squeeze(np.hsplit(self.states_actions[indices],2))
             target = self.targets[idx: idx+self.train_horizon]
@@ -266,9 +266,11 @@ class DemoDataset(Dataset):
         form state action pair from one demo
         """
         start_time = max(min(states["time"]), min(actions["time"]))
+        print("start time", start_time)
         end_time = min(max(states["time"]), max(actions["time"]))
-
+        print("end_time", end_time)
         sample_time = np.arange(start_time, end_time, 1.0/sample_freq)
+        print("sample_time", sample_time.shape)
 
         # TODO you have to manually change the sample time range
         # because the slerp algorithm do not extrapolate
