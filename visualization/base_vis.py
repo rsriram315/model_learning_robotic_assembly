@@ -114,14 +114,23 @@ class BaseVisualize:
                                   s=size,
                                   c='tab:orange',
                                   label="predictions")
-                axs[r, c].set_title(f'{feature} {ax} axis')
-                axs[r, c].legend()
-                if c == 0:
-                    axs[r, c].set_ylabel('coordinate')
+                # axs[r, c].set_title(f'{feature} {ax} axis')
+                axs[r, c].legend(fontsize='medium')
+                axs[r, c].grid(linestyle='dotted')
+                if r == 0 and c == 0:
+                    axs[r, c].set_title(f'{ax}-axis', fontsize=24)
+                if r == 0 and c == 1:
+                    axs[r, c].set_title(f'{ax}-axis', fontsize=24)
+                if r == 0 and c == 2:
+                    axs[r, c].set_title(f'{ax}-axis', fontsize=24)
+                if r == 0 and c == 0:
+                    axs[r, c].set_ylabel('Position [mm]', fontsize=24)
+                if r ==1 and c == 0:
+                    axs[r, c].set_ylabel('Euler angle [rad]', fontsize=24)
                 if r == rows - 1:
-                    axs[r, c].set_xlabel('time')
+                    axs[r, c].set_xlabel('Time [s]', fontsize=24)
         plt.tight_layout()
-        plt.savefig(fname, dpi=200, format='svg')
+        plt.savefig(f"{fname}.eps", dpi=1200, format='eps', bbox_inches='tight')
         plt.close(fig)
 
     def _vis_trajectory(self, pred, state, fname):

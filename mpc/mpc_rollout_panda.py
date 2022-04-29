@@ -190,7 +190,8 @@ class MPCRollout:
 
         ################################################    
         # visualising the executed 2D trajectory
-        ################################################ 
+        ################################################
+        plt.rcParams.update({'font.size': 16})
         pred_states = np.asarray(predicted_state)
         # norm_pred_states = np.asarray(norm_predicted_state)
         actual_state = np.asarray(true_state)
@@ -200,14 +201,13 @@ class MPCRollout:
         goal_z = np.full((len(actual_state),), 0.1825) # hard 0.1825 # easy 0.285 # reach 0.125
         
         # plt.subplots_adjust(left=0.07, bottom=0.08, right=0.97, top=0.90, wspace=0.25)
-        fig, axs  = plt.subplots(1, 3, figsize=(20, 10), sharex='all')
+        fig, axs  = plt.subplots(1, 3, figsize=(20, 10), constrained_layout=True)
         axs[0].plot(x_axis, actual_state[:,0], marker=".", color="tab:green", label="actual pos")
         axs[0].plot(x_axis, pred_states[:,0], marker=".", color="tab:red", label="predicted pos")
         axs[0].plot(x_axis, goal_x,marker=".", color="tab:blue", label="goal pos")
         # axs[0].plot(x_axis, norm_pred_states[:,0], marker="o", color="yellow")
-        axs[0].set_xlabel('Iteration')
-        axs[0].set_ylabel('x-axis position')
-        axs[0].set_title('End effector trajectory: x-axis')
+        axs[0].set_xlabel('Time steps', fontsize=24)
+        axs[0].set_ylabel('x-axis position [mm]', fontsize=24)
         axs[0].legend()
         axs[0].grid(linestyle='dotted')
 
@@ -216,9 +216,8 @@ class MPCRollout:
         axs[1].plot(x_axis, pred_states[:,1], marker=".", color="tab:red", label="predicted pos")
         axs[1].plot(x_axis, goal_y, marker=".", color="tab:blue", label="goal pos")
         # axs[1].plot(x_axis, norm_pred_states[:,1], marker="o", color="yellow")
-        axs[1].set_xlabel('Iteration')
-        axs[1].set_ylabel('y axis position')
-        axs[1].set_title('End effector trajectory: y-axis')
+        axs[1].set_xlabel('Time steps', fontsize=24)
+        axs[1].set_ylabel('y-axis position [mm]', fontsize=24)
         axs[1].legend()
         axs[1].grid(linestyle='dotted')
         
@@ -227,12 +226,14 @@ class MPCRollout:
         axs[2].plot(x_axis, pred_states[:,2], marker=".", color="tab:red", label="predicted pos")
         axs[2].plot(x_axis, goal_z, marker=".", color="tab:blue", label="goal pos")
         # axs[2].plot(x_axis, norm_pred_states[:,2], marker="o", color="yellow")
-        axs[2].set_xlabel('Iteration')
-        axs[2].set_ylabel('z axis position')
-        axs[2].set_title('End effector trajectory: z-axis')
+        axs[2].set_xlabel('Time steps', fontsize=24)
+        axs[2].set_ylabel('z-axis position [mm]', fontsize=24)
         axs[2].legend()
         axs[2].grid(linestyle='dotted')
-        fig.suptitle('MPC rollout: End-effector trajectory', fontsize=16)
+        if self.params.controller_type == 'random_shooting':
+            fig.suptitle('Random shooting rollout: End-effector Trajectory', fontsize=24)
+        elif self.params.controller_type == 'mppi':
+            fig.suptitle('MPPI rollout: End-effector trajectory', fontsize=24)
         # fig.tight_layout()
         # logging the trajectory to mlflow
         if self.image_cb:

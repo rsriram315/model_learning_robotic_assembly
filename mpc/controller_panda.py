@@ -25,13 +25,13 @@ def mpc_controller(cfg):
     
     # function for logging figures to mlflow
     def image_cb(image):
-        mlflow.log_figure(image, f"{params.controller_type}_rollout.svg", )
+        mlflow.log_figure(image, f"{params.controller_type}_rollout.eps", )
     
     # create environment and log related params to mlflow
     env, experiment = build_env(cfg)
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='random_shooting',
-                     horizon=10,
+                dict(controller_type='mppi',
+                     horizon=1,
                      max_step=100,
                      num_sample_seq=500,
                      rand_policy_angle_min=-0.02,
