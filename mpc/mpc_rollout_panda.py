@@ -29,7 +29,7 @@ class MPCRollout:
                                              self.cost,
                                              rand_policy, params)
         elif params.controller_type == 'mppi':
-            self.params.mppi_gamma = 10
+            self.params.mppi_gamma = 5
             self.params.mppi_mag_noise = 1
             self.params.mppi_beta = 0.9
             # log params to mlflow
@@ -43,9 +43,10 @@ class MPCRollout:
     
     def cost(self, curr_state, goal_state ):
         """
-        cost functin to evaluate sampled trajectories
+        cost function to evaluate sampled trajectories
+        Cost function is defined in the environment
+        Here cost is not considered as -reward 
         """
-        # reward is normalized
         mpc_cost = self.env._cost(pred_state=curr_state, goal_state=goal_state)
         return mpc_cost
     
@@ -104,25 +105,15 @@ class MPCRollout:
             if self.controller_type == 'mppi' and count==1:
                 self.controller.mppi_mean = np.tile(curr_state, (self.controller.horizon, 1))
                 self.controller.mppi_mean = self.dyn_model.norm.normalize(self.controller.mppi_mean[None,:,:], is_action=True,axis=0)
-                # self.controller.mppi_mean[:, :3] = [0, 0, 0]
                 self.controller.mppi_mean[:, 3:6] = [0, 0, 0]  # force action should be zero
-                # self.controller.mppi_mean[:, 6:15] = np.eye(3,3).flatten()  # action rotation is delta
-                print("Init controller mean: ", self.controller.mppi_mean[:,:3])
-                # time.sleep(10)
-            print("current state before executing mpc", self.env._get_obs()[:3])
             
             best_action, pred_next_state = self.controller.get_action(curr_state, self.goal_state, step)
             predicted_state.append(pred_next_state)
-            # norm_predicted_state.append(norm_pred_next_state)
-            
-            print("best_action", best_action[:3])
-            print("best_action rot", best_action[6:15])
             best_action_pos = best_action[:3] - np.copy(self.env._get_obs()[:3])
             best_action_rot = best_action[6:]
             
             action_to_take = np.hstack((best_action_pos,
                                        best_action_rot))
-            print("current state before taking action:", self.env._get_obs()[:3])
             
             ########################################################################    
             # recording current tcp state and action sent to cartesisan impedence setpoint
@@ -161,9 +152,8 @@ class MPCRollout:
             curr_state = np.hstack((np.copy(obs[:3]),
                                    np.copy(obs[3:6]),
                                    np.copy(obs[6:15])))
-            print(" curr state after executing action", curr_state[:3])
             true_state.append(curr_state)
-            print("finished step ", step, ", reward: ", self.env._cost(curr_state, self.goal_state))
+            print("finished step ", step, ", cost: ", self.env._cost(curr_state, self.goal_state))
             
             ################################################    
             # saving collected data in .h5 file
@@ -191,23 +181,22 @@ class MPCRollout:
         print("Time for 1 rollout: {:0.2f} s\n\n".format(time.time() - rollout_start))
 
         ################################################    
-        # visualising the executed 2D trajectory
+        # visualising the executed 2D trajectory after rollout
         ################################################ 
         plt.rcParams.update({'font.size': 16})
         pred_states = np.asarray(predicted_state)
         # norm_pred_states = np.asarray(norm_predicted_state)
         actual_state = np.asarray(true_state)
         x_axis = [index for index in range (len(actual_state))]
-        goal_x = np.full((len(actual_state),), 0.386) # hard  0.269 # easy 0.400 # reach 0.386
-        goal_y = np.full((len(actual_state),), -0.008) # hard -0.412 # easy 0.376 # reach -0.008
-        goal_z = np.full((len(actual_state),), 0.125) # hard 0.1825 # easy 0.285 # reach 0.125
+        goal_x = np.full((len(actual_state),), 0.269) # hard  0.269 # easy 0.400 # reach 0.386
+        goal_y = np.full((len(actual_state),), -0.412) # hard -0.412 # easy 0.376 # reach -0.008
+        goal_z = np.full((len(actual_state),), 0.1825) # hard 0.1825 # easy 0.285 # reach 0.125
         
         # plt.subplots_adjust(left=0.07, bottom=0.08, right=0.97, top=0.90, wspace=0.25)
         fig, axs  = plt.subplots(1, 3, figsize=(20, 10), constrained_layout=True)
         axs[0].plot(x_axis, actual_state[:,0], marker=".", color="tab:green", label="actual")
         axs[0].plot(x_axis, pred_states[:,0], marker=".", color="tab:red", label="predicted")
         axs[0].plot(x_axis, goal_x,marker=".", color="tab:blue", label="goal")
-        # axs[0].plot(x_axis, norm_pred_states[:,0], marker="o", color="yellow")
         axs[0].set_xlabel('Time steps', fontsize=24)
         axs[0].set_ylabel('x-axis position [mm]', fontsize=24)
         axs[0].legend()
@@ -227,7 +216,6 @@ class MPCRollout:
         axs[2].plot(x_axis, actual_state[:,2], marker=".", color="tab:green", label="actual")
         axs[2].plot(x_axis, pred_states[:,2], marker=".", color="tab:red", label="predicted")
         axs[2].plot(x_axis, goal_z, marker=".", color="tab:blue", label="goal")
-        # axs[2].plot(x_axis, norm_pred_states[:,2], marker="o", color="yellow")
         axs[2].set_xlabel('Time steps', fontsize=24)
         axs[2].set_ylabel('z-axis position [mm]', fontsize=24)
         axs[2].legend()
@@ -236,69 +224,7 @@ class MPCRollout:
             fig.suptitle('Random shooting rollout: End-effector Trajectory', fontsize=24)
         elif self.params.controller_type == 'mppi':
             fig.suptitle('MPPI rollout: End-effector trajectory', fontsize=24)
-        # fig.tight_layout()
         # logging the trajectory to mlflow
         if self.image_cb:
             self.image_cb(fig)
         plt.show()
-
-        ################################################    
-        # visualising the executed 3D trajectory
-        ################################################
-        def _vis_trajectory(pred, state):
-            # fig = plt.figure(figsize=(8, 8))
-            # ax = fig.add_subplot(111, projection='3d')
-            # max_size = 10
-            # size_ls = np.arange(0, max_size, max_size / len(state[1:, 1]))
-            from scipy.interpolate import make_interp_spline
-            x_axis_state = [index for index in range (state.shape[0])]
-            x_axis_state = np.asarray(x_axis_state)
-            data_spline_state = make_interp_spline(x_axis_state, state)
-            x_state = np.linspace(x_axis_state.min(), x_axis_state.max(), 100)
-            y_state = data_spline_state(x_state)
-            fig = plt.figure(figsize=(10, 8), constrained_layout=True)
-            ax = fig.add_subplot(111, projection='3d')
-            ax.plot(y_state[:, 1],
-                    y_state[:, 0],
-                    y_state[:, 2],
-                    label=f"actual trajectory",
-                    color="tab:green",
-                    marker='.')
-
-            x_axis_pred = [index for index in range (state.shape[0])]
-            x_axis_pred = np.asarray(x_axis_pred)
-            data_spline_pred = make_interp_spline(x_axis_pred, pred)
-            x_pred = np.linspace(x_axis_pred.min(), x_axis_pred.max(), 100)
-            y_pred = data_spline_pred(x_pred)
-            ax.plot(y_pred[:, 1],
-                    y_pred[:, 0],
-                    y_pred[:, 2],
-                    label=f"predicted trajectory",
-                    color="tab:red",
-                    marker='.')
-
-            # ax.scatter3D(state[:, 1],
-            #             state[:, 0],
-            #             state[:, 2],
-            #             label='state trajectory',
-            #             s=size_ls,
-            #             c='tab:blue')
-            # ax.scatter3D(pred[:, 1],
-            #             pred[:, 0],
-            #             pred[:, 2],
-            #             label='predicted trajectory',
-            #             s=size_ls,
-            #             c='tab:orange')
-
-            ax.legend(loc=2)    
-            ax.set_xlabel('y-axis ', linespacing=3.2)
-            ax.set_ylabel('x-axis ', linespacing=3.2)
-            ax.set_zlabel('z-axis ', linespacing=3.2)
-            if self.params.controller_type == 'random_shooting':
-                fig.suptitle('Random shooting rollout: End-effector 3D Trajectory', fontsize=12)
-            elif self.params.controller_type == 'mppi':
-                     fig.suptitle('MPPI rollout: End-effector 3D trajectory', fontsize=12)
-            plt.savefig(f"{self.params.controller_type}_rollout.eps", dpi=1200, format='eps', bbox_inches='tight')
-            plt.close(fig)
-        
-        _vis_trajectory(pred_states, actual_state)

@@ -2,10 +2,10 @@
     "name": "mlp",
     "train": false,
     "finetune" : false,
-    "evaluate": true,
-    "visualize": true,
-    "rollout": true,
-    "mpc": false,
+    "evaluate": false,
+    "visualize": false,
+    "rollout": false,
+    "mpc": true,
     "dataset": {
         "name": "DemoDataset",
         "seed": 42,
@@ -133,7 +133,8 @@
     "task_type": {
         "reach": false,
         "easy_insertion": false,
-        "hard_insertion": true
+        "hard_insertion": true,
+        "get_goal_from_config": true
     },
     "reach_task_environment":{
         "initial_position": [0.307, -0.000, 0.45],

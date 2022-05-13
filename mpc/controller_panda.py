@@ -30,12 +30,12 @@ def mpc_controller(cfg):
     # create environment and log related params to mlflow
     env, experiment = build_env(cfg)
     params = (lambda d: SimpleNamespace(**d))(
-                dict(controller_type='random_shooting',
-                     horizon=1,
-                     max_step=200,
-                     num_sample_seq=500,
-                     rand_policy_angle_min=-0.02,
-                     rand_policy_angle_max=0.02,
+                dict(controller_type='mppi',
+                     horizon=20,
+                     max_step=250,
+                     num_sample_seq=50,
+                     rand_policy_angle_min=-0.03,
+                     rand_policy_angle_max=0.03,
                      rand_policy_hold_action=1,
                      task_type=experiment.name,
                      record_mpc_rollouts=cfg["record_rollouts"]["record_mpc_rollout"],
@@ -53,13 +53,15 @@ def mpc_controller(cfg):
     
     dyn_model = Dyn_Model(cfg, param_cb=param_cb)
     param_cb(dict(model=dyn_model.model))
-    print("stats", dyn_model.norm.get_stats())
     rand_policy = Policy_Random(env)
-    goal_pos, goal_orn = get_goal(cfg["dataset"]["root"])
-    print("goal_state ", goal_pos)
-    print("goal orn mat", goal_orn)
-    print("goal orn quat", (R.from_matrix(goal_orn)).as_quat())
-
+    if cfg["task_type"]["get_goal_from_config"]:
+        goal_pos = np.array(cfg["hard_insertion_environment"]["target_position"])
+        goal_orn_quat_ls = np.array(cfg["hard_insertion_environment"]["target_quaternion"])
+        goal_orn_quat_ls = goal_orn_quat_ls / np.linalg.norm(goal_orn_quat_ls)
+        goal_orn = R.from_quat(goal_orn_quat_ls).as_matrix()
+    else:
+        goal_pos, goal_orn = get_goal(cfg["dataset"]["root"])
+    
     goal_state = goal_pos, goal_orn
 
     mpc_rollout = MPCRollout(env,
@@ -78,12 +80,9 @@ def mpc_controller(cfg):
     num_eval_rollouts = 1
 
     for rollout_num in range(num_eval_rollouts):
-        # Note: In Robosuite simulation if you want to evaluate a particular goal, call env.reset with
-        # a reset_state where that reset_state dict has reset_pose, reset_vel,
-        # and reset_goal
         obs = env.reset()
 
-        # Get the initial global frame state of eef
+        # Get the initial state of eef
         robot_init_pos = np.copy(obs[:3])
         robot_init_force = np.copy(obs[3:6])
         robot_init_orn = np.copy(obs[6:15])
@@ -100,7 +99,7 @@ def mpc_controller(cfg):
 
 
 def build_env(cfg):
-    # create gazebo simulation environment
+    # create task environment
     rospy.init_node("panda_model_learning_rollout")
     ml_logdir = os.path.join(os.environ['HOME'], '.mlflow', 'mlruns')
     mlflow.set_tracking_uri('file:' + ml_logdir)

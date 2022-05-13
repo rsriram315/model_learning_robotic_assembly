@@ -18,25 +18,16 @@ def homogeneous_transform(data, r_noise=0.001, t_noise=0.1):
     # generate random homegeneous_matrix
     noisy_r = R.from_euler('zyx', np.random.normal(0, r_noise, size=3) * np.pi)
     rotation_matrix = noisy_r.as_matrix()
-    # rotation_matrix = np.identity(3) + np.random.normal(0, r_noise, size=3)
     translation = np.random.normal(0, t_noise, size=3)
 
     homogeneous_matrix = np.zeros((4, 4))
     homogeneous_matrix[:3, :3] = rotation_matrix
     homogeneous_matrix[:, -1] = np.hstack((translation, 1))
-    # print("np.hstack((data[:3], 1))", np.hstack((data[:3], 1)).shape)
-    # print("homogenous matrix", homogeneous_matrix)
     data[:3] = np.copy(homogeneous_matrix @
                        np.hstack((data[:3], 1)))[:3]
-
-    # print("(homogeneous_matrix @ np.hstack((data[:3], 1)))", (homogeneous_matrix @
-    #                    np.hstack((data[:3], 1))))
-
     data[6:] = (np.copy(data[6:].reshape(3, 3) @
                         homogeneous_matrix[:3, :3]).flatten())
-    
-    # print(" data[6:].reshape(3, 3) @ homogeneous_matrix[:3, :3]", data[6:].reshape(3, 3) @
-    #                     homogeneous_matrix[:3, :3])
+
     return data
 
 
@@ -70,11 +61,7 @@ class Normalization:
     Normalization of data, (x - min(x)) / (max(x) - min(x)).
     """
     def __init__(self, stats):
-        # # uncomment for reach task only
-        # self.stat_1 = stats["state_action_minimum"]
-        # self.stat_2 = stats["state_action_range"]
-        # self.stat_3 = stats["delta_state_min"]
-        # self.stat_4 = stats["delta_state_range"]
+
 
         self.stat_1 = stats["stat_1"]
         self.stat_2 = stats["stat_2"]
@@ -90,12 +77,6 @@ class Normalization:
         return array_min, array_range
 
     def get_stats(self):
-        # # uncomment for reach task only
-        # stats = {"state_action_minimum": self.stat_1,
-        #          "state_action_range": self.stat_2,
-        #          "delta_state_min": self.stat_3,
-        #          "delta_state_range": self.stat_4}
-
         stats = {"stat_1": self.stat_1,
                  "stat_2": self.stat_2,
                  "stat_3": self.stat_3,

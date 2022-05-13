@@ -28,9 +28,6 @@ class Policy_Random(object):
         if self.counter == 1:
             self.init_rot = R.from_matrix(curr_state[6:15].reshape(3,3))
             self.init_euler_angle = self.init_rot.as_euler('zyx')
-            # print("self.init_quat", self.init_rot.as_quat())
-            # print("self.init_euler_angle", self.init_rot.as_euler('zyx', degrees=True))
-            # print("self.init_rot_mat", self.init_rot.as_matrix().reshape(3,3))
 
         ############################
         # sample set point position

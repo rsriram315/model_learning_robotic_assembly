@@ -18,19 +18,9 @@ def get_goal(data_dir_name=None):
             goal_orn_quat_ls.append(np.array(
                 f['PandaStatePublisherarm_states']['tcp_pose_base'])[-1, 3:])
 
-    # manually change values for prototyping
-    # for easyinsertion 0.400, 0.376, 0.285 # hard insert 0.269, -0.412,  0.1825
-    # for reach 0.386, -0.008,  0.125
-    goal_pos = np.array([0.386, -0.008,  0.125])
-    # for easy insertion task 1, 0.25, 0.000, 0 # hard insert 0.984,  -0.168, -0.041,  0.006
-    # reach 1, 0, 0, 0
-    goal_orn_quat_ls = np.array([1, 0, 0, 0])
-    goal_orn_quat_ls = goal_orn_quat_ls / np.linalg.norm(goal_orn_quat_ls)
-    goal_orn = R.from_quat(goal_orn_quat_ls).as_matrix()
-    
     # get goal from demo data
-    # goal_pos = np.mean(goal_pos_ls, axis=0)
-    # goal_orn = R.from_quat(goal_orn_quat_ls).mean().as_matrix()
+    goal_pos = np.mean(goal_pos_ls, axis=0)
+    goal_orn = R.from_quat(goal_orn_quat_ls).mean().as_matrix()
 
     return goal_pos, goal_orn
 
