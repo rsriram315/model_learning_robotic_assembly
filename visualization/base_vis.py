@@ -7,10 +7,9 @@ from torch.utils.data import DataLoader
 
 from model import MLP
 from utils import prepare_device
-from dataloaders.dataset import DemoDataset
+from dataloaders.dataset_panda import DemoDataset
 from dataloaders.data_processor import Normalization, recover_rotation,\
                                        add_euler_angle
-
 
 class BaseVisualize:
     def __init__(self, cfg, vis_dir="saved/visualizations"):
@@ -70,26 +69,29 @@ class BaseVisualize:
             print(f"... Generated visualization for {fname}\n")
 
     def _vis_loss(self, loss, time, fname):
+        plt.rcParams.update({'font.size': 16})
         fig = plt.figure(figsize=(8, 4))
         ax = fig.add_subplot(111)
-        ax.set_title(f"overall average loss: {np.mean(loss)}")
+        ax.set_title(f"overall average loss: {np.mean(loss):0.3f}")
         ax.scatter(time, loss, s=2)
         ax.set_xlabel("time")
         ax.set_ylabel("average loss")
+        ax.grid(linestyle='dotted')
 
         plt.tight_layout()
-        plt.savefig(fname, dpi=200)
+        plt.savefig(fname, dpi=1200, format='svg', bbox_inches='tight')
         plt.close(fig)
 
     def _vis_axis(self, pred, target, time, fname, plot_mat=False):
+        plt.rcParams.update({'font.size': 16})
         size = 1
         if plot_mat:
             features = ['pos', 'force', 'matrix R row 1', 'matrix R row 2',
                         'matrix R row 3', 'euler angles']
             figsize = (25, 20)
         else:
-            features = ['pos', 'force', 'euler angles']
-            figsize = (20, 10)
+            features = ['Position', 'Force', 'Euler angle']
+            figsize = (20, 12)
         axis = ['x', 'y', 'z']
 
         rows = len(features)
@@ -114,42 +116,56 @@ class BaseVisualize:
                                   s=size,
                                   c='tab:orange',
                                   label="predictions")
-                axs[r, c].set_title(f'{feature} {ax} axis')
-                axs[r, c].legend()
-                if c == 0:
-                    axs[r, c].set_ylabel('coordinate')
+                # axs[r, c].set_title(f'{feature} {ax}-axis', fontsize=28)
+                axs[r, c].legend(fontsize='medium')
+                axs[r, c].grid(linestyle='dotted')
+                if r == 0 and c == 0:
+                    axs[r, c].set_title(f'{ax}-axis', fontsize=24)
+                if r == 0 and c == 1:
+                    axs[r, c].set_title(f'{ax}-axis', fontsize=24)
+                if r == 0 and c == 2:
+                    axs[r, c].set_title(f'{ax}-axis', fontsize=24)
+                if r == 0 and c == 0:
+                    axs[r, c].set_ylabel('Position [mm]', fontsize=24)
+                if r == 1 and c == 0:
+                    axs[r, c].set_ylabel('Force [N]', fontsize=24)
+                if r == 2 and c == 0:
+                    axs[r, c].set_ylabel('Euler angle [rad]', fontsize=24)
                 if r == rows - 1:
-                    axs[r, c].set_xlabel('time')
-        plt.tight_layout()
-        plt.savefig(fname, dpi=200)
+                    axs[r, c].set_xlabel('Time [s]', fontsize=24)
+        # plt.tight_layout()
+        plt.savefig(f"{fname}.eps", dpi=1200, format='eps', bbox_inches='tight')
         plt.close(fig)
 
     def _vis_trajectory(self, pred, state, fname):
-        fig = plt.figure(figsize=(8, 8))
+        plt.rcParams.update({'font.size': 14})
+        fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(111, projection='3d')
         max_size = 10
         size_ls = np.arange(0, max_size, max_size / len(state[1:, 1]))
 
-        ax.scatter3D(state[:, 1],
+        ax.scatter(state[:, 1],
                      state[:, 0],
                      state[:, 2],
                      label='state trajectory',
                      s=size_ls,
                      c='tab:blue')
-        ax.scatter3D(pred[:, 1],
+        ax.scatter(pred[:, 1],
                      pred[:, 0],
                      pred[:, 2],
                      label='predicted trajectory',
                      s=size_ls,
                      c='tab:orange')
-
-        ax.set_xlabel('Y')
-        ax.set_ylabel('X')
-        ax.set_zlabel('Z')
-        ax.legend()
-
+        ax.xaxis.labelpad=30
+        ax.yaxis.labelpad=30
+        ax.zaxis.labelpad=30
+        ax.set_xlabel('Y', linespacing=3.2)
+        ax.set_ylabel('X', linespacing=3.2)
+        ax.set_zlabel('Z', linespacing=3.2)
+        ax.legend(fontsize='small')
+        ax.grid(linestyle='dotted')
         plt.tight_layout()
-        plt.savefig(fname, dpi=200)
+        plt.savefig(fname, dpi=1200, format='svg')
         plt.close(fig)
 
     def _recover_data(self, pred, state):
@@ -180,8 +196,8 @@ class BaseVisualize:
                 states.extend(state_action[:, None, :15].numpy())
                 # targets.extend(target[:, None, :].numpy())
 
-                state_action, target = (state_action.to('cuda'),
-                                        target.to('cuda'))
+                state_action, target = (state_action.to(self.device),
+                                        target.to(self.device))
                 output = model(state_action)
                 loss = criterion(output, target)
                 loss = torch.mean(loss, axis=1)
@@ -215,7 +231,8 @@ class BaseVisualize:
 
         # build model architecture, then print to console
         model = MLP(model_cfg["input_dims"],
-                    model_cfg["output_dims"])
+                    model_cfg["output_dims"],
+                    self.device)
         model.load_state_dict(ckpt["state_dict"])
 
         model = model.to(self.device)

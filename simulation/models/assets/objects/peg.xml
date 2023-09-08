@@ -7,7 +7,7 @@
         <body>
             <!-- <body name="object" pos="0 0 0.097"> -->
             <body name="object" pos="0 0 0">
-                <geom pos="0 0 0" size="0.01 0.05" type="cylinder" group="1" euler="0 0 0" priority="1" condim="6" friction="0.8 0.05 0.001" solimp="0.9 0.95 0.001 0.5 2" solref="0.02 1." material="smetal"/>
+                <geom pos="0 0 0" size="0.01 0.13" type="cylinder" group="1" euler="0 0 0" priority="1" condim="6" friction="0.8 0.05 0.001" solimp="0.9 0.95 0.001 0.5 2" solref="0.02 1." material="smetal"/>
             </body>
             <!-- <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.05" name="bottom_site"/>
             <site rgba="0 0 0 0" size="0.005" pos="0 0 0.05" name="top_site"/>

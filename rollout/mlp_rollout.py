@@ -77,8 +77,8 @@ class MLPRollout(MLPVisualize):
                 ro_states.append(np.copy(state_action[None, :15]))
 
                 # batch_size x 15
-                state_action = torch.tensor(state_action[None, ...]).to('cuda')
-                target = torch.tensor(target[None, ...]).to('cuda')
+                state_action = torch.tensor(state_action[None, ...]).to(self.device)
+                target = torch.tensor(target[None, ...]).to(self.device)
                 output = model(state_action)  # predicted difference
 
                 # get rollout prediction in the correct scale

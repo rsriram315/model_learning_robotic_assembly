@@ -3,7 +3,7 @@ from pathlib import Path
 from abc import abstractclassmethod
 from functools import partial
 from torch.utils.tensorboard.writer import SummaryWriter
-
+import atexit
 from utils.logger import write_log
 
 
@@ -16,11 +16,14 @@ class BaseTrainer:
                  metric_fns,
                  optimizer,
                  dataset_stats,
-                 trainer_cfg):
+                 dataset_cfg,
+                 trainer_cfg,
+                 resume_path):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
-
+        self.dataset_cfg = dataset_cfg
+        self.trainer_cfg = trainer_cfg
         self.num_epochs = trainer_cfg["num_epochs"]
 
         self.ckpts_dir = Path(trainer_cfg["ckpts_dir"])
@@ -32,12 +35,17 @@ class BaseTrainer:
         self.write_log = partial(write_log, trainer_cfg["log_file"])
 
         self.dataset_stats = dataset_stats
-
+        self.start_epoch = 1
         self.save_period = trainer_cfg["save_period"]
         if trainer_cfg["tb_dir"] is not None:
             tb_dir = Path(trainer_cfg["tb_dir"])
             self.train_tb_writer = SummaryWriter(tb_dir / "train")
             self.val_tb_writer = SummaryWriter(tb_dir / "val")
+        
+        atexit.register(self.cleanup)
+        
+        if resume_path:
+            self._resume_checkpoint(Path(resume_path))
 
     @abstractclassmethod
     def _train_epoch(self, epoch):
@@ -59,6 +67,11 @@ class BaseTrainer:
         """
         raise NotImplementedError
 
+
+    def cleanup(self):
+        self.train_tb_writer.close()
+        self.val_tb_writer.close()
+
     def train(self):
         """
         full training logic
@@ -71,7 +84,7 @@ class BaseTrainer:
         best_val_loss = None
         patience_count = 0
 
-        for epoch in range(1, self.num_epochs + 1):
+        for epoch in range(self.start_epoch, self.start_epoch + self.num_epochs):
             result = self._train_epoch(epoch)
 
             # save logged informations into log dict
@@ -91,7 +104,7 @@ class BaseTrainer:
 
             # early stopping
             if self.early_stop:
-                if epoch == 1:
+                if epoch == self.start_epoch:
                     best_val_loss = val_log["loss"]
                 elif val_log["loss"] <= best_val_loss:
                     best_val_loss = val_log["loss"]
@@ -125,7 +138,8 @@ class BaseTrainer:
             'epoch': epoch,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'dataset_stats': self.dataset_stats
+            'dataset_stats': self.dataset_stats,
+            'model': self.model,
         }
         fname = self.ckpts_dir / f'ckpt-epoch{epoch}.pth'
         torch.save(state, fname)
@@ -136,11 +150,19 @@ class BaseTrainer:
         Resume from saved checkpoints
         :param resume_path: Checkpoint path to be resumed
         """
-        resume_path = str(resume_path)
+        # resume_path = str(resume_path)
+        resume_path = self._find_ckpt(resume_path)
+        self.write_log(f"... Loading Checkpoint: {resume_path}\n")
         ckpt = torch.load(resume_path)
+        self.start_epoch = ckpt['epoch'] + 1
         self.model.load_state_dict(ckpt['state_dict'])
-
-        self.optimizer.load_state_dict(ckpt['optimizer'])
+        # this is commented out since we want a differnt optimizer when finetuning 
+        # self.optimizer.load_state_dict(ckpt['optimizer'])
 
         self.write_log(f"Checkpoint loaded. "
                        f"Resume training from epoch {self.start_epoch}")
+
+    def _find_ckpt(self, ckpt_dir):
+        ckpt_dir = Path(ckpt_dir)
+        ckpt_pths = [pth for pth in list(ckpt_dir.glob("*.pth"))]
+        return ckpt_pths[0]

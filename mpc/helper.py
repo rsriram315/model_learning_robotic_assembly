@@ -4,11 +4,11 @@ from pathlib import Path
 from scipy.spatial.transform import Rotation as R
 
 
-def get_goal(data_dir_name="/home/paj7rng/amira_ML/data"):
+def get_goal(data_dir_name=None):
     data_dir = Path(data_dir_name)
     recording_ls = list(data_dir.glob("*.h5"))
 
-    # get goal pos only
+    # get goal position and orientation from data
     goal_pos_ls = []
     goal_orn_quat_ls = []
     for recording in recording_ls:
@@ -18,6 +18,7 @@ def get_goal(data_dir_name="/home/paj7rng/amira_ML/data"):
             goal_orn_quat_ls.append(np.array(
                 f['PandaStatePublisherarm_states']['tcp_pose_base'])[-1, 3:])
 
+    # get goal from demo data
     goal_pos = np.mean(goal_pos_ls, axis=0)
     goal_orn = R.from_quat(goal_orn_quat_ls).mean().as_matrix()
 
@@ -46,16 +47,15 @@ def calculate_costs(resulting_states_ls, goal, cost_fn):
     ###########################################################
     # calculate costs associated with each predicted trajectory
     ###########################################################
-
     #init vars for calculating costs
     horizon, num_sample_seq, _ = resulting_states_ls.shape
-
+ 
     # accumulate cost over each timestep
     costs = []
     for traj in range(num_sample_seq):
         cost = 0
-        for h in range(horizon-1, 0, -1):
-            cost = cost_fn(resulting_states_ls[h, traj, :], goal) + 0.9 * cost
+        for h in range(horizon-1, -1, -1):
+            cost = cost_fn(resulting_states_ls[h, traj, :], goal) + (0.9 * cost)
         costs.append(cost)
 
     return np.array(costs)

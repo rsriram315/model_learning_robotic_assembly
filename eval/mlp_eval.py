@@ -5,12 +5,14 @@ from pathlib import Path
 from tqdm import tqdm
 from functools import partial
 
+from zmq.backend import device
+
 from model import MLP, MCDropout
 from dataloaders import DemoDataLoader
 from dataloaders.dataset import DemoDataset
 from utils import prepare_device
 from utils.logger import write_log
-
+from utils.geodesic_loss import GeodesicLoss
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.enabled = True
 
@@ -29,22 +31,30 @@ class Evaluate:
             ckpt_pth = self.cfg["eval"]["ckpt_pth"]
 
         self.model, self.cfg = self._build_model(self.cfg,
-                                                 ckpt_pth)
+                                                 ckpt_pth,)
 
         self.dataloader, self.demo_fnames =\
             self._load_demos(self.cfg["dataset"], self.cfg["dataloader"])
 
     def evaluate(self):
-        criterion = torch.nn.MSELoss(reduction='mean')
-
+        if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
+            criterion = (torch.nn.MSELoss(reduction='mean'), GeodesicLoss(reduction='mean'))
+        elif self.cfg["trainer"]["criterion"] == "MSE":
+            criterion = torch.nn.MSELoss(reduction='mean')
         losses = []
         with torch.no_grad():
             for state_action, target in tqdm(self.dataloader):
                 state_action, target = (state_action.to(self.device),
                                         target.to(self.device))
                 output = self.model(state_action)
-
-                loss = criterion(output, target)
+                
+                if self.cfg["trainer"]["criterion"] == "Geodesic_MSE":
+                    criterion_1, criterion_2 = criterion
+                    loss = 1 * criterion_1(output[:6], target[:6])
+                    loss += 1 * criterion_2(output[:, 6:].reshape(-1,3,3), target[:, 6:].reshape(-1,3,3))
+                elif self.cfg["trainer"]["criterion"] == "MSE":
+                    loss = criterion(output, target)
+                
                 losses.append(loss.item())
 
         self.eval_log(f"... Total test samples is "
@@ -85,10 +95,12 @@ class Evaluate:
         # build model architecture, then print to console
         if model_cfg["name"] == "MLP":
             model = MLP(model_cfg["input_dims"],
-                        model_cfg["output_dims"])
+                        model_cfg["output_dims"],
+                        self.device)
         elif model_cfg["name"] == "MCDropout":
             model = MCDropout(model_cfg["input_dims"],
-                              model_cfg["output_dims"])
+                              model_cfg["output_dims"],
+                              self.device)
         print(model)
 
         # load model checkpoint
