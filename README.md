@@ -36,3 +36,11 @@ The feedback controller is formulated by solving the above optimization problem 
 The first element of the optimal sequence, $a_t$ is executed on the system. Then, the system transitions to the next state $s_{t+1}$ and the optimal control sequence is recomputed again over the horizon $H$.
 
 Two controllers available are Random Shooting and Model Predictive Path Integral(MPPI)
+### Random Shooting
+Random shooting is a sampling based optimization method that generates random sequences of
+candidate samples for evaluation.  First, $N$ candidate action sequences each containing $H$ random actions are sampled to form a sequence $A_k = (a^k_0,\ldots,a^k_{H-1}) ,\forall k\in N$ from some distribution like Gaussian or uniform distribution. For these actions next states are estimated through the dynamics model and cost is computed. Trajectory with the least cost is selected and executed on the environment.
+![Random Shooting Control Loop](images/random_shooting.jpg)
+
+### Model Predictive Path Integral
+MPPI is based on importance sampling with a smoother update rule that aggregates the samples to compute the update. Instead of directly sampling candidate action sequences from a Gaussian, this method uses a filtering technique to compute smooth candidate control sequences.
+![Model Predictive Path Integral Control Loop](images/MPPI.jpg)
