@@ -1,6 +1,10 @@
-# Model Learning
+# Learning a Model from demonstration for Robotic Assembly
 
-## MLP based
+
+https://github.com/rsriram315/model_learning_robotic_assembly/assets/69318029/f157a87c-412d-4b08-9fe8-67f98dc03ff1
+
+
+## Neural Network (MLP) used as model for learning the dynamics during insertion
 
 ### Training
 
@@ -17,7 +21,7 @@ Multi-layer perceptrons, two hidden layers with 500 neurons per layer.
 
 Supervised training minimizes the model's error $E(\theta)$ for a training dataset $\mathcal{D}\_\text{TRAIN}$ by using stochastic gradient descent with Adam optimizer for weight update as follows,
 ```math
-E(\theta) = \frac{1}{|\mathcal{D}\_\text{TRAIN}|} \sum_{(s_t,a_t,s_{t+1})\in \mathcal{D}\_\text{TRAIN}}\frac{1}{2}\|s_{t+1}-\hat{s}\_{t+1}\|\_{\text{pos,force}}^2  + \mathcal{G}(s_{t+1}-\hat{s}\_{t+1})_{\text{rot}}
+E(\theta) = \frac{1}{|\mathcal{D}_\text{TRAIN}|} \sum_{(s_t,a_t,s_{t+1})\in \mathcal{D}_\text{TRAIN}}\frac{1}{2}\|s_{t+1}-\hat{s}\_{t+1}\|_{\text{pos,force}}^2  + \mathcal{G}(s_{t+1}-\hat{s}_{t+1})_{\text{rot}}
 ```
 where, indices $\text{pos}$, $\text{rot}$ and $\text{force}$ denote position, rotation and force. $\mathcal{G}$ is the geodesic loss that computes rotational distance.  
 
@@ -25,7 +29,7 @@ where, indices $\text{pos}$, $\text{rot}$ and $\text{force}$ denote position, ro
 
 Using the dynamics model and cost function, the discounted receding horizon cost-to-go $J$ for executing a sequence of $H$ actions in the environment is computed by the following equation,  
 ```math
-J =  r(s_t,a_t)+ \gamma r(s_{t+1},a_{t+1})+ ... +\gamma^H r(s_{t+H},a_{t+H}) =  \sum_{k=0}^H \gamma^{k}r({s}\_{t+k},a_{t+k})
+J =  r(s_t,a_t)+ \gamma r(s_{t+1},a_{t+1})+ ... +\gamma^H r(s_{t+H},a_{t+H}) =  \sum_{k=0}^H \gamma^{k}r({s}_{t+k},a_{t+k})
 ```
 The optimal control sequence at each time step is computed by optimizing the following equation,  
 ```math
@@ -39,7 +43,7 @@ Two controllers available are Random Shooting and Model Predictive Path Integral
 ### Random Shooting
 Random shooting is a sampling based optimization method that generates random sequences of
 candidate samples for evaluation.  First, $N$ candidate action sequences each containing $H$ random actions are sampled to form a sequence $A_k = (a^k_0,\ldots,a^k_{H-1}) ,\forall k\in N$ from some distribution like Gaussian or uniform distribution. For these actions next states are estimated through the dynamics model and cost is computed. Trajectory with the least cost is selected and executed on the environment.
-<<p align="center">>
+<p align="center">
     <img src="images/random_shooting_control_loop.jpg" align="center" height="700" width="500">
 </p>
 
